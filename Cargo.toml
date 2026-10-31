@@ -1,0 +1,25 @@
+[package]
+name = "eh3d-stencilcam"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.75"
+description = "Solder paste stencils from the paste layer of a board: shrunk and rounded openings, laser kerf compensation, ratio checks and G-code or HP-GL cutting paths"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/JuanenRac/EH3D-STENCILCAM"
+readme = "README.md"
+
+[lib]
+name = "eh3d_stencilcam"
+path = "src/lib.rs"
+
+[[bin]]
+name = "eh3d-stencilcam"
+path = "src/main.rs"
+
+[dependencies]
+# the Gerber reader of the suite (a path dependency on the sibling repository)
+eh3d-parser-gerber = { path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
+
+[profile.release]
+opt-level = 3
+lto = true

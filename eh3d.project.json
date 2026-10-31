@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "ecosystem": "EH3D",
+  "name": "EH3D-STENCILCAM",
+  "version": "0.0.1",
+  "role": "tool",
+  "stack": "rust",
+  "technologies": [
+    "Rust",
+    "Gerber RS-274X",
+    "G-code",
+    "HP-GL"
+  ],
+  "deployment_target": "user-pc",
+  "maturity": "scaffolding",
+  "evidence": "host-test",
+  "hardware_bound": false,
+  "family": "CNC Workflow Tools",
+  "parent": null,
+  "build": "cargo build --release; cargo test",
+  "notes": "Scaffolding v0.0.1: a library and a command line that turn the pads of a paste layer (read with the Gerber reader of EH3D-CORE-LIBS) into the openings of a solder paste stencil: each is shrunk by a percentage for the material, rounded, reduced by the kerf of the laser, checked against the aspect and area ratios that decide whether the paste leaves the opening, and written as G-code for a laser or HP-GL for a plotter, mirrored for the bottom side if asked. Polygon and macro pads and tracks are not turned into openings; nothing has been cut.",
+  "native_version": {
+    "file": "Cargo.toml",
+    "pattern": "^version\\s*=\\s*\"(\\d+\\.\\d+\\.\\d+)\""
+  }
+}

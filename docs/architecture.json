@@ -1,0 +1,131 @@
+{
+  "repo": "EH3D-STENCILCAM",
+  "ecosystem": "eh3d",
+  "tagline": "A paste layer in, a stencil to cut out.",
+  "description": "EH3D-STENCILCAM is a Rust library and command line that turn the pads of a paste layer, read with EH3D-CORE-LIBS, into the openings of a solder paste stencil and write them as G-code or HP-GL.",
+  "columns": [
+    "WHO USES IT",
+    "THIS REPOSITORY",
+    "WHAT IT DEPENDS ON"
+  ],
+  "nodes": [
+    {
+      "id": "person",
+      "column": 0,
+      "level": "external",
+      "title": "A person",
+      "lines": [
+        "has a paste layer and a laser",
+        "or a plotter"
+      ]
+    },
+    {
+      "id": "laser",
+      "column": 0,
+      "level": "config",
+      "title": "LASER-CAM",
+      "lines": [
+        "planned: the cutting paths",
+        "will share its laser settings"
+      ]
+    },
+    {
+      "id": "openings",
+      "column": 1,
+      "level": "tested",
+      "title": "openings",
+      "lines": [
+        "pads to openings, shrink,",
+        "kerf and the paste ratios"
+      ],
+      "code": [
+        "src/openings.rs::pub fn from_gerber",
+        "src/openings.rs::pub fn weak"
+      ]
+    },
+    {
+      "id": "output",
+      "column": 1,
+      "level": "tested",
+      "title": "output",
+      "lines": [
+        "rounded paths, G-code and",
+        "HP-GL"
+      ],
+      "code": [
+        "src/output.rs::pub fn gcode",
+        "src/output.rs::pub fn hpgl"
+      ]
+    },
+    {
+      "id": "profile",
+      "column": 1,
+      "level": "tested",
+      "title": "profile",
+      "lines": [
+        "Mylar, Kapton and steel as",
+        "starting points"
+      ],
+      "code": [
+        "src/profile.rs::pub struct Profile"
+      ]
+    },
+    {
+      "id": "libs",
+      "column": 2,
+      "level": "external",
+      "title": "EH3D-CORE-LIBS",
+      "lines": [
+        "the Gerber reader"
+      ],
+      "code": [
+        "Cargo.toml::eh3d-parser-gerber"
+      ]
+    },
+    {
+      "id": "files",
+      "column": 2,
+      "level": "external",
+      "title": "The paste layer",
+      "lines": [
+        "a .gtp or .gbp file from the",
+        "CAD program"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "person",
+      "to": "openings",
+      "label": "check",
+      "level": "tested"
+    },
+    {
+      "from": "person",
+      "to": "output",
+      "level": "tested"
+    },
+    {
+      "from": "laser",
+      "to": "output",
+      "label": "planned",
+      "level": "config"
+    },
+    {
+      "from": "openings",
+      "to": "libs",
+      "level": "tested"
+    },
+    {
+      "from": "openings",
+      "to": "files",
+      "level": "tested"
+    }
+  ],
+  "legend": {
+    "tested": "covered by tests on a computer (13 tests)",
+    "config": "planned, not used today",
+    "external": "a person, a file or another repository"
+  },
+  "footer": "No stencil has been cut with this yet."
+}
