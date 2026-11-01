@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Each dependency on a sibling repository by path says the version it needs** (`version = ">=0.0.1", path = "../EH3D-..."`), so Cargo stops at once when the sibling next to this one is older than the program expects.
 - **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it; before, it was ignored and the output was made with the default values.
 - **`convert` refuses an incomplete stencil:** when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) the file is not written unless `--force` is given.
 

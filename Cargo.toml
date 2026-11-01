@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 # the Gerber reader of the suite (a path dependency on the sibling repository)
-eh3d-parser-gerber = { path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
+eh3d-parser-gerber = { version = ">=0.0.2", path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
 
 [profile.release]
 opt-level = 3
