@@ -16,7 +16,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
-area ratio under 0.66) unless --force is given. --mirror is for the stencil of the bottom side.";
+area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
 
 fn flag(args: &mut Vec<String>, name: &str) -> Result<Option<String>, String> {
     if let Some(i) = args.iter().position(|a| a == name) {
@@ -100,6 +100,13 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
     for n in &notes {
         eprintln!("note: {n}");
+    }
+    // a stencil that leaves out pads is not the stencil of the board: it is written only when it is asked for
+    if cmd == "convert" && !notes.is_empty() && !force {
+        return Err(format!(
+            "{} part(s) of the layer cannot become openings (see the notes above): the stencil would be incomplete; use --force to write it anyway",
+            notes.len()
+        ));
     }
     let shown: Vec<_> = openings
         .iter()

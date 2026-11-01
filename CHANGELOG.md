@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **`convert` refuses an incomplete stencil:** when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) the file is not written unless `--force` is given.
+
 ## [0.0.1] - Solder paste stencils from the paste layer: openings, ratio checks and cutting paths
 
 - **The openings:** the pads of the paste layer in millimetres, shrunk by the percentage of the material, with the cut line reduced by the kerf of the laser; a stencil for the bottom side can be mirrored.
