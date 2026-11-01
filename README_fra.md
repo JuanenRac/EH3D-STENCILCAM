@@ -58,6 +58,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Les ouvertures** (`src/openings.rs`) : chaque pastille flashée dans la couche de pâte (rectangulaire, ronde ou oblongue, en millimètres quelles que soient les unités du fichier) est une ouverture ; elle est réduite du pourcentage du matériau et la ligne de coupe est rendue plus petite du kerf du laser pour que le trou ait la taille demandée. Un pochoir pour la face inférieure peut être inversé en miroir.
 * **Les rapports** (`src/openings.rs`) : le rapport d'aspect (le petit côté sur l'épaisseur de la feuille, au moins 1,5) et le rapport de surface (la surface de l'ouverture sur celle de ses parois, au moins 0,66) disent si la pâte quittera l'ouverture ; une ouverture qui échoue est signalée avec sa position et `convert` refuse d'écrire tant qu'on ne l'a pas regardée (ou `--force`).
 * **Les trajets** (`src/output.rs`, `src/profile.rs`) : rectangles arrondis, cercles et oblongs en trajets fermés dans l'ordre d'un parcours au plus proche ; G-code pour un laser à puissance constante, éteint pendant les déplacements, ou HP-GL à 40 unités au millimètre ; profils Mylar, Kapton et acier avec épaisseur, réduction, rayon de coin et kerf comme points de départ.
+* **Un pochoir incomplet n'est pas écrit :** `convert` refuse d'écrire le fichier quand la couche a des pastilles, des pistes ou des régions qui ne peuvent pas devenir des ouvertures (polygones, macros, régions), sauf avec `--force`.
 
 ## 🧩 Rôle dans EH3D
 

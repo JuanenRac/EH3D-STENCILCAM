@@ -58,6 +58,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Die Öffnungen** (`src/openings.rs`): Jedes in der Pastenlage geflashte Pad (rechteckig, rund oder oval, in Millimetern, egal in welchen Einheiten die Datei steht) ist eine Öffnung; sie wird um den Prozentsatz des Materials verkleinert, und die Schnittlinie wird um die Schnittbreite des Lasers kleiner, damit das Loch die gewünschte Größe hat. Eine Schablone für die Unterseite kann gespiegelt werden.
 * **Die Verhältnisse** (`src/openings.rs`): Das Seitenverhältnis (die kleine Seite durch die Blechdicke, mindestens 1,5) und das Flächenverhältnis (Öffnungsfläche durch Wandfläche, mindestens 0,66) sagen, ob die Paste die Öffnung verlässt; eine durchfallende Öffnung wird mit ihrer Position gemeldet, und `convert` schreibt nichts, bis man sie angesehen hat (oder `--force`).
 * **Die Pfade** (`src/output.rs`, `src/profile.rs`): abgerundete Rechtecke, Kreise und Ovale als geschlossene Pfade in der Reihenfolge eines Nächster-zuerst-Wegs; G-Code für einen Laser mit konstanter Leistung, beim Verfahren aus, oder HP-GL mit 40 Einheiten je Millimeter; Profile für Mylar, Kapton und Stahl mit Dicke, Verkleinerung, Eckenradius und Schnittbreite als Startwerten.
+* **Eine unvollständige Schablone wird nicht geschrieben:** `convert` verweigert das Schreiben, wenn die Ebene Pads, Leiterbahnen oder Regionen enthält, die keine Öffnungen werden können (Polygone, Makros, Regionen), außer mit `--force`.
 
 ## 🧩 Rolle in EH3D
 

@@ -58,6 +58,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **The openings** (`src/openings.rs`): every pad flashed in the paste layer (rectangular, round or obround, in millimetres whatever the units of the file) is an opening; it is shrunk by the percentage of the material, and the cut line is made smaller by the kerf of the laser so that the hole comes out the size that was asked. A stencil for the bottom side can be mirrored.
 * **The ratios** (`src/openings.rs`): the aspect ratio (the small side over the thickness of the sheet, at least 1.5) and the area ratio (the area of the opening over the area of its walls, at least 0.66) say whether the paste will leave the opening; an opening that fails is reported with its position, and `convert` refuses to write until it is looked at (or `--force`).
 * **The paths** (`src/output.rs`, `src/profile.rs`): rounded rectangles, circles and obrounds as closed paths in the order of a nearest-first walk; G-code for a laser at constant power with the laser off while travelling, or HP-GL at 40 units to the millimetre; profiles for Mylar, Kapton and steel with their thickness, shrink, corner radius and kerf as starting points.
+* **An incomplete stencil is not written:** `convert` refuses to write the file when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) unless `--force` is given.
 
 ## 🧩 Role in EH3D
 

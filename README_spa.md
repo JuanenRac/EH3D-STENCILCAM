@@ -58,6 +58,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Las aperturas** (`src/openings.rs`): cada pad destellado en la capa de pasta (rectangular, redondo u ovalado, en milímetros sean cuales sean las unidades del fichero) es una apertura; se reduce por el porcentaje del material y la línea de corte se hace más pequeña por el kerf del láser para que el agujero salga del tamaño pedido. Una plantilla para la cara inferior puede reflejarse.
 * **Las proporciones** (`src/openings.rs`): la relación de aspecto (el lado pequeño entre el grosor de la lámina, al menos 1,5) y la relación de área (el área de la apertura entre el área de sus paredes, al menos 0,66) dicen si la pasta saldrá de la apertura; una apertura que falla se indica con su posición y `convert` se niega a escribir hasta que se mire (o `--force`).
 * **Las trayectorias** (`src/output.rs`, `src/profile.rs`): rectángulos redondeados, círculos y óvalos como trayectorias cerradas en el orden de un recorrido al más cercano; G-code para un láser a potencia constante con el láser apagado al desplazarse, o HP-GL a 40 unidades por milímetro; perfiles de Mylar, Kapton y acero con su grosor, reducción, radio de esquina y kerf como puntos de partida.
+* **No se escribe una plantilla incompleta:** `convert` se niega a escribir el fichero cuando la capa tiene pads, pistas o regiones que no pueden ser aberturas (polígonos, macros, regiones), salvo que se dé `--force`.
 
 ## 🧩 Papel en EH3D
 

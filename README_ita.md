@@ -58,6 +58,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Le aperture** (`src/openings.rs`): ogni pad flashato nel livello di pasta (rettangolare, tondo od ovale, in millimetri qualunque siano le unità del file) è un'apertura; viene ridotta della percentuale del materiale e la linea di taglio è resa più piccola del kerf del laser perché il foro esca della misura chiesta. Uno stencil per il lato inferiore può essere specchiato.
 * **I rapporti** (`src/openings.rs`): il rapporto d'aspetto (il lato piccolo sullo spessore del foglio, almeno 1,5) e il rapporto d'area (l'area dell'apertura sull'area delle sue pareti, almeno 0,66) dicono se la pasta uscirà dall'apertura; un'apertura che non li rispetta è segnalata con la sua posizione e `convert` rifiuta di scrivere finché non la si guarda (o `--force`).
 * **I percorsi** (`src/output.rs`, `src/profile.rs`): rettangoli arrotondati, cerchi e ovali come percorsi chiusi nell'ordine di un giro al più vicino; G-code per un laser a potenza costante, spento negli spostamenti, o HP-GL a 40 unità al millimetro; profili per Mylar, Kapton e acciaio con spessore, riduzione, raggio degli angoli e kerf come punti di partenza.
+* **Una maschera incompleta non viene scritta:** `convert` rifiuta di scrivere il file quando lo strato ha pad, piste o regioni che non possono diventare aperture (poligoni, macro, regioni), salvo con `--force`.
 
 ## 🧩 Ruolo in EH3D
 
