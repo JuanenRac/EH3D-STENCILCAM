@@ -18,7 +18,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 13 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat noch kein Fenster, wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 17 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat noch kein Fenster, wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.1` |
 | Reifegrad | Gerüst |
-| Tests | 13 |
+| Tests | 17 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -47,7 +47,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 13 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
+| Tests | 🟡 | 17 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🔴 | Geplant: das egui-Fenster, das die Suite gemeinsam nutzt; heute gibt es nur die Kommandozeile. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -76,6 +76,7 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 ## ✨ Funktionen
 
 * **Bibliothek und Kommandozeile:** Jeder Befehl von `eh3d-stencilcam` ist eine Funktion der Bibliothek, sodass ein anderes Programm der Suite ihn ohne Prozessstart aufrufen kann.
+* **Strenge Kommandozeile:** Eine falsch geschriebene Option (`--powr`) oder ein überzähliges Wort ist ein Fehler, der sie nennt, und wird nicht ignoriert; sonst würde das Programm seine Ausgabe mit den Standardwerten erzeugen.
 * **Tests mit beschädigten Eingaben:** Die Tests füttern auch leere Dateien, Datenmüll, riesige Zahlen und abgeschnittene Dateien; keiner darf in Panik geraten.
 * **Kein Raten:** Ein unsinniger Wert ist ein Fehler, der sagt welcher und warum, nie ein Ergebnis, das nur richtig aussieht.
 * **Kein unsafe-Code:** `#![forbid(unsafe_code)]` in Bibliothek und Programm.
@@ -103,7 +104,8 @@ EH3D-STENCILCAM/
 │   ├── output.rs                                ein Teil der Logik
 │   └── profile.rs                               ein Teil der Logik
 ├── tests/
-│   └── stencil.rs                               Tests von Bibliothek und Kommandozeile
+│   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
+│   └── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
 ├── examples/
 │   └── paste.gtp                                ein Beispiel zum Ausprobieren
 ├── docs/
@@ -135,7 +137,7 @@ cargo run --release -- check examples/paste.gtp
 
 ## 🧪 Tests
 
-Die Suite hat 13 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 17 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -152,11 +154,20 @@ Die Version steht in `Cargo.toml` und in `eh3d.project.json`; jede Version hat i
 
 ```text
 EH3D-STENCILCAM/
-├── crates/
-│   ├── eh3d-parser-gerber/                      Gerber-RS-274X-Leser
-│   ├── eh3d-parser-excellon/                    Leser für Excellon-Bohrdateien
-│   └── eh3d-parser-gcode/                       G-Code-Leser und modaler Interpreter
-├── docs/                                        READERS.md, was jeder Leser verspricht und was nicht, und die Daten der beiden Bilder
+├── src/
+│   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
+│   ├── main.rs                                  die Kommandozeile
+│   ├── openings.rs                              ein Teil der Logik
+│   ├── output.rs                                ein Teil der Logik
+│   └── profile.rs                               ein Teil der Logik
+├── tests/
+│   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
+│   └── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+├── examples/
+│   └── paste.gtp                                ein Beispiel zum Ausprobieren
+├── docs/
+│   ├── architecture.json                        Daten des Architektur-Bildes
+│   └── structure.json                           Daten des Struktur-Bildes
 ├── tools/                                       CI-Prüfung, README-Prüfung und die Bildwerkzeuge
 ├── images/                                      Banner und die Bilder von Architektur und Repository-Struktur
 ├── .github/                                     CI- und Release-Workflows, Vorlagen für Issues und Pull Requests

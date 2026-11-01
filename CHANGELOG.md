@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it; before, it was ignored and the output was made with the default values.
 - **`convert` refuses an incomplete stencil:** when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) the file is not written unless `--force` is given.
 
 ## [0.0.1] - Solder paste stencils from the paste layer: openings, ratio checks and cutting paths
