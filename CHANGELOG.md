@@ -3,6 +3,8 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.3] - Openings from the Gerber viewer conversion
 - **The CI builds against the tag of each sibling:** the sibling repositories are read from `depends_on` of the manifest (the ones they need in turn included) and checked out at the tag the repository is built from, so a build does not move when a sibling changes; a separate job, `Siblings at main`, builds against the main branch of every sibling to show a break before the sibling is tagged and does not hold a merge.
 
 - **The layer is read from its bytes:** `--max-bytes N` refuses a file over the limit before it is looked at (256 MiB by default), and text that is not UTF-8 is read as Latin-1 with a warning, as the readers of the suite do.
