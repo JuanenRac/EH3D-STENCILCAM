@@ -41,6 +41,11 @@ jobs:
         with:
           repository: JuanenRac/EH3D-CORE-LIBS
           path: EH3D-CORE-LIBS
+      - name: Check out the sibling EH3D-GERBERVIEWER (a path dependency)
+        uses: actions/checkout@v5
+        with:
+          repository: JuanenRac/EH3D-GERBERVIEWER
+          path: EH3D-GERBERVIEWER
       - name: Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
       - name: Format

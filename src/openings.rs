@@ -1,7 +1,8 @@
 //! The openings of the stencil: one for every pad that the paste layer flashes.
 
 use crate::profile::Profile;
-use eh3d_parser_gerber::{Aperture, GerberFile, Operation, Units};
+use eh3d_gerberviewer::scene::{self, Shape};
+use eh3d_parser_gerber::GerberFile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Form {
@@ -20,56 +21,40 @@ pub struct Opening {
     pub form: Form,
 }
 
-/// The openings of a paste layer and what could not be turned into one (with the reason, once each).
+/// The openings of a paste layer and what could not be turned into one (with the reason, once each). The shapes come from the same conversion of apertures that the Gerber viewer
+/// of the suite uses: a circle, a rectangle or an obround pad is an opening; tracks and regions are not, and anything the conversion could not draw is a note.
 pub fn from_gerber(file: &GerberFile) -> (Vec<Opening>, Vec<String>) {
-    let k = file.units.unwrap_or(Units::Millimetres).to_mm(1.0);
-    let (mut out, mut notes) = (Vec::new(), Vec::new());
-    let note = |text: &str, notes: &mut Vec<String>| {
-        if !notes.iter().any(|n| n == text) {
-            notes.push(text.to_string());
+    let scene = scene::from_gerber(file);
+    let (mut out, mut notes) = (Vec::new(), scene.notes.clone());
+    let mut skipped = false;
+    for shape in &scene.shapes {
+        match *shape {
+            Shape::Disc { x, y, r } => out.push(Opening {
+                x,
+                y,
+                w: r * 2.0,
+                h: r * 2.0,
+                form: Form::Round,
+            }),
+            Shape::Rect { x, y, w, h } => out.push(Opening {
+                x,
+                y,
+                w,
+                h,
+                form: Form::Rectangle,
+            }),
+            Shape::Obround { x, y, w, h } => out.push(Opening {
+                x,
+                y,
+                w,
+                h,
+                form: Form::Obround,
+            }),
+            Shape::Stroke { .. } | Shape::Region { .. } => skipped = true,
         }
-    };
-    let mut current: Option<&Aperture> = None;
-    for c in &file.commands {
-        match &c.op {
-            Operation::SelectAperture(n) => current = file.apertures.get(n),
-            Operation::Flash { at } => {
-                let (x, y) = (at.x * k, at.y * k);
-                match current {
-                    Some(Aperture::Circle { diameter, .. }) => out.push(Opening {
-                        x,
-                        y,
-                        w: diameter * k,
-                        h: diameter * k,
-                        form: Form::Round,
-                    }),
-                    Some(Aperture::Rectangle { x: w, y: h, .. }) => out.push(Opening {
-                        x,
-                        y,
-                        w: w * k,
-                        h: h * k,
-                        form: Form::Rectangle,
-                    }),
-                    Some(Aperture::Obround { x: w, y: h, .. }) => out.push(Opening {
-                        x,
-                        y,
-                        w: w * k,
-                        h: h * k,
-                        form: Form::Obround,
-                    }),
-                    Some(_) => note(
-                        "a polygon or macro pad is not turned into an opening",
-                        &mut notes,
-                    ),
-                    None => note("a flash with no aperture selected is skipped", &mut notes),
-                }
-            }
-            Operation::Line { .. } | Operation::Arc { .. } | Operation::RegionStart => note(
-                "tracks and regions of a paste layer are not turned into openings",
-                &mut notes,
-            ),
-            _ => {}
-        }
+    }
+    if skipped {
+        notes.push("tracks and regions of a paste layer are not turned into openings".into());
     }
     out.retain(|o| o.w > 0.0 && o.h > 0.0);
     (out, notes)

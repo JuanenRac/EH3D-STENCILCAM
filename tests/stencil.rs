@@ -42,9 +42,12 @@ fn the_pads_of_the_paste_layer_become_openings_in_millimetres() {
 fn inches_and_what_is_not_a_pad_are_handled() {
     let text = "%FSLAX24Y24*%\n%MOIN*%\n%ADD10R,0.04X0.02*%\n%ADD11P,0.1X6*%\nD10*\nX10000Y10000D03*\nD11*\nX0Y0D03*\nX0Y0D02*\nX10000Y0D01*\nM02*\n";
     let (o, notes) = from_gerber(&eh3d_parser_gerber::parse(text));
-    assert_eq!(o.len(), 1);
+    // the polygon is drawn as a circle by the conversion of the suite, and it is said
+    assert_eq!(o.len(), 2);
     assert!((o[0].x - 25.4).abs() < 1e-9 && (o[0].w - 1.016).abs() < 1e-9);
+    assert_eq!((o[1].form, o[1].w), (Form::Round, 2.54));
     assert_eq!(notes.len(), 2, "{notes:?}");
+    assert!(notes.iter().any(|n| n.contains("polygon")), "{notes:?}");
     assert!(from_gerber(&eh3d_parser_gerber::parse("")).0.is_empty());
     assert_eq!(
         from_gerber(&eh3d_parser_gerber::parse(
