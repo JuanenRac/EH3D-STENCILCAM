@@ -18,7 +18,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 17 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Non ha ancora una finestra, non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 32 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Non ha ancora una finestra, non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versione | `0.0.2` |
 | Maturità | Impalcatura |
-| Test | 17 |
+| Test | 32 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -47,7 +47,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 17 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
+| Test | 🟡 | 32 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🔴 | Previsto: la finestra egui comune alla suite; oggi esiste solo la riga di comando. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -59,6 +59,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **I rapporti** (`src/openings.rs`): il rapporto d'aspetto (il lato piccolo sullo spessore del foglio, almeno 1,5) e il rapporto d'area (l'area dell'apertura sull'area delle sue pareti, almeno 0,66) dicono se la pasta uscirà dall'apertura; un'apertura che non li rispetta è segnalata con la sua posizione e `convert` rifiuta di scrivere finché non la si guarda (o `--force`).
 * **I percorsi** (`src/output.rs`, `src/profile.rs`): rettangoli arrotondati, cerchi e ovali come percorsi chiusi nell'ordine di un giro al più vicino; G-code per un laser a potenza costante, spento negli spostamenti, o HP-GL a 40 unità al millimetro; profili per Mylar, Kapton e acciaio con spessore, riduzione, raggio degli angoli e kerf come punti di partenza.
 * **Una maschera incompleta non viene scritta:** `convert` rifiuta di scrivere il file quando lo strato ha pad, piste o regioni che non possono diventare aperture (poligoni, macro, regioni), salvo con `--force`.
+* **Lo strato viene letto dai suoi byte:** `--max-bytes N` rifiuta un file oltre il limite (256 MiB di default); il testo che non è UTF-8 viene letto come Latin-1 con un avviso. Gli avvisi e gli errori del lettore sono stampati con il loro codice stabile e `--hide CODE[,CODE]` omette gli avvisi di quei codici; un errore del lettore conta come una parte persa dello strato, quindi `convert` rifiuta salvo con `--force`. Le aperture vengono dalla conversione delle aperture di EH3D-GERBERVIEWER, e un pad poligonale viene tagliato come un cerchio (con una nota, quindi anche questo `convert` lo rifiuta salvo con `--force`).
 
 ## 🧩 Ruolo in EH3D
 
@@ -100,10 +101,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la libreria: ciò che usa ogni comando
 │   ├── main.rs                                  la riga di comando
+│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
+│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── openings.rs                              una parte della logica
 │   ├── output.rs                                una parte della logica
 │   └── profile.rs                               una parte della logica
 ├── tests/
+│   ├── reading.rs                               test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice
+│   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
 │   └── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 ├── examples/
@@ -137,7 +142,7 @@ cargo run --release -- check examples/paste.gtp
 
 ## 🧪 Test
 
-La suite ha 17 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 32 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -157,10 +162,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la libreria: ciò che usa ogni comando
 │   ├── main.rs                                  la riga di comando
+│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
+│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── openings.rs                              una parte della logica
 │   ├── output.rs                                una parte della logica
 │   └── profile.rs                               una parte della logica
 ├── tests/
+│   ├── reading.rs                               test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice
+│   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
 │   └── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 ├── examples/
@@ -186,7 +195,7 @@ EH3D-STENCILCAM/
 
 * Non ha ancora una finestra: esistono solo la libreria e la riga di comando.
 * Non è stato provato su una macchina né con una raccolta di file reali e non ha avuto revisione indipendente.
-* I pad poligonali e macro e le piste del livello di pasta non diventano aperture, i profili dei materiali sono punti di partenza e non c'è taglio a più passate per un foglio d'acciaio.
+* I pad macro e le piste e le regioni del livello di pasta non diventano aperture (un pad poligonale viene tagliato come un cerchio), i profili dei materiali sono punti di partenza e non c'è taglio a più passate per un foglio d'acciaio.
 
 **Prossimi passi**
 

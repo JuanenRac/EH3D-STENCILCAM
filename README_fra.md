@@ -18,7 +18,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 17 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il n'a pas encore de fenêtre, n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 32 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il n'a pas encore de fenêtre, n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Maturité | Échafaudage |
-| Tests | 17 |
+| Tests | 32 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -47,7 +47,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 17 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées. |
+| Tests | 🟡 | 32 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🔴 | Prévu : la fenêtre egui commune à la suite ; aujourd'hui il n'y a que la ligne de commande. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -59,6 +59,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 * **Les rapports** (`src/openings.rs`) : le rapport d'aspect (le petit côté sur l'épaisseur de la feuille, au moins 1,5) et le rapport de surface (la surface de l'ouverture sur celle de ses parois, au moins 0,66) disent si la pâte quittera l'ouverture ; une ouverture qui échoue est signalée avec sa position et `convert` refuse d'écrire tant qu'on ne l'a pas regardée (ou `--force`).
 * **Les trajets** (`src/output.rs`, `src/profile.rs`) : rectangles arrondis, cercles et oblongs en trajets fermés dans l'ordre d'un parcours au plus proche ; G-code pour un laser à puissance constante, éteint pendant les déplacements, ou HP-GL à 40 unités au millimètre ; profils Mylar, Kapton et acier avec épaisseur, réduction, rayon de coin et kerf comme points de départ.
 * **Un pochoir incomplet n'est pas écrit :** `convert` refuse d'écrire le fichier quand la couche a des pastilles, des pistes ou des régions qui ne peuvent pas devenir des ouvertures (polygones, macros, régions), sauf avec `--force`.
+* **La couche est lue depuis ses octets :** `--max-bytes N` refuse un fichier au-dessus de la limite (256 MiB par défaut) ; le texte qui n'est pas en UTF-8 est lu comme du Latin-1 avec un avertissement. Les avertissements et erreurs du lecteur sont affichés avec leur code stable et `--hide CODE[,CODE]` omet les avis de ces codes ; une erreur du lecteur compte comme une partie perdue de la couche, donc `convert` refuse sauf avec `--force`. Les ouvertures viennent de la conversion des ouvertures de EH3D-GERBERVIEWER, et une pastille polygonale est découpée comme un cercle (avec une note, donc `convert` refuse aussi sauf avec `--force`).
 
 ## 🧩 Rôle dans EH3D
 
@@ -100,10 +101,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
 │   ├── main.rs                                  la ligne de commande
+│   ├── cli_args.rs                              les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire
+│   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
 │   ├── openings.rs                              une partie de la logique
 │   ├── output.rs                                une partie de la logique
 │   └── profile.rs                               une partie de la logique
 ├── tests/
+│   ├── reading.rs                               tests de lecture des fichiers : la limite de taille, le texte non UTF-8, les avis par code
+│   ├── readme.rs                                tests qui exécutent ce que promettent le README et les scripts run
 │   ├── stencil.rs                               tests de la bibliothèque et de la ligne de commande
 │   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 ├── examples/
@@ -137,7 +142,7 @@ cargo run --release -- check examples/paste.gtp
 
 ## 🧪 Tests
 
-La suite compte 17 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 32 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -157,10 +162,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la bibliothèque : ce que chaque commande utilise
 │   ├── main.rs                                  la ligne de commande
+│   ├── cli_args.rs                              les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire
+│   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
 │   ├── openings.rs                              une partie de la logique
 │   ├── output.rs                                une partie de la logique
 │   └── profile.rs                               une partie de la logique
 ├── tests/
+│   ├── reading.rs                               tests de lecture des fichiers : la limite de taille, le texte non UTF-8, les avis par code
+│   ├── readme.rs                                tests qui exécutent ce que promettent le README et les scripts run
 │   ├── stencil.rs                               tests de la bibliothèque et de la ligne de commande
 │   └── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 ├── examples/
@@ -186,7 +195,7 @@ EH3D-STENCILCAM/
 
 * Il n'a pas encore de fenêtre : seules la bibliothèque et la ligne de commande existent.
 * Il n'a été essayé ni sur une machine ni avec une collection de fichiers réels, et n'a pas eu de revue indépendante.
-* Les pastilles polygonales ou macro et les pistes de la couche de pâte ne sont pas transformées en ouvertures, les profils des matériaux sont des points de départ et il n'y a pas de découpe en plusieurs passes pour une feuille d'acier.
+* Les pastilles macro et les pistes et régions de la couche de pâte ne sont pas transformées en ouvertures (une pastille polygonale est découpée comme un cercle), les profils des matériaux sont des points de départ et il n'y a pas de découpe en plusieurs passes pour une feuille d'acier.
 
 **Ensuite**
 

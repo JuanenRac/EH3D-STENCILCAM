@@ -53,6 +53,32 @@
           }
         },
         {
+          "name": "cli_args.rs",
+          "desc": {
+            "en": "the arguments of the command line, the same file in every small utility",
+            "es": "los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña",
+            "de": "die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug",
+            "fr": "les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire",
+            "it": "gli argomenti della riga di comando, lo stesso file in ogni piccola utilità",
+            "ja": "コマンドライン引数：小さなツールすべてで同じファイル",
+            "zh": "命令行参数：每个小工具中的同一个文件",
+            "pt": "os argumentos da linha de comandos, o mesmo ficheiro em cada utilitário pequeno"
+          }
+        },
+        {
+          "name": "layer.rs",
+          "desc": {
+            "en": "reads a layer from bytes and shows what the reader says by its code",
+            "es": "lee una capa desde bytes y muestra lo que dice el lector por su código",
+            "de": "liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code",
+            "fr": "lit une couche depuis des octets et montre ce que dit le lecteur par son code",
+            "it": "legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice",
+            "ja": "バイト列からレイヤーを読み、リーダーの通知をコードで表示",
+            "zh": "从字节读取图层，并按代码显示读取器的提示",
+            "pt": "lê uma camada a partir de bytes e mostra o que o leitor diz pelo seu código"
+          }
+        },
+        {
           "name": "openings.rs",
           "desc": {
             "en": "a part of the logic",
@@ -98,6 +124,32 @@
       "span": 3,
       "accent": "d",
       "rows": [
+        {
+          "name": "reading.rs",
+          "desc": {
+            "en": "tests of reading files: the size limit, text that is not UTF-8, notices by code",
+            "es": "pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código",
+            "de": "Tests zum Lesen von Dateien: Größenlimit, Text ohne UTF-8, Meldungen nach Code",
+            "fr": "tests de lecture des fichiers : la limite de taille, le texte non UTF-8, les avis par code",
+            "it": "test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice",
+            "ja": "ファイル読み込みのテスト：サイズ上限、UTF-8以外のテキスト、コード別の通知",
+            "zh": "文件读取测试：大小限制、非 UTF-8 文本、按代码的提示",
+            "pt": "testes de leitura de ficheiros: o limite de tamanho, texto que não é UTF-8, avisos por código"
+          }
+        },
+        {
+          "name": "readme.rs",
+          "desc": {
+            "en": "tests that run what the README and the run scripts promise",
+            "es": "pruebas que ejecutan lo que prometen el README y los scripts run",
+            "de": "Tests, die ausführen, was README und run-Skripte versprechen",
+            "fr": "tests qui exécutent ce que promettent le README et les scripts run",
+            "it": "test che eseguono ciò che promettono il README e gli script run",
+            "ja": "READMEとrunスクリプトが約束する内容を実行するテスト",
+            "zh": "运行 README 和 run 脚本所承诺内容的测试",
+            "pt": "testes que executam o que o README e os scripts run prometem"
+          }
+        },
         {
           "name": "stencil.rs",
           "desc": {

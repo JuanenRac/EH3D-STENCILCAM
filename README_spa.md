@@ -18,7 +18,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 17 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Todavía no tiene ventana, no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 32 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Todavía no tiene ventana, no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Versión | `0.0.2` |
 | Madurez | Andamiaje |
-| Pruebas | 17 |
+| Pruebas | 32 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -47,7 +47,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `eh3d-stencilcam` ejecuta las mismas funciones que la biblioteca e imprime el resultado; cada error vuelve como mensaje y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 17 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas. |
+| Pruebas | 🟡 | 32 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
 | Ventana | 🔴 | Previsto: la ventana egui común a la suite; hoy solo existe la línea de comandos. |
 | Hardware real | 🔴 | No probado: nada de esto se ha ejecutado en una máquina. |
@@ -59,6 +59,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Las proporciones** (`src/openings.rs`): la relación de aspecto (el lado pequeño entre el grosor de la lámina, al menos 1,5) y la relación de área (el área de la apertura entre el área de sus paredes, al menos 0,66) dicen si la pasta saldrá de la apertura; una apertura que falla se indica con su posición y `convert` se niega a escribir hasta que se mire (o `--force`).
 * **Las trayectorias** (`src/output.rs`, `src/profile.rs`): rectángulos redondeados, círculos y óvalos como trayectorias cerradas en el orden de un recorrido al más cercano; G-code para un láser a potencia constante con el láser apagado al desplazarse, o HP-GL a 40 unidades por milímetro; perfiles de Mylar, Kapton y acero con su grosor, reducción, radio de esquina y kerf como puntos de partida.
 * **No se escribe una plantilla incompleta:** `convert` se niega a escribir el fichero cuando la capa tiene pads, pistas o regiones que no pueden ser aberturas (polígonos, macros, regiones), salvo que se dé `--force`.
+* **La capa se lee desde sus bytes:** `--max-bytes N` rechaza un fichero que pasa del límite (256 MiB por defecto); el texto que no es UTF-8 se lee como Latin-1 con un aviso. Los avisos y errores del lector se imprimen con su código estable y `--hide CODE[,CODE]` omite los avisos de esos códigos; un error del lector cuenta como una parte perdida de la capa, así que `convert` se niega salvo que se dé `--force`. Las aperturas salen de la conversión de aperturas de EH3D-GERBERVIEWER, y un pad poligonal se corta como un círculo (con una nota, así que `convert` también se niega salvo que se dé `--force`).
 
 ## 🧩 Papel en EH3D
 
@@ -100,10 +101,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
 │   ├── main.rs                                  la línea de comandos
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
+│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── openings.rs                              una parte de la lógica
 │   ├── output.rs                                una parte de la lógica
 │   └── profile.rs                               una parte de la lógica
 ├── tests/
+│   ├── reading.rs                               pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código
+│   ├── readme.rs                                pruebas que ejecutan lo que prometen el README y los scripts run
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
 │   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 ├── examples/
@@ -137,7 +142,7 @@ cargo run --release -- check examples/paste.gtp
 
 ## 🧪 Pruebas
 
-El conjunto tiene 17 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+El conjunto tiene 32 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -157,10 +162,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
 │   ├── main.rs                                  la línea de comandos
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
+│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── openings.rs                              una parte de la lógica
 │   ├── output.rs                                una parte de la lógica
 │   └── profile.rs                               una parte de la lógica
 ├── tests/
+│   ├── reading.rs                               pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código
+│   ├── readme.rs                                pruebas que ejecutan lo que prometen el README y los scripts run
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
 │   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 ├── examples/
@@ -186,7 +195,7 @@ EH3D-STENCILCAM/
 
 * Todavía no tiene ventana: solo existen la biblioteca y la línea de comandos.
 * No se ha probado en una máquina ni con una colección de ficheros reales y no ha tenido revisión independiente.
-* Los pads poligonales y de macro y las pistas de la capa de pasta no se convierten en aperturas, los perfiles de los materiales son puntos de partida y no hay corte en varias pasadas para una lámina de acero.
+* Los pads de macro y las pistas y regiones de la capa de pasta no se convierten en aperturas (un pad poligonal se corta como un círculo), los perfiles de los materiales son puntos de partida y no hay corte en varias pasadas para una lámina de acero.
 
 **Siguiente**
 

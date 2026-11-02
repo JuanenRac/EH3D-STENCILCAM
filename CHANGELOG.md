@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The layer is read from its bytes:** `--max-bytes N` refuses a file over the limit before it is looked at (256 MiB by default), and text that is not UTF-8 is read as Latin-1 with a warning, as the readers of the suite do.
+- **The notices of the reader are shown by their stable code:** each warning and error is printed with its code, `--hide CODE[,CODE]` leaves out the notices of those codes (a misspelt code is an error), and an error of the reader counts as a part of the layer that was lost, so `convert` refuses it unless `--force` is given.
+- **The openings come from the conversion of apertures of EH3D-GERBERVIEWER** instead of a copy of it (a dependency by path on the sibling repository): the duplicated code is gone. A polygon pad is now cut as a circle, with a note, and is refused without `--force`; before it was left out.
+- **One shared helper for the command-line arguments** (`src/cli_args.rs`: flag, switch, num and a strict finish), the same file in every small utility of the suite; the copies this program had behaved the same, so nothing changes for a person.
+- **Tests that run what the README and the scripts promise:** the sample of `run.sh`, `run.bat` and the README is the same command, and it is run on the files of `examples/`.
+
 ## [0.0.2] - A strict command line and a refusal of an incomplete stencil
 
 - **Each dependency on a sibling repository by path says the version it needs** (`version = ">=0.0.1", path = "../EH3D-..."`), so Cargo stops at once when the sibling next to this one is older than the program expects.

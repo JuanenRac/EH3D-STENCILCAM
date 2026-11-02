@@ -18,7 +18,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 17 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 32 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -31,7 +31,7 @@
 |---|---|
 | Version | `0.0.2` |
 | Maturity | Scaffolding |
-| Tests | 17 |
+| Tests | 32 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -47,7 +47,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 17 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 32 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🔴 | Planned: the egui window common to the suite; today there is only the command line. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -59,6 +59,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **The ratios** (`src/openings.rs`): the aspect ratio (the small side over the thickness of the sheet, at least 1.5) and the area ratio (the area of the opening over the area of its walls, at least 0.66) say whether the paste will leave the opening; an opening that fails is reported with its position, and `convert` refuses to write until it is looked at (or `--force`).
 * **The paths** (`src/output.rs`, `src/profile.rs`): rounded rectangles, circles and obrounds as closed paths in the order of a nearest-first walk; G-code for a laser at constant power with the laser off while travelling, or HP-GL at 40 units to the millimetre; profiles for Mylar, Kapton and steel with their thickness, shrink, corner radius and kerf as starting points.
 * **An incomplete stencil is not written:** `convert` refuses to write the file when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) unless `--force` is given.
+* **The layer is read from its bytes:** `--max-bytes N` refuses a file over the limit (256 MiB by default); text that is not UTF-8 is read as Latin-1 with a warning. The warnings and errors of the reader are printed with their stable code and `--hide CODE[,CODE]` leaves out the notices of those codes; an error of the reader counts as a part of the layer that was lost, so `convert` refuses it unless `--force` is given. The openings come from the conversion of apertures of EH3D-GERBERVIEWER, and a polygon pad is cut as a circle (with a note, so `convert` refuses it too unless `--force` is given).
 
 ## 🧩 Role in EH3D
 
@@ -100,10 +101,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── main.rs                                  the command line
+│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
 │   └── profile.rs                               a part of the logic
 ├── tests/
+│   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
+│   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
 │   └── strict.rs                                tests of the command line: options and words it does not know
 ├── examples/
@@ -137,7 +142,7 @@ cargo run --release -- check examples/paste.gtp
 
 ## 🧪 Testing
 
-The suite has 17 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 32 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -157,10 +162,14 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── main.rs                                  the command line
+│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
 │   └── profile.rs                               a part of the logic
 ├── tests/
+│   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
+│   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
 │   └── strict.rs                                tests of the command line: options and words it does not know
 ├── examples/
@@ -186,7 +195,7 @@ EH3D-STENCILCAM/
 
 * It has no window yet: only the library and the command line exist.
 * It has not been tried on a machine nor with a collection of real files, and it has had no independent review.
-* Polygon and macro pads and tracks of the paste layer are not turned into openings, the profiles of the materials are starting points, and there is no step-by-step multi-pass cutting for a steel sheet.
+* Macro pads, tracks and regions of the paste layer are not turned into openings (a polygon pad is cut as a circle), the profiles of the materials are starting points, and there is no step-by-step multi-pass cutting for a steel sheet.
 
 **Next**
 

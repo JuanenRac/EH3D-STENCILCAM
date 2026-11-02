@@ -83,6 +83,18 @@
       ]
     },
     {
+      "id": "viewer",
+      "column": 2,
+      "level": "external",
+      "title": "EH3D-GERBERVIEWER",
+      "lines": [
+        "the shapes of the apertures"
+      ],
+      "code": [
+        "Cargo.toml::eh3d-gerberviewer"
+      ]
+    },
+    {
       "id": "files",
       "column": 2,
       "level": "external",
@@ -118,12 +130,17 @@
     },
     {
       "from": "openings",
+      "to": "viewer",
+      "level": "tested"
+    },
+    {
+      "from": "openings",
       "to": "files",
       "level": "tested"
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (13 tests)",
+    "tested": "covered by tests on a computer (32 tests)",
     "config": "planned, not used today",
     "external": "a person, a file or another repository"
   },
