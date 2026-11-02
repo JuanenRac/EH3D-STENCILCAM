@@ -10,6 +10,7 @@ All notable changes to this project are documented here.
 - **The openings come from the conversion of apertures of EH3D-GERBERVIEWER** instead of a copy of it (a dependency by path on the sibling repository): the duplicated code is gone. A polygon pad is now cut as a circle, with a note, and is refused without `--force`; before it was left out.
 - **One shared helper for the command-line arguments** (`src/cli_args.rs`: flag, switch, num and a strict finish), the same file in every small utility of the suite; the copies this program had behaved the same, so nothing changes for a person.
 - **Tests that run what the README and the scripts promise:** the sample of `run.sh`, `run.bat` and the README is the same command, and it is run on the files of `examples/`.
+- **The banner of the README** shows the role and the technologies of this program (it showed the text of the shared library).
 
 ## [0.0.2] - A strict command line and a refusal of an incomplete stencil
 
