@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **More tests:** the ratios of an opening at their exact limits, the outlines of rectangles, circles and obrounds (size, direction and area), the walk of the paths, the laser being off while it travels, the numbers of the G-code and HP-GL, and every error of the command line, with nothing written after an error.
 
 ## [0.0.3] - Openings from the Gerber viewer conversion
 - **The CI builds against the tag of each sibling:** the sibling repositories are read from `depends_on` of the manifest (the ones they need in turn included) and checked out at the tag the repository is built from, so a build does not move when a sibling changes; a separate job, `Siblings at main`, builds against the main branch of every sibling to show a break before the sibling is tagged and does not hold a merge.
