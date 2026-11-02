@@ -3,12 +3,19 @@
 version = 3
 
 [[package]]
-name = "eh3d-parser-gerber"
+name = "eh3d-parser-common"
 version = "0.0.2"
 
 [[package]]
+name = "eh3d-parser-gerber"
+version = "0.0.2"
+dependencies = [
+ "eh3d-parser-common",
+]
+
+[[package]]
 name = "eh3d-stencilcam"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "eh3d-parser-gerber",
 ]
