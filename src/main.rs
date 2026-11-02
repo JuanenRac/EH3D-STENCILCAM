@@ -2,6 +2,10 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D). GPL-3.0-or-later.
 #![forbid(unsafe_code)]
 
+mod cli_args;
+
+use cli_args::{finish, flag, num, switch};
+use eh3d_stencilcam::layer::{hidden_codes, read_layer};
 use eh3d_stencilcam::openings::{from_gerber, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{gcode, hpgl, paths};
 use eh3d_stencilcam::profile::{Material, Profile};
@@ -15,37 +19,11 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
                   [--kerf MM] [--feed 600] [--smax 1000] [--mirror] [--force]
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
 
+Both read the layer with a size limit (--max-bytes N, 268435456 by default) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
+out the notices of those codes (for example units-missing).
+
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
-
-fn flag(args: &mut Vec<String>, name: &str) -> Result<Option<String>, String> {
-    if let Some(i) = args.iter().position(|a| a == name) {
-        let v = args
-            .get(i + 1)
-            .ok_or_else(|| format!("{name} needs a value"))?
-            .clone();
-        args.drain(i..=i + 1);
-        return Ok(Some(v));
-    }
-    Ok(None)
-}
-
-fn switch(args: &mut Vec<String>, name: &str) -> bool {
-    if let Some(i) = args.iter().position(|a| a == name) {
-        args.remove(i);
-        true
-    } else {
-        false
-    }
-}
-
-fn num(text: &str, what: &str) -> Result<f64, String> {
-    text.trim()
-        .parse::<f64>()
-        .ok()
-        .filter(|v| v.is_finite())
-        .ok_or_else(|| format!("{what} '{text}' is not a number"))
-}
 
 fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
     let mut p = Profile::of(match flag(args, "--material")? {
@@ -68,18 +46,6 @@ fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
     Ok(p)
 }
 
-/// What is left of the arguments once the options and the wanted words are taken must be nothing more than `max` words: an option that is written wrong or an extra word is an
-/// error, not something to ignore (the program would then make its output with the default values).
-fn finish(args: &[String], max: usize) -> Result<(), String> {
-    if let Some(o) = args.iter().find(|a| a.starts_with("--")) {
-        return Err(format!("{o}: unknown option (see help)"));
-    }
-    if args.len() > max {
-        return Err(format!("{}: unexpected argument (see help)", args[max]));
-    }
-    Ok(())
-}
-
 fn run(mut args: Vec<String>) -> Result<(), String> {
     if args.is_empty() || matches!(args[0].as_str(), "help" | "--help" | "-h") {
         println!("{HELP}");
@@ -100,19 +66,34 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     if !(1.0..=100_000.0).contains(&smax) {
         return Err(format!("--smax {smax} must be from 1 to 100000"));
     }
+    let max_bytes = flag(&mut args, "--max-bytes")?
+        .map(|v| num(&v, "--max-bytes").map(|n| n as usize))
+        .transpose()?
+        .unwrap_or(eh3d_parser_gerber::InputLimits::default().max_bytes);
+    let hide = flag(&mut args, "--hide")?
+        .map(|v| hidden_codes(&v))
+        .transpose()?
+        .unwrap_or_default();
     let layer = args
         .first()
         .ok_or_else(|| format!("{cmd} needs a paste layer"))?
         .clone();
     finish(&args, if cmd == "convert" { 2 } else { 1 })?;
     let bytes = fs::read(&layer).map_err(|e| format!("{layer}: {e}"))?;
-    let (mut openings, notes) =
-        from_gerber(&eh3d_parser_gerber::parse(&String::from_utf8_lossy(&bytes)));
+    let reading = read_layer(&bytes, max_bytes, &hide).map_err(|e| format!("{layer}: {e}"))?;
+    let (mut openings, mut notes) = from_gerber(&reading.file);
     if mirror {
         openings = mirrored(&openings);
     }
     for n in &notes {
         eprintln!("note: {n}");
+    }
+    for n in &reading.shown {
+        eprintln!("note: {n}");
+    }
+    // what the reader lost is lost from the stencil too
+    for _ in 0..reading.errors {
+        notes.push(String::from("reader error"));
     }
     // a stencil that leaves out pads is not the stencil of the board: it is written only when it is asked for
     if cmd == "convert" && !notes.is_empty() && !force {

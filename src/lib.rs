@@ -4,6 +4,7 @@
 //! The pads of a paste layer become openings; each opening is shrunk, rounded and compensated for the kerf of the laser; the ratios that decide whether the paste
 //! comes out of an opening are checked; and the closed paths are written as G-code for a laser or as HP-GL for a plotter.
 
+pub mod layer;
 pub mod openings;
 pub mod output;
 pub mod profile;
