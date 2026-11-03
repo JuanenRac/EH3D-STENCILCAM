@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The application icon and the logos of the program:** `images/brand/` holds the icon (SVG, PNG sizes, `.ico` and `.icns`), the horizontal and vertical logos in a light and a dark version and the social preview image.
 - **Shared checks updated:** the validator also compares the badge and the Version row of the README with the manifest, fails when one of its checks cannot run, and the CHANGELOG step of the workflow reads the base branch from the environment.
 - **The layer is not overwritten:** `convert` refuses an output file that is the layer itself.
 - **Limited reading and arc tolerance:** the layer is refused by its size before it is read into memory (the message comes in the eight languages) and `--arc-tolerance` sets how closely arcs are followed.
