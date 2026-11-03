@@ -46,13 +46,31 @@ fn every_value_of_a_profile_is_checked_at_its_limits_and_named_when_it_is_out() 
     };
     assert!(with(&|p| p.thickness_mm = 0.02).validate().is_ok());
     assert!(with(&|p| p.thickness_mm = 1.0).validate().is_ok());
-    assert!(with(&|p| p.thickness_mm = 0.0199).validate().unwrap_err().contains("thickness_mm"));
-    assert!(with(&|p| p.thickness_mm = 1.01).validate().unwrap_err().contains("thickness_mm"));
+    assert!(with(&|p| p.thickness_mm = 0.0199)
+        .validate()
+        .unwrap_err()
+        .contains("thickness_mm"));
+    assert!(with(&|p| p.thickness_mm = 1.01)
+        .validate()
+        .unwrap_err()
+        .contains("thickness_mm"));
     assert!(with(&|p| p.shrink_percent = 50.0).validate().is_ok());
-    assert!(with(&|p| p.shrink_percent = -0.1).validate().unwrap_err().contains("shrink_percent"));
-    assert!(with(&|p| p.shrink_percent = 50.1).validate().unwrap_err().contains("shrink_percent"));
-    assert!(with(&|p| p.corner_radius_mm = 2.1).validate().unwrap_err().contains("corner_radius_mm"));
-    assert!(with(&|p| p.kerf_mm = 1.1).validate().unwrap_err().contains("kerf_mm"));
+    assert!(with(&|p| p.shrink_percent = -0.1)
+        .validate()
+        .unwrap_err()
+        .contains("shrink_percent"));
+    assert!(with(&|p| p.shrink_percent = 50.1)
+        .validate()
+        .unwrap_err()
+        .contains("shrink_percent"));
+    assert!(with(&|p| p.corner_radius_mm = 2.1)
+        .validate()
+        .unwrap_err()
+        .contains("corner_radius_mm"));
+    assert!(with(&|p| p.kerf_mm = 1.1)
+        .validate()
+        .unwrap_err()
+        .contains("kerf_mm"));
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
         assert!(with(&|p| p.kerf_mm = bad).validate().is_err());
         assert!(with(&|p| p.thickness_mm = bad).validate().is_err());
@@ -71,21 +89,32 @@ fn a_layer_is_read_and_a_file_over_the_size_limit_is_refused() {
 }
 
 #[test]
-fn a_layer_with_something_the_reader_does_not_understand_shows_it_with_its_code_and_a_hidden_code_is_left_out() {
+fn a_layer_with_something_the_reader_does_not_understand_shows_it_with_its_code_and_a_hidden_code_is_left_out(
+) {
     let text = PASTE.replace("M02*", "G99*\nM02*");
     let shown = read_layer(text.as_bytes(), 10_000, &[]).unwrap();
     if shown.shown.is_empty() {
         // the reader took the word as something it knows: nothing to hide in this file
         return;
     }
-    assert!(shown.shown.iter().all(|l| l.starts_with("the reader, line ") && l.contains('[') && l.ends_with(']')), "{:?}", shown.shown);
+    assert!(
+        shown
+            .shown
+            .iter()
+            .all(|l| l.starts_with("the reader, line ") && l.contains('[') && l.ends_with(']')),
+        "{:?}",
+        shown.shown
+    );
     let code = {
         let l = &shown.shown[0];
         l[l.rfind('[').unwrap() + 1..l.len() - 1].to_string()
     };
     let hidden = read_layer(text.as_bytes(), 10_000, std::slice::from_ref(&code)).unwrap();
     assert!(hidden.shown.len() < shown.shown.len());
-    assert!(hidden.shown.iter().all(|l| !l.contains(&format!("[{code}]"))));
+    assert!(hidden
+        .shown
+        .iter()
+        .all(|l| !l.contains(&format!("[{code}]"))));
 }
 
 #[test]
@@ -95,7 +124,10 @@ fn the_codes_to_hide_are_checked_against_the_codes_of_the_reader_and_blanks_are_
     let first = eh3d_parser_gerber::codes::ALL[0];
     let second = eh3d_parser_gerber::codes::ALL[1];
     assert_eq!(hidden_codes(first).unwrap(), vec![first.to_string()]);
-    assert_eq!(hidden_codes(&format!(" {first} , {second},")).unwrap(), vec![first.to_string(), second.to_string()]);
+    assert_eq!(
+        hidden_codes(&format!(" {first} , {second},")).unwrap(),
+        vec![first.to_string(), second.to_string()]
+    );
     let e = hidden_codes(&format!("{first},NOT-A-CODE")).unwrap_err();
     assert!(e.contains("NOT-A-CODE") && e.contains("--hide"), "{e}");
 }
@@ -108,7 +140,10 @@ fn square(x: f64, y: f64, s: f64) -> Vec<(f64, f64)> {
 fn the_feed_of_the_gcode_must_be_more_than_zero_and_at_most_thirty_thousand() {
     let paths = vec![square(0.0, 0.0, 1.0)];
     for bad in [0.0, -1.0, 30_000.1, f64::NAN, f64::INFINITY] {
-        assert!(gcode(&paths, bad, 500).unwrap_err().contains("feed"), "{bad}");
+        assert!(
+            gcode(&paths, bad, 500).unwrap_err().contains("feed"),
+            "{bad}"
+        );
     }
     assert!(gcode(&paths, 30_000.0, 500).is_ok());
     assert!(gcode(&paths, 0.001, 500).is_ok());
@@ -145,7 +180,10 @@ fn a_program_with_no_cut_is_only_its_header_and_its_end() {
 #[test]
 fn the_hpgl_is_in_forty_units_to_the_millimetre_and_every_path_lifts_and_lowers_the_pen() {
     let h = hpgl(&[square(1.0, 2.0, 0.5)]);
-    assert!(h.starts_with("IN;SP1;\n") && h.ends_with("PU0,0;SP0;\n"), "{h}");
+    assert!(
+        h.starts_with("IN;SP1;\n") && h.ends_with("PU0,0;SP0;\n"),
+        "{h}"
+    );
     assert!(h.contains("PU40,80;"), "{h}");
     assert!(h.contains("PD60,80,60,100,40,100,40,80;"), "{h}");
     assert_eq!(h.matches("PU").count(), 2);
