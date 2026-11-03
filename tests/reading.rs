@@ -113,3 +113,62 @@ fn a_hidden_error_still_counts_as_an_error() {
         .iter()
         .all(|l| !l.contains(&format!("[{code}]"))));
 }
+
+#[test]
+fn the_refusal_of_a_file_over_the_limit_is_written_in_the_eight_languages() {
+    use eh3d_stencilcam::layer::{read_layer_file, too_large_message};
+    for (lang, word) in [
+        ("en", "above the limit"),
+        ("es", "supera el límite"),
+        ("de", "überschreitet die Grenze"),
+        ("fr", "dépasse la limite"),
+        ("it", "supera il limite"),
+        ("ja", "上限を超えています"),
+        ("zh", "文件超过上限"),
+        ("pt", "excede o limite"),
+    ] {
+        let m = too_large_message(5_000_000, 1_048_576, lang);
+        assert!(
+            m.contains(word) && m.contains("4 MiB") && m.contains("1 MiB"),
+            "{lang}: {m}"
+        );
+    }
+    // the file is refused by its size before it is read
+    let dir = std::env::temp_dir().join(format!("eh3d_stencil_limit_{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("big.gtp");
+    fs::write(&f, GOOD).unwrap();
+    let e = read_layer_file(f.to_str().unwrap(), 10, "es").unwrap_err();
+    assert!(e.contains("supera el límite"), "{e}");
+    assert!(read_layer_file(f.to_str().unwrap(), 1 << 20, "es").is_ok());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_arc_tolerance_of_the_command_line_is_checked() {
+    let dir = std::env::temp_dir().join(format!("eh3d_stencil_arc_{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, GOOD).unwrap();
+    let l = layer.to_str().unwrap();
+    for bad in ["0", "5", "nan", "x"] {
+        let (ok, why) = run(&["check", l, "--thickness", "0.1", "--arc-tolerance", bad]);
+        assert!(!ok && why.contains("--arc-tolerance"), "{bad}: {why}");
+    }
+    let (_, why) = run(&["check", l, "--thickness", "0.1", "--arc-tolerance", "0.002"]);
+    assert!(!why.contains("--arc-tolerance"), "{why}");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn convert_never_overwrites_the_layer_with_the_stencil() {
+    let dir = std::env::temp_dir().join(format!("eh3d_stencil_same_{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, GOOD).unwrap();
+    let l = layer.to_str().unwrap();
+    let (ok, why) = run(&["convert", l, l, "--force"]);
+    assert!(!ok && why.contains("also the layer"), "{why}");
+    assert_eq!(fs::read_to_string(&layer).unwrap(), GOOD);
+    let _ = fs::remove_dir_all(&dir);
+}

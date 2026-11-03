@@ -24,7 +24,12 @@ pub struct Opening {
 /// The openings of a paste layer and what could not be turned into one (with the reason, once each). The shapes come from the same conversion of apertures that the Gerber viewer
 /// of the suite uses: a circle, a rectangle or an obround pad is an opening; tracks and regions are not, and anything the conversion could not draw is a note.
 pub fn from_gerber(file: &GerberFile) -> (Vec<Opening>, Vec<String>) {
-    let scene = scene::from_gerber(file);
+    from_gerber_with(file, scene::DEFAULT_ARC_TOLERANCE_MM)
+}
+
+/// The same, with the largest distance, in mm, between an arc and the polygon drawn for it.
+pub fn from_gerber_with(file: &GerberFile, arc_tolerance_mm: f64) -> (Vec<Opening>, Vec<String>) {
+    let scene = scene::from_gerber_with(file, &scene::SceneOptions { arc_tolerance_mm });
     let (mut out, mut notes) = (Vec::new(), scene.notes.clone());
     let mut skipped = false;
     for shape in &scene.shapes {

@@ -5,8 +5,8 @@
 mod cli_args;
 
 use cli_args::{finish, flag, num, switch};
-use eh3d_stencilcam::layer::{hidden_codes, read_layer};
-use eh3d_stencilcam::openings::{from_gerber, mirrored, ratios, shrunk, weak};
+use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
+use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{gcode, hpgl, paths};
 use eh3d_stencilcam::profile::{Material, Profile};
 use std::env;
@@ -19,8 +19,8 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
                   [--kerf MM] [--feed 600] [--smax 1000] [--mirror] [--force]
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
 
-Both read the layer with a size limit (--max-bytes N, 268435456 by default) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
-out the notices of those codes (for example units-missing).
+Both read the layer with a size limit (--max-bytes N, 268435456 by default; the refusal is written in the language of the system) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
+out the notices of those codes (for example units-missing). --arc-tolerance MM (0.005 by default) is how closely the arcs of the layer are followed.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
@@ -70,6 +70,15 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         .map(|v| num(&v, "--max-bytes").map(|n| n as usize))
         .transpose()?
         .unwrap_or(eh3d_parser_gerber::InputLimits::default().max_bytes);
+    let arc_tolerance = flag(&mut args, "--arc-tolerance")?
+        .map(|v| num(&v, "--arc-tolerance"))
+        .transpose()?
+        .unwrap_or(eh3d_gerberviewer::scene::DEFAULT_ARC_TOLERANCE_MM);
+    if !(0.0001..=1.0).contains(&arc_tolerance) {
+        return Err(format!(
+            "--arc-tolerance {arc_tolerance} must be from 0.0001 to 1 mm"
+        ));
+    }
     let hide = flag(&mut args, "--hide")?
         .map(|v| hidden_codes(&v))
         .transpose()?
@@ -79,9 +88,27 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         .ok_or_else(|| format!("{cmd} needs a paste layer"))?
         .clone();
     finish(&args, if cmd == "convert" { 2 } else { 1 })?;
-    let bytes = fs::read(&layer).map_err(|e| format!("{layer}: {e}"))?;
+    // the output may not be the layer: the Gerber file would be overwritten with the G-code
+    if cmd == "convert" {
+        if let Some(out) = args.get(1) {
+            let same = match (
+                std::path::Path::new(out).canonicalize(),
+                std::path::Path::new(&layer).canonicalize(),
+            ) {
+                (Ok(a), Ok(b)) => a == b,
+                _ => *out == layer,
+            };
+            if same {
+                return Err(format!(
+                    "{out}: the output file is also the layer; write the stencil to a new file"
+                ));
+            }
+        }
+    }
+    let bytes = read_layer_file(&layer, max_bytes, eh3d_stencilcam::layer::language())
+        .map_err(|e| format!("{layer}: {e}"))?;
     let reading = read_layer(&bytes, max_bytes, &hide).map_err(|e| format!("{layer}: {e}"))?;
-    let (mut openings, mut notes) = from_gerber(&reading.file);
+    let (mut openings, mut notes) = from_gerber_with(&reading.file, arc_tolerance);
     if mirror {
         openings = mirrored(&openings);
     }

@@ -3,6 +3,56 @@
 
 use eh3d_parser_gerber::{parse_bytes_with, GerberFile, InputLimits, Severity};
 
+/// The language of the person from the variables of the system (`en`, `es`, `de`, `fr`, `it`, `ja`, `zh`, `pt`); English when it is none of them.
+pub fn language() -> &'static str {
+    for var in ["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(v) = std::env::var(var) {
+            if v.is_empty() {
+                continue;
+            }
+            let code = v.chars().take(2).collect::<String>().to_ascii_lowercase();
+            return ["es", "de", "fr", "it", "ja", "zh", "pt"]
+                .into_iter()
+                .find(|l| *l == code)
+                .unwrap_or("en");
+        }
+    }
+    "en"
+}
+
+/// The message of a file that is over the size limit, in `lang` (one of the eight languages of the suite; English for any other).
+pub fn too_large_message(size: usize, limit: usize, lang: &str) -> String {
+    let human = |n: usize| {
+        if n >= 1_048_576 {
+            format!("{} MiB", n / 1_048_576)
+        } else {
+            format!("{n} bytes")
+        }
+    };
+    let (s, l) = (human(size), human(limit));
+    match lang {
+        "es" => format!("el fichero supera el límite ({s} frente a {l}); use --max-bytes si es correcto"),
+        "de" => format!("die Datei überschreitet die Grenze ({s} gegenüber {l}); --max-bytes verwenden, wenn das richtig ist"),
+        "fr" => format!("le fichier dépasse la limite ({s} contre {l}) ; utilisez --max-bytes si c'est voulu"),
+        "it" => format!("il file supera il limite ({s} contro {l}); usare --max-bytes se è corretto"),
+        "ja" => format!("ファイルが上限を超えています（{s}、上限 {l}）。正しい場合は --max-bytes を使ってください"),
+        "zh" => format!("文件超过上限（{s}，上限 {l}）；如无误，请使用 --max-bytes"),
+        "pt" => format!("o ficheiro excede o limite ({s} contra {l}); use --max-bytes se estiver correto"),
+        _ => format!("the file is above the limit ({s} against {l}); use --max-bytes if that is right"),
+    }
+}
+
+/// Reads a layer file, refusing it before it is read into memory when it is larger than `max_bytes`; the refusal is written in `lang`.
+pub fn read_layer_file(path: &str, max_bytes: usize, lang: &str) -> Result<Vec<u8>, String> {
+    use eh3d_parser_gerber::{read_file_limited, ReadError};
+    read_file_limited(std::path::Path::new(path), &InputLimits { max_bytes }).map_err(|e| match e {
+        ReadError::TooLarge(eh3d_parser_gerber::InputError::TooLarge { size, limit }) => {
+            too_large_message(size, limit, lang)
+        }
+        other => other.to_string(),
+    })
+}
+
 /// A layer, with what the reader said about it.
 #[derive(Debug, Clone)]
 pub struct Reading {
