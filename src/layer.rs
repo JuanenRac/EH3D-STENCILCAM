@@ -9,7 +9,7 @@ pub struct Reading {
     pub file: GerberFile,
     /// The warnings and errors of the reader that were not hidden, one line each, with their code.
     pub shown: Vec<String>,
-    /// How many of them are errors: something of the file was lost.
+    /// How many errors the reader found, hidden or not: something of the file was lost.
     pub errors: usize,
 }
 
@@ -18,11 +18,15 @@ pub fn read_layer(bytes: &[u8], max_bytes: usize, hide: &[String]) -> Result<Rea
     let file = parse_bytes_with(bytes, &InputLimits { max_bytes }).map_err(|e| e.to_string())?;
     let (mut shown, mut errors) = (Vec::new(), 0);
     for d in &file.diagnostics {
-        if d.severity == Severity::Info || hide.iter().any(|h| h.as_str() == d.code) {
+        if d.severity == Severity::Info {
             continue;
         }
+        // hiding a notice only keeps it off the screen: an error that is hidden still counts, because what it lost is lost
         if d.severity == Severity::Error {
             errors += 1;
+        }
+        if hide.iter().any(|h| h.as_str() == d.code) {
+            continue;
         }
         let kind = if d.severity == Severity::Error {
             "error"

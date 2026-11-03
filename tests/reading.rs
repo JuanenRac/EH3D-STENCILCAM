@@ -93,3 +93,23 @@ fn the_command_line_applies_the_limit_and_the_filter() {
     assert!(!ok && why.contains("not a code"), "{why}");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_hidden_error_still_counts_as_an_error() {
+    let text = b"%FSLAX24Y24*%\n%MOMM*%\nG36*\nM02*\n";
+    let shown = read_layer(text, 1 << 20, &[]).unwrap();
+    assert!(shown.errors >= 1);
+    let code = shown
+        .shown
+        .iter()
+        .find(|l| l.contains(": error:"))
+        .and_then(|l| l.rsplit('[').next())
+        .map(|c| c.trim_end_matches(']').to_string())
+        .expect("an error with a code");
+    let hidden = read_layer(text, 1 << 20, &hidden_codes(&code).unwrap()).unwrap();
+    assert_eq!(hidden.errors, shown.errors);
+    assert!(hidden
+        .shown
+        .iter()
+        .all(|l| !l.contains(&format!("[{code}]"))));
+}

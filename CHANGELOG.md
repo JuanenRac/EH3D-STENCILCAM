@@ -3,7 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **A hidden error still blocks:** `--hide` keeps a notice off the screen but an error of the reader that is hidden still counts, so the stencil of a damaged layer needs `--force`.
 - **The workflows are hardened:** every action is pinned by its commit with its version in a comment, and the checkouts keep no credentials.
+- **More tests:** the materials and the limits of their profiles, the reading of a layer with its size limit and its hidden notices, and the G-code and the HP-GL of the cuts.
 
 ## [0.0.4] - CI hardening and shared validator
 
