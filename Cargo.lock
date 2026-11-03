@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-stencilcam"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "eh3d-gerberviewer",
  "eh3d-parser-gerber",
