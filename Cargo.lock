@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "eh3d-geometry"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "eh3d-parser-excellon",
  "eh3d-parser-gerber",
@@ -21,25 +21,25 @@ dependencies = [
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.6"
+version = "0.0.7"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gcode"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "eh3d-parser-common",
 ]
