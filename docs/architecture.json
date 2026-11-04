@@ -23,7 +23,7 @@
       "id": "laser",
       "column": 0,
       "level": "config",
-      "title": "LASER-CAM",
+      "title": "PHOENIX-LASER",
       "lines": [
         "planned: the cutting paths",
         "will share its laser settings"

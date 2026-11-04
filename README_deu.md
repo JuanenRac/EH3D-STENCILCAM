@@ -212,7 +212,7 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 ## 🔗 Verwandte Projekte
 
 * [EH3D-CORE-LIBS](https://github.com/JuanenRac/EH3D-CORE-LIBS): die Leser für Gerber, Excellon und G-Code
-* [EH3D-LASER-CAM](https://github.com/JuanenRac/EH3D-LASER-CAM): Lasergravur und Laserschneiden
+* [EH3D-PHOENIX-LASER](https://github.com/JuanenRac/EH3D-PHOENIX-LASER): Lasergravur und Laserschneiden
 * [EH3D-GERBERVIEWER](https://github.com/JuanenRac/EH3D-GERBERVIEWER): der Betrachter für Gerber-Lagen
 * [EH3D-TOOL-MANAGER](https://github.com/JuanenRac/EH3D-TOOL-MANAGER): das Werkzeuglager der CAM-Programme
 * [EH3D-CAM-DEBUGGER](https://github.com/JuanenRac/EH3D-CAM-DEBUGGER): die Prüfung von G-Code, bevor er eine Maschine erreicht
