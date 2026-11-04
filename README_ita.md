@@ -80,6 +80,7 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 * **Test con input danneggiati:** i test forniscono anche file vuoti, spazzatura, numeri enormi e file tagliati, e nessuno può andare in panico.
 * **Nessuna ipotesi:** un valore privo di senso è un errore che dice quale e perché, mai un risultato che sembra solo giusto.
 * **Nessun codice unsafe:** `#![forbid(unsafe_code)]` nella libreria e nel programma.
+* **Il G-code porta l'intestazione standard e un ordine più veloce:** il file inizia con righe di commento per il generatore, le unità e il livello con il suo SHA-256, un rettangolo a spigoli vivi non ha punti ripetuti e l'ordine dei tagli si trova con una griglia, così centomila aperture sono ordinate in un attimo.
 
 ## 🔒 Sicurezza e protezione
 

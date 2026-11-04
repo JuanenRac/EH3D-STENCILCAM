@@ -72,10 +72,16 @@ fn the_extension_of_the_output_chooses_hpgl_or_gcode_whatever_its_case() {
         let (c, o, e) = run_full(&["convert", l, out.to_str().unwrap(), "--thickness", "0.1"]);
         assert_eq!(c, Some(0), "{name}: {e}");
         assert!(o.contains("2 openings written"), "{o}");
-        assert!(
-            fs::read_to_string(&out).unwrap().starts_with(starts),
-            "{name}"
-        );
+        let text = fs::read_to_string(&out).unwrap();
+        if starts == "G21\n" {
+            // G-code carries the standard header first: the generator, its version, the units, the source with its hash and the tools
+            assert!(text.starts_with("; generator: eh3d-stencilcam "), "{name}");
+            assert!(text.contains("; units: mm (G21)\n"), "{name}");
+            assert!(text.contains("; source: paste.gtp sha256:"), "{name}");
+            assert!(text.contains("\nG21\nG90\n"), "{name}");
+        } else {
+            assert!(text.starts_with(starts), "{name}");
+        }
     }
     let _ = fs::remove_dir_all(&dir);
 }

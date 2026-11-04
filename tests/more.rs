@@ -190,3 +190,84 @@ fn the_hpgl_is_in_forty_units_to_the_millimetre_and_every_path_lifts_and_lowers_
     let two = hpgl(&[square(0.0, 0.0, 1.0), square(5.0, 5.0, 1.0)]);
     assert_eq!(two.matches("PD").count(), 2);
 }
+
+#[test]
+fn an_opening_with_sharp_corners_has_no_repeated_points() {
+    use eh3d_stencilcam::openings::{Form, Opening};
+    use eh3d_stencilcam::output::outline;
+    let o = Opening {
+        x: 1.0,
+        y: 2.0,
+        w: 2.0,
+        h: 1.0,
+        form: Form::Rectangle,
+    };
+    let sharp = outline(&o, 0.0);
+    assert_eq!(sharp.len(), 5, "{sharp:?}");
+    assert_eq!(sharp.first(), sharp.last());
+    assert!(sharp.windows(2).all(|w| w[0] != w[1]));
+    // the rounded one keeps its thirty-seven points
+    assert_eq!(outline(&o, 0.1).len(), 37);
+}
+
+fn walk_by_brute_force(paths: &[Vec<(f64, f64)>]) -> Vec<Vec<(f64, f64)>> {
+    let mut left: Vec<&Vec<(f64, f64)>> = paths.iter().collect();
+    let mut at = (0.0, 0.0);
+    let mut out = Vec::new();
+    while !left.is_empty() {
+        let d = |p: &&Vec<(f64, f64)>| ((p[0].0 - at.0).powi(2) + (p[0].1 - at.1).powi(2)).sqrt();
+        let i = left
+            .iter()
+            .enumerate()
+            .min_by(|a, b| d(a.1).partial_cmp(&d(b.1)).unwrap())
+            .map(|(i, _)| i)
+            .unwrap();
+        let next = left.remove(i);
+        at = next[0];
+        out.push(next.clone());
+    }
+    out
+}
+
+fn scattered(n: usize) -> Vec<Vec<(f64, f64)>> {
+    let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state % 100_000) as f64 / 100.0
+    };
+    (0..n)
+        .map(|_| {
+            let (x, y) = (next(), next());
+            vec![(x, y), (x + 1.0, y), (x + 1.0, y + 1.0), (x, y)]
+        })
+        .collect()
+}
+
+#[test]
+fn the_walk_of_the_paths_is_the_plain_nearest_walk_and_a_hundred_thousand_take_moments() {
+    use eh3d_stencilcam::output::ordered;
+    let few = scattered(400);
+    assert_eq!(ordered(&few), walk_by_brute_force(&few));
+    // points on a line, repeated points and equal distances: the first of the list goes first
+    let mut odd = vec![
+        vec![(5.0, 0.0)],
+        vec![(5.0, 0.0)],
+        vec![(0.0, 5.0)],
+        vec![(5.0, 0.0)],
+        vec![(-5.0, 0.0)],
+    ];
+    odd.push(vec![(0.0, 0.0)]);
+    assert_eq!(ordered(&odd), walk_by_brute_force(&odd));
+    let started = std::time::Instant::now();
+    let many = scattered(100_000);
+    let walk = ordered(&many);
+    assert_eq!(walk.len(), 100_000);
+    assert!(
+        started.elapsed().as_secs() < 30,
+        "{:?} for 100000 openings",
+        started.elapsed()
+    );
+    assert!(ordered(&[]).is_empty());
+}

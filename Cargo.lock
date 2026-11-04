@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "eh3d-geometry"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-excellon",
  "eh3d-parser-gerber",
@@ -12,7 +12,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-gerberviewer"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "eh3d-geometry",
  "eh3d-parser-excellon",
@@ -21,18 +21,25 @@ dependencies = [
 
 [[package]]
 name = "eh3d-parser-common"
-version = "0.0.5"
+version = "0.0.6"
 
 [[package]]
 name = "eh3d-parser-excellon"
-version = "0.0.5"
+version = "0.0.6"
+dependencies = [
+ "eh3d-parser-common",
+]
+
+[[package]]
+name = "eh3d-parser-gcode"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
 
 [[package]]
 name = "eh3d-parser-gerber"
-version = "0.0.5"
+version = "0.0.6"
 dependencies = [
  "eh3d-parser-common",
 ]
@@ -42,5 +49,6 @@ name = "eh3d-stencilcam"
 version = "0.0.4"
 dependencies = [
  "eh3d-gerberviewer",
+ "eh3d-parser-gcode",
  "eh3d-parser-gerber",
 ]

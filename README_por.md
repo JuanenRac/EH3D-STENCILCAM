@@ -80,6 +80,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Testes com entradas danificadas:** os testes também dão ficheiros vazios, lixo, números enormes e ficheiros cortados, e nenhum pode entrar em pânico.
 * **Sem adivinhar:** um valor sem sentido é um erro que diz qual e porquê, nunca um resultado que apenas parece certo.
 * **Sem código unsafe:** `#![forbid(unsafe_code)]` na biblioteca e no programa.
+* **O G-code leva o cabeçalho padrão e uma ordem mais rápida:** o ficheiro começa com linhas de comentário do gerador, das unidades e da camada com o seu SHA-256, um retângulo de cantos vivos não tem pontos repetidos e a ordem dos cortes encontra-se com uma grelha, de modo que cem mil aberturas ficam ordenadas num instante.
 
 ## 🔒 Segurança e proteção
 

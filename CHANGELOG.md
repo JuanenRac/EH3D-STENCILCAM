@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The G-code starts with the standard header:** the generator and its version, the units, the layer with its SHA-256 and the tools, and a number that is not finite is refused instead of written.
+- **A rectangle with sharp corners has no repeated points:** the laser no longer stops at a corner for nothing.
+- **The order of the cuts is found with a grid:** a hundred thousand openings are ordered in moments and the order is the same as before.
 - **The application icon and the logos of the program:** `images/brand/` holds the icon (SVG, PNG sizes, `.ico` and `.icns`), the horizontal and vertical logos in a light and a dark version and the social preview image.
 - **Shared checks updated:** the validator also compares the badge and the Version row of the README with the manifest, fails when one of its checks cannot run, and the CHANGELOG step of the workflow reads the base branch from the environment.
 - **The layer is not overwritten:** `convert` refuses an output file that is the layer itself.

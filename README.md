@@ -80,6 +80,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **Tests with damaged input:** the tests also feed empty files, garbage, huge numbers and cut files, and none of them may panic.
 * **No guessing:** a value that does not make sense is an error that says which value and why, never a result that only looks right.
 * **No unsafe code:** `#![forbid(unsafe_code)]` in the library and the program.
+* **The G-code carries the standard header and a faster order:** the file starts with comment lines for the generator, the units and the layer with its SHA-256, a rectangle with sharp corners has no repeated points, and the order of the cuts is found with a grid, so a hundred thousand openings are ordered in moments.
 
 ## 🔒 Security & Safety
 

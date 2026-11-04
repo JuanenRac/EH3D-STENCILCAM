@@ -80,6 +80,7 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Tests avec entrées abîmées :** les tests fournissent aussi des fichiers vides, du bruit, des nombres énormes et des fichiers coupés, et aucun ne doit paniquer.
 * **Sans deviner :** une valeur absurde est une erreur qui dit laquelle et pourquoi, jamais un résultat qui n'en a que l'air.
 * **Pas de code unsafe :** `#![forbid(unsafe_code)]` dans la bibliothèque et le programme.
+* **Le G-code porte l'en-tête standard et un ordre plus rapide :** le fichier commence par des lignes de commentaire pour le générateur, les unités et la couche avec son SHA-256, un rectangle à angles vifs n'a pas de points répétés, et l'ordre des découpes est trouvé avec une grille, si bien que cent mille ouvertures sont ordonnées en un instant.
 
 ## 🔒 Sécurité et protection
 

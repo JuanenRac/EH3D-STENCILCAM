@@ -2,6 +2,7 @@
 
 use crate::openings::{adjusted, Form, Opening};
 use crate::profile::Profile;
+use eh3d_parser_gcode::emit::number;
 
 /// Segments of a quarter of a circle.
 const QUARTER: usize = 8;
@@ -29,6 +30,10 @@ pub fn outline(o: &Opening, radius: f64) -> Path {
             path.push((o.x + cx + r * a.cos(), o.y + cy + r * a.sin()));
         }
     }
+    if r == 0.0 {
+        // sharp corners: every corner arc is the same point repeated, and the laser would stop there for nothing
+        path.dedup();
+    }
     path.push(path[0]);
     path
 }
@@ -42,37 +47,80 @@ pub fn paths(openings: &[Opening], p: &Profile) -> Result<Vec<Path>, String> {
 }
 
 /// The paths in the order of a greedy walk: always the nearest one that is left, starting at the origin, so that the head does not cross the sheet back and forth.
+/// The start points go in a grid of about one per cell and the nearest one is looked for ring by ring, so a layer of a hundred thousand openings is ordered in moments
+/// (the plain walk is quadratic). The result is the one of the plain walk: of two paths at the same distance the first of the list goes first.
 pub fn ordered(paths: &[Path]) -> Vec<Path> {
-    let mut left: Vec<&Path> = paths.iter().collect();
+    let n = paths.len();
+    let mut out = Vec::with_capacity(n);
+    if n == 0 {
+        return out;
+    }
+    let starts: Vec<(f64, f64)> = paths.iter().map(|p| p[0]).collect();
+    let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
+    let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for s in &starts {
+        x0 = x0.min(s.0);
+        y0 = y0.min(s.1);
+        x1 = x1.max(s.0);
+        y1 = y1.max(s.1);
+    }
+    let side = ((n as f64).sqrt().ceil() as usize).clamp(1, 2048);
+    let cw = ((x1 - x0) / side as f64).max(1e-9);
+    let ch = ((y1 - y0) / side as f64).max(1e-9);
+    let cell = |p: (f64, f64)| -> (usize, usize) {
+        let cx = (((p.0 - x0) / cw).floor().max(0.0) as usize).min(side - 1);
+        let cy = (((p.1 - y0) / ch).floor().max(0.0) as usize).min(side - 1);
+        (cx, cy)
+    };
+    let mut grid: Vec<Vec<usize>> = vec![Vec::new(); side * side];
+    for (k, s) in starts.iter().enumerate() {
+        let (cx, cy) = cell(*s);
+        grid[cy * side + cx].push(k);
+    }
+    let smallest_cell = cw.min(ch);
     let mut at = (0.0, 0.0);
-    let mut out = Vec::with_capacity(paths.len());
-    while !left.is_empty() {
-        let d = |p: &&Path| ((p[0].0 - at.0).powi(2) + (p[0].1 - at.1).powi(2)).sqrt();
-        let i = left
-            .iter()
-            .enumerate()
-            .min_by(|a, b| {
-                d(a.1)
-                    .partial_cmp(&d(b.1))
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        let next = left.remove(i);
-        at = next[0];
-        out.push(next.clone());
+    for _ in 0..n {
+        let (cx, cy) = cell(at);
+        let mut best: Option<(f64, usize)> = None;
+        for r in 0..=side as i64 {
+            for dx in -r..=r {
+                let on_edge = dx.abs() == r;
+                let mut dy = -r;
+                while dy <= r {
+                    let (gx, gy) = (cx as i64 + dx, cy as i64 + dy);
+                    if gx >= 0 && gy >= 0 && (gx as usize) < side && (gy as usize) < side {
+                        for &k in &grid[gy as usize * side + gx as usize] {
+                            let d = ((starts[k].0 - at.0).powi(2) + (starts[k].1 - at.1).powi(2))
+                                .sqrt();
+                            let better = match best {
+                                None => true,
+                                Some((bd, bk)) => d < bd || (d == bd && k < bk),
+                            };
+                            if better {
+                                best = Some((d, k));
+                            }
+                        }
+                    }
+                    // inside the ring only its two sides are visited, on its top and bottom rows every cell
+                    dy += if on_edge || r == 0 { 1 } else { 2 * r };
+                }
+            }
+            if let Some((bd, _)) = best {
+                if bd < r as f64 * smallest_cell {
+                    break;
+                }
+            }
+        }
+        let Some((_, k)) = best else { break };
+        let (kx, ky) = cell(starts[k]);
+        let bucket = &mut grid[ky * side + kx];
+        if let Some(pos) = bucket.iter().position(|&m| m == k) {
+            bucket.swap_remove(pos);
+        }
+        at = starts[k];
+        out.push(paths[k].clone());
     }
     out
-}
-
-fn n(v: f64) -> String {
-    let s = format!("{v:.3}");
-    let s = s.trim_end_matches('0').trim_end_matches('.');
-    if s == "-0" || s.is_empty() {
-        "0".to_string()
-    } else {
-        s.to_string()
-    }
 }
 
 /// G-code for a laser at constant power (`M3`): travel with the laser off, cut each path at `feed_mm_min`.
@@ -82,15 +130,15 @@ pub fn gcode(paths: &[Path], feed_mm_min: f64, s_value: u32) -> Result<String, S
             "the feed is {feed_mm_min}: it must be from 0 to 30000 mm/min"
         ));
     }
-    let mut g = format!("G21\nG90\nF{}\n", n(feed_mm_min));
+    let mut g = format!("G21\nG90\nF{}\n", number(feed_mm_min)?);
     for path in ordered(paths) {
         g.push_str(&format!(
             "G0 X{} Y{}\nM3 S{s_value}\n",
-            n(path[0].0),
-            n(path[0].1)
+            number(path[0].0)?,
+            number(path[0].1)?
         ));
         for p in &path[1..] {
-            g.push_str(&format!("G1 X{} Y{}\n", n(p.0), n(p.1)));
+            g.push_str(&format!("G1 X{} Y{}\n", number(p.0)?, number(p.1)?));
         }
         g.push_str("M5\n");
     }

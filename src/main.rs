@@ -5,6 +5,7 @@
 mod cli_args;
 
 use cli_args::{finish, flag, num, switch};
+use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{gcode, hpgl, paths};
@@ -170,7 +171,19 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             let text = if out.to_ascii_lowercase().ends_with(".plt") {
                 hpgl(&all)
             } else {
-                gcode(&all, feed, smax as u32)?
+                let head = header(&Header {
+                    generator: "eh3d-stencilcam",
+                    version: env!("CARGO_PKG_VERSION"),
+                    source: Some((
+                        std::path::Path::new(&layer)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("layer"),
+                        sha256_hex(&bytes),
+                    )),
+                    tools: "laser",
+                });
+                format!("{head}{}", gcode(&all, feed, smax as u32)?)
             };
             fs::write(out, text).map_err(|e| format!("{out}: {e}"))?;
             println!("{} openings written to {out}", all.len());
