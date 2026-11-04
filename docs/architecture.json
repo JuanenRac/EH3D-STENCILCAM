@@ -2,7 +2,7 @@
   "repo": "EH3D-STENCILCAM",
   "ecosystem": "eh3d",
   "tagline": "A paste layer in, a stencil to cut out.",
-  "description": "EH3D-STENCILCAM is a Rust library and command line that turn the pads of a paste layer, read with EH3D-CORE-LIBS, into the openings of a solder paste stencil and write them as G-code or HP-GL.",
+  "description": "EH3D-STENCILCAM is a Rust library and command line that turn the pads of a paste layer, read with EH3D-CORE-LIBS, into the openings of a solder paste stencil and write them as G-code or HP-GL; built with the gui feature it also has a window (egui) that opens a paste layer, draws the pads and the cutting paths, edits the parameters and exports.",
   "columns": [
     "WHO USES IT",
     "THIS REPOSITORY",
@@ -68,6 +68,23 @@
       ],
       "code": [
         "src/profile.rs::pub struct Profile"
+      ]
+    },
+    {
+      "id": "window",
+      "column": 1,
+      "level": "untested",
+      "title": "window (gui feature)",
+      "lines": [
+        "state, zoom and words are tested;",
+        "the drawing is not seen yet"
+      ],
+      "code": [
+        "src/window.rs::pub struct Window",
+        "src/viewport.rs::pub struct Viewport",
+        "src/lang.rs::pub enum Lang",
+        "src/browse.rs::pub struct Browser",
+        "src/gui.rs::pub fn run"
       ]
     },
     {
@@ -137,12 +154,18 @@
       "from": "openings",
       "to": "files",
       "level": "tested"
+    },
+    {
+      "from": "person",
+      "to": "window",
+      "level": "untested"
     }
   ],
   "legend": {
-    "tested": "covered by tests on a computer (72 tests)",
+    "tested": "covered by tests on a computer (112 tests)",
     "config": "planned, not used today",
-    "external": "a person, a file or another repository"
+    "external": "a person, a file or another repository",
+    "untested": "written, not built or looked at on a screen yet"
   },
   "footer": "No stencil has been cut with this yet."
 }

@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **A window:** built with `--features gui`, `eh3d-stencilcam` with no arguments (or with a single layer file, or `gui [LAYER]`) opens a window in the look of the other programs of the suite (amber on charcoal, the icon of the program). A paste layer is opened from the list of files of the window or dropped on it; the pads and the cutting paths are drawn with zoom (wheel) and pan (drag), and the openings that will not release the paste are in red; the material, thickness, shrink, corner radius, kerf, feed and laser power can be edited; the stencil of the bottom side can be mirrored; a box allows writing although there are problems; and the stencil is exported as laser G-code or HP-GL by the name of the file. The command line works as before, and a build without the feature is only a command line.
+- **The window speaks the eight languages:** English, Spanish, German, French, Italian, Japanese, Chinese and Portuguese of Portugal, chosen from the system and changeable in the window.
+- **The logic of the window needs no screen:** `window` (layer, material, parameters, cuts, export, status), `viewport` (zoom and pan), `browse` (the list of files) and `lang` (the words) are plain code with their own tests; `gui` only draws them.
 - **The G-code starts with the standard header:** the generator and its version, the units, the layer with its SHA-256 and the tools, and a number that is not finite is refused instead of written.
 - **A rectangle with sharp corners has no repeated points:** the laser no longer stops at a corner for nothing.
 - **The order of the cuts is found with a grid:** a hundred thousand openings are ordered in moments and the order is the same as before.

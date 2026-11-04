@@ -19,6 +19,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
   eh3d-stencilcam convert LAYER.gtp OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
                   [--kerf MM] [--feed 600] [--smax 1000] [--mirror] [--force]
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
+  eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
 
 Both read the layer with a size limit (--max-bytes N, 268435456 by default; the refusal is written in the language of the system) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
 out the notices of those codes (for example units-missing). --arc-tolerance MM (0.005 by default) is how closely the arcs of the layer are followed.
@@ -53,6 +54,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         return Ok(());
     }
     let cmd = args.remove(0);
+    if cmd == "gui" {
+        // a build with the window never gets here (main opens it): this one is only a command line
+        return Err("this build has no window: build it with --features gui".into());
+    }
     let p = profile(&mut args)?;
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
@@ -193,8 +198,43 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
 }
 
+/// Whether the program opens its window instead of running a command, and the layer to open in it: no arguments, `gui` (with a layer or without), or a single layer file given by the
+/// system to open (a name with an extension that is a file; the commands have none).
+#[cfg(feature = "gui")]
+fn window_request(args: &[String]) -> Option<Option<String>> {
+    match args {
+        [] => Some(None),
+        [a] if a == "gui" => Some(None),
+        [a, f] if a == "gui" => Some(Some(f.clone())),
+        [f] if !f.starts_with('-')
+            && std::path::Path::new(f).extension().is_some()
+            && std::path::Path::new(f).is_file() =>
+        {
+            Some(Some(f.clone()))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(feature = "gui")]
+fn open_window(layer: Option<String>) -> ExitCode {
+    let lang = eh3d_stencilcam::lang::Lang::from_env();
+    match eh3d_stencilcam::gui::run(layer.map(std::path::PathBuf::from), lang) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("error: the window could not be opened: {e}");
+            ExitCode::from(1)
+        }
+    }
+}
+
 fn main() -> ExitCode {
-    match run(env::args().skip(1).collect()) {
+    let args: Vec<String> = env::args().skip(1).collect();
+    #[cfg(feature = "gui")]
+    if let Some(layer) = window_request(&args) {
+        return open_window(layer);
+    }
+    match run(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e}");

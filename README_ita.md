@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 72 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Non ha ancora una finestra, non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 112 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.0.4` |
 | Maturità | Impalcatura |
-| Test | 72 |
+| Test | 112 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,9 +46,9 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 72 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
+| Test | 🟡 | 112 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
-| Finestra | 🔴 | Previsto: la finestra egui comune alla suite; oggi esiste solo la riga di comando. |
+| Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
 | Documentazione | 🟡 | README in otto lingue, il changelog e le due immagini disegnate da `docs/`. |
 
@@ -62,7 +62,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 
 ## 🧩 Ruolo in EH3D
 
-EH3D-STENCILCAM è un programma della EH3D Fabrication Suite. Oggi funziona come libreria e riga di comando; la sua finestra, con l'aspetto comune agli altri programmi della suite, è prevista. Legge e scrive file semplici, quindi può essere usato da solo o tra gli altri programmi.
+EH3D-STENCILCAM è un programma della EH3D Fabrication Suite. Funziona come libreria e riga di comando e, compilato con `--features gui`, come finestra con l'aspetto comune agli altri programmi della suite. Legge e scrive file semplici, quindi può essere usato da solo o tra gli altri programmi.
 
 ## 🏛️ Architettura
 
@@ -99,18 +99,24 @@ La libreria è `eh3d_stencilcam` (`use eh3d_stencilcam::...`); la riga di comand
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                l'elenco dei file della finestra che apre un file
+│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
+│   ├── gui.rs                                   la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona
+│   ├── lang.rs                                  le parole della finestra nelle otto lingue
+│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── lib.rs                                   la libreria: ciò che usa ogni comando
 │   ├── main.rs                                  la riga di comando
-│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
-│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── openings.rs                              una parte della logica
 │   ├── output.rs                                una parte della logica
-│   └── profile.rs                               una parte della logica
+│   ├── profile.rs                               una parte della logica
+│   ├── viewport.rs                              zoom e spostamento dell'immagine, in semplici numeri
+│   └── window.rs                                lo stato della finestra senza schermo: livello, materiale, parametri, tagli, esportazione e stato
 ├── tests/
 │   ├── reading.rs                               test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice
 │   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
-│   └── strict.rs                                test della riga di comando: opzioni e parole che non conosce
+│   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
+│   └── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
 ├── examples/
 │   └── paste.gtp                                un esempio per provare il programma
 ├── docs/
@@ -139,11 +145,12 @@ Serve una toolchain Rust stabile (1.75 o più recente).
 cargo build --release
 cargo test
 cargo run --release -- check examples/paste.gtp
+cargo run --release --features gui   # the window
 ```
 
 ## 🧪 Test
 
-La suite ha 72 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 112 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -161,18 +168,24 @@ La versione sta in `Cargo.toml` e in `eh3d.project.json`; ogni versione ha la su
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                l'elenco dei file della finestra che apre un file
+│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
+│   ├── gui.rs                                   la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona
+│   ├── lang.rs                                  le parole della finestra nelle otto lingue
+│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── lib.rs                                   la libreria: ciò che usa ogni comando
 │   ├── main.rs                                  la riga di comando
-│   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
-│   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
 │   ├── openings.rs                              una parte della logica
 │   ├── output.rs                                una parte della logica
-│   └── profile.rs                               una parte della logica
+│   ├── profile.rs                               una parte della logica
+│   ├── viewport.rs                              zoom e spostamento dell'immagine, in semplici numeri
+│   └── window.rs                                lo stato della finestra senza schermo: livello, materiale, parametri, tagli, esportazione e stato
 ├── tests/
 │   ├── reading.rs                               test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice
 │   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
-│   └── strict.rs                                test della riga di comando: opzioni e parole che non conosce
+│   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
+│   └── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
 ├── examples/
 │   └── paste.gtp                                un esempio per provare il programma
 ├── docs/
@@ -195,14 +208,14 @@ EH3D-STENCILCAM/
 
 **Limiti noti oggi**
 
-* Non ha ancora una finestra: esistono solo la libreria e la riga di comando.
+* La finestra non è ancora stata vista su uno schermo e non mostra i rapporti di ogni apertura: lo fa `check`.
 * Non è stato provato su una macchina né con una raccolta di file reali e non ha avuto revisione indipendente.
 * I pad macro e le piste e le regioni del livello di pasta non diventano aperture (un pad poligonale viene tagliato come un cerchio), i profili dei materiali sono punti di partenza e non c'è taglio a più passate per un foglio d'acciaio.
 
 **Prossimi passi**
 
-* Provarlo con un vero livello di pasta e un laser, leggere i profili dal magazzino utensili e aggiungere la finestra con la vista delle aperture.
-* Aggiungere la finestra con l'aspetto comune ai programmi della suite, negli otto idiomi.
+* Provarlo con un vero livello di pasta e un laser e leggere i profili dal magazzino utensili.
+* Vedere la finestra su uno schermo e completarla: i profili del magazzino utensili e una vista dei rapporti di pasta di ogni apertura.
 * Provarlo con file reali e con gli altri programmi della suite.
 
 ## 🌍 Lingue

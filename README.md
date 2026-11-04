@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 72 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has no window yet, it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 112 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Maturity | Scaffolding |
-| Tests | 72 |
+| Tests | 112 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,9 +46,9 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 72 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 112 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
-| Window | 🔴 | Planned: the egui window common to the suite; today there is only the command line. |
+| Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
 | Documentation | 🟡 | README in eight languages, the changelog and the two pictures drawn from `docs/`. |
 
@@ -62,7 +62,7 @@ Each line is one part of this repository and the light says how far it is today.
 
 ## 🧩 Role in EH3D
 
-EH3D-STENCILCAM is one program of the EH3D Fabrication Suite. Today it works as a library and a command line; its window, in the look the other programs of the suite share, is planned. It reads and writes plain files, so it can be used on its own or between the other programs.
+EH3D-STENCILCAM is one program of the EH3D Fabrication Suite. It works as a library and a command line and, built with `--features gui`, as a window in the look the other programs of the suite share. It reads and writes plain files, so it can be used on its own or between the other programs.
 
 ## 🏛️ Architecture
 
@@ -99,18 +99,24 @@ The library is `eh3d_stencilcam` (`use eh3d_stencilcam::...`); the command line 
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                the list of files of the window that opens a file
+│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
+│   ├── lang.rs                                  the words of the window in the eight languages
+│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── main.rs                                  the command line
-│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
-│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
-│   └── profile.rs                               a part of the logic
+│   ├── profile.rs                               a part of the logic
+│   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
+│   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
-│   └── strict.rs                                tests of the command line: options and words it does not know
+│   ├── strict.rs                                tests of the command line: options and words it does not know
+│   └── window_cli.rs                            tests that a build without the gui feature stays a command line
 ├── examples/
 │   └── paste.gtp                                a sample to try the program with
 ├── docs/
@@ -139,11 +145,12 @@ You need a stable Rust toolchain (1.75 or newer).
 cargo build --release
 cargo test
 cargo run --release -- check examples/paste.gtp
+cargo run --release --features gui   # the window
 ```
 
 ## 🧪 Testing
 
-The suite has 72 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 112 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -161,18 +168,24 @@ The version lives in `Cargo.toml` and in `eh3d.project.json`; each version has i
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                the list of files of the window that opens a file
+│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
+│   ├── lang.rs                                  the words of the window in the eight languages
+│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── lib.rs                                   the library: what every command uses
 │   ├── main.rs                                  the command line
-│   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
-│   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
-│   └── profile.rs                               a part of the logic
+│   ├── profile.rs                               a part of the logic
+│   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
+│   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
-│   └── strict.rs                                tests of the command line: options and words it does not know
+│   ├── strict.rs                                tests of the command line: options and words it does not know
+│   └── window_cli.rs                            tests that a build without the gui feature stays a command line
 ├── examples/
 │   └── paste.gtp                                a sample to try the program with
 ├── docs/
@@ -195,14 +208,14 @@ EH3D-STENCILCAM/
 
 **Known limits today**
 
-* It has no window yet: only the library and the command line exist.
+* The window has not been looked at on a screen yet, and it does not show the ratios of each opening: `check` does.
 * It has not been tried on a machine nor with a collection of real files, and it has had no independent review.
 * Macro pads, tracks and regions of the paste layer are not turned into openings (a polygon pad is cut as a circle), the profiles of the materials are starting points, and there is no step-by-step multi-pass cutting for a steel sheet.
 
 **Next**
 
-* Try it with a real paste layer and a laser, read the profiles from the tool crib and add the window with the view of the openings.
-* Add the window in the look shared by the programs of the suite, in the eight languages.
+* Try it with a real paste layer and a laser and read the profiles from the tool crib.
+* Look at the window on a screen and finish it: the profiles of the tool crib and a view of the paste ratios of each opening.
 * Try it with real files and with the other programs of the suite.
 
 ## 🌍 Languages

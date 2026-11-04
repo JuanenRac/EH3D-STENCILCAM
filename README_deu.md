@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 72 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat noch kein Fenster, wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 112 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.4` |
 | Reifegrad | Gerüst |
-| Tests | 72 |
+| Tests | 112 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,9 +46,9 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 72 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
+| Tests | 🟡 | 112 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
-| Fenster | 🔴 | Geplant: das egui-Fenster, das die Suite gemeinsam nutzt; heute gibt es nur die Kommandozeile. |
+| Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
 | Dokumentation | 🟡 | README in acht Sprachen, das Changelog und die zwei aus `docs/` gezeichneten Bilder. |
 
@@ -62,7 +62,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 
 ## 🧩 Rolle in EH3D
 
-EH3D-STENCILCAM ist ein Programm der EH3D Fabrication Suite. Heute arbeitet es als Bibliothek und Kommandozeile; sein Fenster im gemeinsamen Aussehen der Suite ist geplant. Es liest und schreibt einfache Dateien und lässt sich allein oder zwischen den anderen Programmen nutzen.
+EH3D-STENCILCAM ist ein Programm der EH3D Fabrication Suite. Es arbeitet als Bibliothek und Kommandozeile und, mit `--features gui` gebaut, als Fenster im gemeinsamen Aussehen der Suite. Es liest und schreibt einfache Dateien und lässt sich allein oder zwischen den anderen Programmen nutzen.
 
 ## 🏛️ Architektur
 
@@ -99,18 +99,24 @@ Die Bibliothek ist `eh3d_stencilcam` (`use eh3d_stencilcam::...`); die Kommandoz
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                die Dateiliste des Fensters zum Öffnen einer Datei
+│   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
+│   ├── gui.rs                                   das Fenster (egui, mit dem Feature gui): zeichnet den Zustand und gibt weiter, was die Person tut
+│   ├── lang.rs                                  die Wörter des Fensters in den acht Sprachen
+│   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
 │   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
 │   ├── main.rs                                  die Kommandozeile
-│   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
-│   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
 │   ├── openings.rs                              ein Teil der Logik
 │   ├── output.rs                                ein Teil der Logik
-│   └── profile.rs                               ein Teil der Logik
+│   ├── profile.rs                               ein Teil der Logik
+│   ├── viewport.rs                              Zoom und Verschiebung des Bildes, in einfachen Zahlen
+│   └── window.rs                                der Zustand des Fensters ohne Bildschirm: Ebene, Material, Parameter, Schnitte, Export und Status
 ├── tests/
 │   ├── reading.rs                               Tests zum Lesen von Dateien: Größenlimit, Text ohne UTF-8, Meldungen nach Code
 │   ├── readme.rs                                Tests, die ausführen, was README und run-Skripte versprechen
 │   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
-│   └── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+│   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+│   └── window_cli.rs                            Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt
 ├── examples/
 │   └── paste.gtp                                ein Beispiel zum Ausprobieren
 ├── docs/
@@ -139,11 +145,12 @@ Sie brauchen eine stabile Rust-Toolchain (1.75 oder neuer).
 cargo build --release
 cargo test
 cargo run --release -- check examples/paste.gtp
+cargo run --release --features gui   # the window
 ```
 
 ## 🧪 Tests
 
-Die Suite hat 72 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 112 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -161,18 +168,24 @@ Die Version steht in `Cargo.toml` und in `eh3d.project.json`; jede Version hat i
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                die Dateiliste des Fensters zum Öffnen einer Datei
+│   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
+│   ├── gui.rs                                   das Fenster (egui, mit dem Feature gui): zeichnet den Zustand und gibt weiter, was die Person tut
+│   ├── lang.rs                                  die Wörter des Fensters in den acht Sprachen
+│   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
 │   ├── lib.rs                                   die Bibliothek: was jeder Befehl nutzt
 │   ├── main.rs                                  die Kommandozeile
-│   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
-│   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
 │   ├── openings.rs                              ein Teil der Logik
 │   ├── output.rs                                ein Teil der Logik
-│   └── profile.rs                               ein Teil der Logik
+│   ├── profile.rs                               ein Teil der Logik
+│   ├── viewport.rs                              Zoom und Verschiebung des Bildes, in einfachen Zahlen
+│   └── window.rs                                der Zustand des Fensters ohne Bildschirm: Ebene, Material, Parameter, Schnitte, Export und Status
 ├── tests/
 │   ├── reading.rs                               Tests zum Lesen von Dateien: Größenlimit, Text ohne UTF-8, Meldungen nach Code
 │   ├── readme.rs                                Tests, die ausführen, was README und run-Skripte versprechen
 │   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
-│   └── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+│   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+│   └── window_cli.rs                            Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt
 ├── examples/
 │   └── paste.gtp                                ein Beispiel zum Ausprobieren
 ├── docs/
@@ -195,14 +208,14 @@ EH3D-STENCILCAM/
 
 **Bekannte Grenzen heute**
 
-* Es hat noch kein Fenster: nur Bibliothek und Kommandozeile existieren.
+* Das Fenster wurde noch auf keinem Bildschirm angesehen und zeigt die Verhältnisse jeder Öffnung nicht an: das tut `check`.
 * Es wurde weder an einer Maschine noch mit einer Sammlung echter Dateien erprobt und hatte keine unabhängige Prüfung.
 * Makro-Pads, Bahnen und Regionen der Pastenlage werden nicht zu Öffnungen (ein Polygon-Pad wird als Kreis geschnitten), die Materialprofile sind Startwerte, und ein mehrfaches Schneiden in Durchgängen für ein Stahlblech gibt es nicht.
 
 **Als Nächstes**
 
-* Mit einer echten Pastenlage und einem Laser ausprobieren, die Profile aus dem Werkzeuglager lesen und das Fenster mit der Ansicht der Öffnungen ergänzen.
-* Das Fenster im gemeinsamen Aussehen der Suite in den acht Sprachen ergänzen.
+* Mit einer echten Pastenlage und einem Laser ausprobieren und die Profile aus dem Werkzeuglager lesen.
+* Das Fenster auf einem Bildschirm ansehen und vervollständigen: die Profile aus dem Werkzeuglager und eine Ansicht der Pastenverhältnisse jeder Öffnung.
 * Mit echten Dateien und den anderen Programmen der Suite ausprobieren.
 
 ## 🌍 Sprachen

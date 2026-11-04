@@ -27,6 +27,71 @@
       "accent": "a",
       "rows": [
         {
+          "name": "browse.rs",
+          "desc": {
+            "en": "the list of files of the window that opens a file",
+            "es": "la lista de ficheros de la ventana que abre un fichero",
+            "de": "die Dateiliste des Fensters zum Öffnen einer Datei",
+            "fr": "la liste des fichiers de la fenêtre d'ouverture d'un fichier",
+            "it": "l'elenco dei file della finestra che apre un file",
+            "ja": "ファイルを開くウィンドウのファイル一覧",
+            "zh": "打开文件窗口的文件列表",
+            "pt": "a lista de ficheiros da janela que abre um ficheiro"
+          }
+        },
+        {
+          "name": "cli_args.rs",
+          "desc": {
+            "en": "the arguments of the command line, the same file in every small utility",
+            "es": "los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña",
+            "de": "die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug",
+            "fr": "les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire",
+            "it": "gli argomenti della riga di comando, lo stesso file in ogni piccola utilità",
+            "ja": "コマンドライン引数：小さなツールすべてで同じファイル",
+            "zh": "命令行参数：每个小工具中的同一个文件",
+            "pt": "os argumentos da linha de comandos, o mesmo ficheiro em cada utilitário pequeno"
+          }
+        },
+        {
+          "name": "gui.rs",
+          "desc": {
+            "en": "the window (egui, with the gui feature): draws the state and passes on what the person does",
+            "es": "la ventana (egui, con la característica gui): dibuja el estado y transmite lo que hace la persona",
+            "de": "das Fenster (egui, mit dem Feature gui): zeichnet den Zustand und gibt weiter, was die Person tut",
+            "fr": "la fenêtre (egui, avec la fonctionnalité gui) : dessine l'état et transmet ce que fait la personne",
+            "it": "la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona",
+            "ja": "ウィンドウ（egui、gui 機能）：状態を描き、操作を伝える",
+            "zh": "窗口（egui，gui 特性）：绘制状态并传递用户的操作",
+            "pt": "a janela (egui, com a funcionalidade gui): desenha o estado e transmite o que a pessoa faz"
+          }
+        },
+        {
+          "name": "lang.rs",
+          "desc": {
+            "en": "the words of the window in the eight languages",
+            "es": "las palabras de la ventana en los ocho idiomas",
+            "de": "die Wörter des Fensters in den acht Sprachen",
+            "fr": "les mots de la fenêtre dans les huit langues",
+            "it": "le parole della finestra nelle otto lingue",
+            "ja": "ウィンドウの文言（8言語）",
+            "zh": "窗口的文字（八种语言）",
+            "pt": "as palavras da janela nos oito idiomas"
+          }
+        },
+        {
+          "name": "layer.rs",
+          "desc": {
+            "en": "reads a layer from bytes and shows what the reader says by its code",
+            "es": "lee una capa desde bytes y muestra lo que dice el lector por su código",
+            "de": "liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code",
+            "fr": "lit une couche depuis des octets et montre ce que dit le lecteur par son code",
+            "it": "legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice",
+            "ja": "バイト列からレイヤーを読み、リーダーの通知をコードで表示",
+            "zh": "从字节读取图层，并按代码显示读取器的提示",
+            "pt": "lê uma camada a partir de bytes e mostra o que o leitor diz pelo seu código"
+          }
+        },
+        {
           "name": "lib.rs",
           "desc": {
             "en": "the library: what every command uses",
@@ -50,32 +115,6 @@
             "ja": "コマンドライン",
             "zh": "命令行",
             "pt": "a linha de comandos"
-          }
-        },
-        {
-          "name": "cli_args.rs",
-          "desc": {
-            "en": "the arguments of the command line, the same file in every small utility",
-            "es": "los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña",
-            "de": "die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug",
-            "fr": "les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire",
-            "it": "gli argomenti della riga di comando, lo stesso file in ogni piccola utilità",
-            "ja": "コマンドライン引数：小さなツールすべてで同じファイル",
-            "zh": "命令行参数：每个小工具中的同一个文件",
-            "pt": "os argumentos da linha de comandos, o mesmo ficheiro em cada utilitário pequeno"
-          }
-        },
-        {
-          "name": "layer.rs",
-          "desc": {
-            "en": "reads a layer from bytes and shows what the reader says by its code",
-            "es": "lee una capa desde bytes y muestra lo que dice el lector por su código",
-            "de": "liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code",
-            "fr": "lit une couche depuis des octets et montre ce que dit le lecteur par son code",
-            "it": "legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice",
-            "ja": "バイト列からレイヤーを読み、リーダーの通知をコードで表示",
-            "zh": "从字节读取图层，并按代码显示读取器的提示",
-            "pt": "lê uma camada a partir de bytes e mostra o que o leitor diz pelo seu código"
           }
         },
         {
@@ -115,6 +154,32 @@
             "ja": "ロジックの一部",
             "zh": "逻辑的一部分",
             "pt": "uma parte da lógica"
+          }
+        },
+        {
+          "name": "viewport.rs",
+          "desc": {
+            "en": "zoom and pan of the picture, in plain numbers",
+            "es": "zoom y desplazamiento de la imagen, en números simples",
+            "de": "Zoom und Verschiebung des Bildes, in einfachen Zahlen",
+            "fr": "zoom et déplacement de l'image, en simples nombres",
+            "it": "zoom e spostamento dell'immagine, in semplici numeri",
+            "ja": "画像の拡大縮小と移動（単純な数値）",
+            "zh": "图像的缩放和平移（纯数值）",
+            "pt": "zoom e deslocamento da imagem, em números simples"
+          }
+        },
+        {
+          "name": "window.rs",
+          "desc": {
+            "en": "the state of the window without a screen: layer, material, parameters, cuts, export and status",
+            "es": "el estado de la ventana sin pantalla: capa, material, parámetros, cortes, exportación y estado",
+            "de": "der Zustand des Fensters ohne Bildschirm: Ebene, Material, Parameter, Schnitte, Export und Status",
+            "fr": "l'état de la fenêtre sans écran : couche, matériau, paramètres, coupes, export et état",
+            "it": "lo stato della finestra senza schermo: livello, materiale, parametri, tagli, esportazione e stato",
+            "ja": "画面なしのウィンドウの状態：レイヤー、材料、パラメーター、切断、書き出し、ステータス",
+            "zh": "无需屏幕的窗口状态：层、材料、参数、切割、导出和状态",
+            "pt": "o estado da janela sem ecrã: camada, material, parâmetros, cortes, exportação e estado"
           }
         }
       ]
@@ -174,6 +239,19 @@
             "ja": "コマンドラインのテスト：知らないオプションと語",
             "zh": "命令行测试：它不认识的选项和词",
             "pt": "testes da linha de comandos: opções e palavras que não conhece"
+          }
+        },
+        {
+          "name": "window_cli.rs",
+          "desc": {
+            "en": "tests that a build without the gui feature stays a command line",
+            "es": "pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos",
+            "de": "Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt",
+            "fr": "tests qu'une compilation sans la fonctionnalité gui reste une ligne de commande",
+            "it": "test che una compilazione senza la funzione gui resti una riga di comando",
+            "ja": "gui 機能なしのビルドがコマンドラインのままであることのテスト",
+            "zh": "测试没有 gui 特性的构建仍然只是命令行",
+            "pt": "testes de que uma compilação sem a funcionalidade gui continua a ser só linha de comandos"
           }
         }
       ]

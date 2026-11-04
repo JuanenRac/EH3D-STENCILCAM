@@ -17,7 +17,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 72 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Todavía no tiene ventana, no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 112 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Tiene una ventana (se compila con `--features gui`) que abre una capa de pasta y dibuja los pads y las trayectorias de corte, pero esa ventana todavía no se ha visto en una pantalla; no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versión | `0.0.4` |
 | Madurez | Andamiaje |
-| Pruebas | 72 |
+| Pruebas | 112 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -46,9 +46,9 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `eh3d-stencilcam` ejecuta las mismas funciones que la biblioteca e imprime el resultado; cada error vuelve como mensaje y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 72 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas. |
+| Pruebas | 🟡 | 112 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
-| Ventana | 🔴 | Previsto: la ventana egui común a la suite; hoy solo existe la línea de comandos. |
+| Ventana | 🟠 | Escrita (egui, `--features gui`): abrir o soltar una capa de pasta, elegir el material, editar los parámetros, ver los pads y las trayectorias de corte (en rojo las aperturas que no soltarán la pasta), zoom y desplazamiento, exportar; su lógica está probada, pero todavía no se ha compilado ni visto en una pantalla. |
 | Hardware real | 🔴 | No probado: nada de esto se ha ejecutado en una máquina. |
 | Documentación | 🟡 | README en ocho idiomas, el registro de cambios y las dos imágenes dibujadas desde `docs/`. |
 
@@ -62,7 +62,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 
 ## 🧩 Papel en EH3D
 
-EH3D-STENCILCAM es un programa de la EH3D Fabrication Suite. Hoy funciona como biblioteca y línea de comandos; su ventana, con el aspecto que comparten los demás programas de la suite, está prevista. Lee y escribe ficheros simples, así que puede usarse solo o entre los demás programas.
+EH3D-STENCILCAM es un programa de la EH3D Fabrication Suite. Funciona como biblioteca y línea de comandos y, compilado con `--features gui`, como ventana con el aspecto que comparten los demás programas de la suite. Lee y escribe ficheros simples, así que puede usarse solo o entre los demás programas.
 
 ## 🏛️ Arquitectura
 
@@ -99,18 +99,24 @@ La biblioteca es `eh3d_stencilcam` (`use eh3d_stencilcam::...`); la línea de co
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                la lista de ficheros de la ventana que abre un fichero
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
+│   ├── gui.rs                                   la ventana (egui, con la característica gui): dibuja el estado y transmite lo que hace la persona
+│   ├── lang.rs                                  las palabras de la ventana en los ocho idiomas
+│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
 │   ├── main.rs                                  la línea de comandos
-│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
-│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── openings.rs                              una parte de la lógica
 │   ├── output.rs                                una parte de la lógica
-│   └── profile.rs                               una parte de la lógica
+│   ├── profile.rs                               una parte de la lógica
+│   ├── viewport.rs                              zoom y desplazamiento de la imagen, en números simples
+│   └── window.rs                                el estado de la ventana sin pantalla: capa, material, parámetros, cortes, exportación y estado
 ├── tests/
 │   ├── reading.rs                               pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código
 │   ├── readme.rs                                pruebas que ejecutan lo que prometen el README y los scripts run
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
-│   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
+│   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
+│   └── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
 ├── examples/
 │   └── paste.gtp                                una muestra para probar el programa
 ├── docs/
@@ -139,11 +145,12 @@ Necesita una cadena de herramientas Rust estable (1.75 o más reciente).
 cargo build --release
 cargo test
 cargo run --release -- check examples/paste.gtp
+cargo run --release --features gui   # the window
 ```
 
 ## 🧪 Pruebas
 
-El conjunto tiene 72 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+El conjunto tiene 112 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -161,18 +168,24 @@ La versión está en `Cargo.toml` y en `eh3d.project.json`; cada versión tiene 
 ```text
 EH3D-STENCILCAM/
 ├── src/
+│   ├── browse.rs                                la lista de ficheros de la ventana que abre un fichero
+│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
+│   ├── gui.rs                                   la ventana (egui, con la característica gui): dibuja el estado y transmite lo que hace la persona
+│   ├── lang.rs                                  las palabras de la ventana en los ocho idiomas
+│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── lib.rs                                   la biblioteca: lo que usa cada orden
 │   ├── main.rs                                  la línea de comandos
-│   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
-│   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
 │   ├── openings.rs                              una parte de la lógica
 │   ├── output.rs                                una parte de la lógica
-│   └── profile.rs                               una parte de la lógica
+│   ├── profile.rs                               una parte de la lógica
+│   ├── viewport.rs                              zoom y desplazamiento de la imagen, en números simples
+│   └── window.rs                                el estado de la ventana sin pantalla: capa, material, parámetros, cortes, exportación y estado
 ├── tests/
 │   ├── reading.rs                               pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código
 │   ├── readme.rs                                pruebas que ejecutan lo que prometen el README y los scripts run
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
-│   └── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
+│   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
+│   └── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
 ├── examples/
 │   └── paste.gtp                                una muestra para probar el programa
 ├── docs/
@@ -195,14 +208,14 @@ EH3D-STENCILCAM/
 
 **Límites conocidos hoy**
 
-* Todavía no tiene ventana: solo existen la biblioteca y la línea de comandos.
+* La ventana todavía no se ha visto en una pantalla y no muestra las relaciones de cada apertura: eso lo hace `check`.
 * No se ha probado en una máquina ni con una colección de ficheros reales y no ha tenido revisión independiente.
 * Los pads de macro y las pistas y regiones de la capa de pasta no se convierten en aperturas (un pad poligonal se corta como un círculo), los perfiles de los materiales son puntos de partida y no hay corte en varias pasadas para una lámina de acero.
 
 **Siguiente**
 
-* Probarlo con una capa de pasta real y un láser, leer los perfiles del almacén de herramientas y añadir la ventana con la vista de las aperturas.
-* Añadir la ventana con el aspecto compartido por los programas de la suite, en los ocho idiomas.
+* Probarlo con una capa de pasta real y un láser y leer los perfiles del almacén de herramientas.
+* Ver la ventana en una pantalla y completarla: los perfiles del almacén de herramientas y una vista de las relaciones de pasta de cada apertura.
 * Probarlo con ficheros reales y con los demás programas de la suite.
 
 ## 🌍 Idiomas
