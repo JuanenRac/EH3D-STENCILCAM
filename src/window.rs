@@ -556,7 +556,7 @@ mod tests {
         w.set_field(3, "0".into());
         w.set_field(0, "0.2".into());
         assert!(w.open(&layer));
-        assert_eq!(w.weak, vec![0]);
+        assert_eq!(w.weak, [0]);
         assert_eq!(w.status, Status::Weak(1));
         assert!(!w.export(&out));
         assert!(!out.exists());
