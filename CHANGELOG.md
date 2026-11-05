@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+
+## [0.0.5] - The window of the stencil program, a laser wait before the cut and the Windows icon
+
 - **Binaries for every system:** `release-binaries.yml` builds the program with its window for Windows (64 and 32 bits), Linux and macOS (Apple silicon and Intel), packs each one with the licence, the readme, the icon and the examples, writes `SHA256SUMS` and a build manifest, attests their provenance, verifies the artifact as a stranger would, prepares a draft release only after the owner approves it (a dry run is the default) and opens an issue `build-failed` when anything does not finish.
 - **The dependencies on the shared readers name the version that has what is used:** the G-code crate (and for ISOCAM the Excellon one) is required from 0.0.7, the version that brought the way of writing a number, the header of a program and the units given by the caller.
 - **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` (0 by default: none; at most 60), so that the laser is at its power before the head moves.
