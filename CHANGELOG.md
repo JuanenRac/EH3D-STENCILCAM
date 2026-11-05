@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The dependencies on the shared readers name the version that has what is used:** the G-code crate (and for ISOCAM the Excellon one) is required from 0.0.7, the version that brought the way of writing a number, the header of a program and the units given by the caller.
 - **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` (0 by default: none; at most 60), so that the laser is at its power before the head moves.
 - **The G-code is read back in the tests:** the cuts, with and without the wait, and the file of the command line are read with the reader of the suite and walked the way the strict mode of the G-code debugger walks them; there is no warning and no cut with the laser off. The header of the command line is compared with the expected text.
 - **The Windows executable carries the icon of the program:** the file shows it in the explorer and the taskbar, together with the name, the description and the version, embedded by `build.rs`; other systems are not affected.

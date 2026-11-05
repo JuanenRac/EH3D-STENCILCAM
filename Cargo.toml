@@ -24,7 +24,7 @@ gui = ["dep:eframe", "dep:png"]
 [dependencies]
 # the Gerber reader and the shapes of the apertures (path dependencies on the sibling repositories)
 eh3d-parser-gerber = { version = ">=0.0.2", path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gerber" }
-eh3d-parser-gcode = { version = ">=0.0.2", path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gcode" }
+eh3d-parser-gcode = { version = ">=0.0.7", path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gcode" }
 eh3d-gerberviewer ={ version = ">=0.0.1", path = "../EH3D-GERBERVIEWER" }
 
 # the window
