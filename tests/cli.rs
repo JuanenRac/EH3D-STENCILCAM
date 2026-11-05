@@ -302,3 +302,23 @@ fn a_layer_with_no_pads_and_a_file_that_is_not_gerber_do_not_crash() {
     }
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_wait_of_the_laser_is_an_option_of_convert_and_its_range_is_checked() {
+    let dir = scratch("laser_wait");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let (l, out) = (layer.to_str().unwrap(), dir.join("w.nc"));
+    let o = out.to_str().unwrap();
+    let (c, _, e) = run_full(&["convert", l, o, "--thickness", "0.1", "--laser-wait", "2"]);
+    assert_eq!(c, Some(0), "{e}");
+    let text = fs::read_to_string(&out).unwrap();
+    assert_eq!(text.matches("G4 P2\n").count(), 2, "{text}");
+    let none = dir.join("n.nc");
+    run_full(&["convert", l, none.to_str().unwrap(), "--thickness", "0.1"]);
+    assert!(!fs::read_to_string(&none).unwrap().contains("G4"));
+    let (c, _, e) = run_full(&["convert", l, o, "--thickness", "0.1", "--laser-wait", "61"]);
+    assert_ne!(c, Some(0));
+    assert!(e.contains("--laser-wait"), "{e}");
+    let _ = fs::remove_dir_all(&dir);
+}

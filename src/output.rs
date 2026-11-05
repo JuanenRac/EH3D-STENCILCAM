@@ -125,6 +125,21 @@ pub fn ordered(paths: &[Path]) -> Vec<Path> {
 
 /// G-code for a laser at constant power (`M3`): travel with the laser off, cut each path at `feed_mm_min`.
 pub fn gcode(paths: &[Path], feed_mm_min: f64, s_value: u32) -> Result<String, String> {
+    gcode_with_wait(paths, feed_mm_min, s_value, 0.0)
+}
+
+/// Like [`gcode`], and after each `M3` a wait of `wait_s` seconds (`G4 P`) so that the laser is at its power before the head moves; 0 writes no wait. At most 60 seconds.
+pub fn gcode_with_wait(
+    paths: &[Path],
+    feed_mm_min: f64,
+    s_value: u32,
+    wait_s: f64,
+) -> Result<String, String> {
+    if !(wait_s.is_finite() && (0.0..=60.0).contains(&wait_s)) {
+        return Err(format!(
+            "the laser wait is {wait_s}: it must be from 0 to 60 seconds"
+        ));
+    }
     if !(feed_mm_min.is_finite() && feed_mm_min > 0.0 && feed_mm_min <= 30_000.0) {
         return Err(format!(
             "the feed is {feed_mm_min}: it must be from 0 to 30000 mm/min"
@@ -137,6 +152,9 @@ pub fn gcode(paths: &[Path], feed_mm_min: f64, s_value: u32) -> Result<String, S
             number(path[0].0)?,
             number(path[0].1)?
         ));
+        if wait_s > 0.0 {
+            g.push_str(&format!("G4 P{}\n", number(wait_s)?));
+        }
         for p in &path[1..] {
             g.push_str(&format!("G1 X{} Y{}\n", number(p.0)?, number(p.1)?));
         }

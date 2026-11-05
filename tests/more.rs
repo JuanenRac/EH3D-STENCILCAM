@@ -271,3 +271,20 @@ fn the_walk_of_the_paths_is_the_plain_nearest_walk_and_a_hundred_thousand_take_m
     );
     assert!(ordered(&[]).is_empty());
 }
+
+#[test]
+fn a_wait_after_the_laser_is_switched_on_is_written_for_every_path_and_a_wrong_wait_is_refused() {
+    use eh3d_stencilcam::output::gcode_with_wait;
+    let paths = vec![square(0.0, 0.0, 1.0), square(5.0, 5.0, 1.0)];
+    let g = gcode_with_wait(&paths, 300.0, 800, 0.5).unwrap();
+    assert_eq!(g.matches("M3 S800\nG4 P0.5\nG1 X").count(), 2, "{g}");
+    // no wait is the plain program
+    let plain = gcode(&paths, 300.0, 800).unwrap();
+    assert!(!plain.contains("G4"), "{plain}");
+    assert_eq!(gcode_with_wait(&paths, 300.0, 800, 0.0).unwrap(), plain);
+    for bad in [-1.0, 60.5, f64::NAN, f64::INFINITY] {
+        let e = gcode_with_wait(&paths, 300.0, 800, bad).unwrap_err();
+        assert!(e.contains("laser wait"), "{bad}: {e}");
+    }
+    assert!(gcode_with_wait(&paths, 300.0, 800, 60.0).is_ok());
+}

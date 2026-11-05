@@ -8,7 +8,7 @@ use cli_args::{finish, flag, num, switch};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
-use eh3d_stencilcam::output::{gcode, hpgl, paths};
+use eh3d_stencilcam::output::{gcode_with_wait, hpgl, paths};
 use eh3d_stencilcam::profile::{Material, Profile};
 use std::env;
 use std::fs;
@@ -17,12 +17,14 @@ use std::process::ExitCode;
 const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer of a board
 
   eh3d-stencilcam convert LAYER.gtp OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
-                  [--kerf MM] [--feed 600] [--smax 1000] [--mirror] [--force]
+                  [--kerf MM] [--feed 600] [--smax 1000] [--laser-wait SECONDS] [--mirror] [--force]
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
 
 Both read the layer with a size limit (--max-bytes N, 268435456 by default; the refusal is written in the language of the system) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
 out the notices of those codes (for example units-missing). --arc-tolerance MM (0.005 by default) is how closely the arcs of the layer are followed.
+
+--laser-wait SECONDS writes a G4 wait after each M3 so that the laser reaches its power before the head moves (0 by default: no wait).
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
@@ -71,6 +73,15 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         .unwrap_or(1000.0);
     if !(1.0..=100_000.0).contains(&smax) {
         return Err(format!("--smax {smax} must be from 1 to 100000"));
+    }
+    let laser_wait = flag(&mut args, "--laser-wait")?
+        .map(|v| num(&v, "--laser-wait"))
+        .transpose()?
+        .unwrap_or(0.0);
+    if !(0.0..=60.0).contains(&laser_wait) {
+        return Err(format!(
+            "--laser-wait {laser_wait} must be from 0 to 60 seconds"
+        ));
     }
     let max_bytes = flag(&mut args, "--max-bytes")?
         .map(|v| num(&v, "--max-bytes").map(|n| n as usize))
@@ -188,7 +199,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                     )),
                     tools: "laser",
                 });
-                format!("{head}{}", gcode(&all, feed, smax as u32)?)
+                format!(
+                    "{head}{}",
+                    gcode_with_wait(&all, feed, smax as u32, laser_wait)?
+                )
             };
             fs::write(out, text).map_err(|e| format!("{out}: {e}"))?;
             println!("{} openings written to {out}", all.len());
