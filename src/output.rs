@@ -141,10 +141,21 @@ pub fn gcode_with_wait(
 /// The most a lead-in or a lead-out may measure, in millimetres.
 pub const MAX_LEAD_MM: f64 = 5.0;
 
+/// Points closer than this (in millimetres) are the same point: the end of a closed circle comes back to its start with a rounding error of the sine.
+const SAME_POINT_MM: f64 = 1e-9;
+
+/// Whether two points are the same point.
+fn same_point(a: (f64, f64), b: (f64, f64)) -> bool {
+    (a.0 - b.0).hypot(a.1 - b.1) < SAME_POINT_MM
+}
+
 /// The unit vector of the first segment of a path that has a length (a path may start with repeated points), or `None` when every point is the same.
 fn first_direction(path: &[(f64, f64)]) -> Option<(f64, f64)> {
     let a = *path.first()?;
-    path.iter().skip(1).find(|p| **p != a).map(|b| unit(a, *b))
+    path.iter()
+        .skip(1)
+        .find(|p| !same_point(**p, a))
+        .map(|b| unit(a, *b))
 }
 
 /// The unit vector of the last segment of a path that has a length, pointing into the last point.
@@ -153,7 +164,7 @@ fn last_direction(path: &[(f64, f64)]) -> Option<(f64, f64)> {
     path.iter()
         .rev()
         .skip(1)
-        .find(|p| **p != z)
+        .find(|p| !same_point(**p, z))
         .map(|a| unit(*a, z))
 }
 
