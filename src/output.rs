@@ -163,15 +163,14 @@ fn unit(a: (f64, f64), b: (f64, f64)) -> (f64, f64) {
     (dx / len, dy / len)
 }
 
+/// The point where the tool enters the sheet and the point where it leaves it (each is `None` when its lead is 0).
+pub type LeadPoints = (Option<(f64, f64)>, Option<(f64, f64)>);
+
 /// Where the head enters and where it leaves a closed path: the point `lead_in_mm` before its first point on the straight line of its first segment, and the point
 /// `lead_out_mm` after its last point on the straight line of its last segment (the lead lines are the prolongations of the contour, tangent to it, so the laser does not
 /// turn at the join). An outline of the stencil is convex and runs counter-clockwise, so both points lie outside the opening, on the sheet. A length of 0, or a path with no
 /// length at all, gives `None` for that end.
-pub fn lead_points(
-    path: &[(f64, f64)],
-    lead_in_mm: f64,
-    lead_out_mm: f64,
-) -> (Option<(f64, f64)>, Option<(f64, f64)>) {
+pub fn lead_points(path: &[(f64, f64)], lead_in_mm: f64, lead_out_mm: f64) -> LeadPoints {
     let mut entry = None;
     let mut exit = None;
     if let (true, Some(u)) = (lead_in_mm > 0.0, first_direction(path)) {
