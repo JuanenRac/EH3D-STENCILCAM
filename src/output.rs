@@ -135,32 +135,140 @@ pub fn gcode_with_wait(
     s_value: u32,
     wait_s: f64,
 ) -> Result<String, String> {
+    gcode_with_leads(paths, feed_mm_min, s_value, wait_s, 0.0, 0.0)
+}
+
+/// The most a lead-in or a lead-out may measure, in millimetres.
+pub const MAX_LEAD_MM: f64 = 5.0;
+
+/// The unit vector of the first segment of a path that has a length (a path may start with repeated points), or `None` when every point is the same.
+fn first_direction(path: &[(f64, f64)]) -> Option<(f64, f64)> {
+    let a = *path.first()?;
+    path.iter().skip(1).find(|p| **p != a).map(|b| unit(a, *b))
+}
+
+/// The unit vector of the last segment of a path that has a length, pointing into the last point.
+fn last_direction(path: &[(f64, f64)]) -> Option<(f64, f64)> {
+    let z = *path.last()?;
+    path.iter()
+        .rev()
+        .skip(1)
+        .find(|p| **p != z)
+        .map(|a| unit(*a, z))
+}
+
+fn unit(a: (f64, f64), b: (f64, f64)) -> (f64, f64) {
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let len = dx.hypot(dy);
+    (dx / len, dy / len)
+}
+
+/// Where the head enters and where it leaves a closed path: the point `lead_in_mm` before its first point on the straight line of its first segment, and the point
+/// `lead_out_mm` after its last point on the straight line of its last segment (the lead lines are the prolongations of the contour, tangent to it, so the laser does not
+/// turn at the join). An outline of the stencil is convex and runs counter-clockwise, so both points lie outside the opening, on the sheet. A length of 0, or a path with no
+/// length at all, gives `None` for that end.
+pub fn lead_points(
+    path: &[(f64, f64)],
+    lead_in_mm: f64,
+    lead_out_mm: f64,
+) -> (Option<(f64, f64)>, Option<(f64, f64)>) {
+    let mut entry = None;
+    let mut exit = None;
+    if let (true, Some(u)) = (lead_in_mm > 0.0, first_direction(path)) {
+        entry = Some((path[0].0 - u.0 * lead_in_mm, path[0].1 - u.1 * lead_in_mm));
+    }
+    if let (true, Some(v)) = (lead_out_mm > 0.0, last_direction(path)) {
+        let z = path[path.len() - 1];
+        exit = Some((z.0 + v.0 * lead_out_mm, z.1 + v.1 * lead_out_mm));
+    }
+    (entry, exit)
+}
+
+/// Like [`gcode_with_wait`], with a straight tangent lead-in of `lead_in_mm` before each path and a lead-out of `lead_out_mm` after it (see [`lead_points`]; each at most
+/// [`MAX_LEAD_MM`]). The head travels with the laser off to the start of the lead-in, the laser is switched on there (and waits, when asked) and cuts the lead-in, the path
+/// and the lead-out, and is switched off at the end of the lead-out. With both leads at 0 the program is the one of [`gcode_with_wait`].
+pub fn gcode_with_leads(
+    paths: &[Path],
+    feed_mm_min: f64,
+    s_value: u32,
+    wait_s: f64,
+    lead_in_mm: f64,
+    lead_out_mm: f64,
+) -> Result<String, String> {
     if !(wait_s.is_finite() && (0.0..=60.0).contains(&wait_s)) {
         return Err(format!(
             "the laser wait is {wait_s}: it must be from 0 to 60 seconds"
         ));
+    }
+    for (name, v) in [("lead-in", lead_in_mm), ("lead-out", lead_out_mm)] {
+        if !(v.is_finite() && (0.0..=MAX_LEAD_MM).contains(&v)) {
+            return Err(format!(
+                "the {name} is {v}: it must be from 0 to {MAX_LEAD_MM} mm"
+            ));
+        }
     }
     if !(feed_mm_min.is_finite() && feed_mm_min > 0.0 && feed_mm_min <= 30_000.0) {
         return Err(format!(
             "the feed is {feed_mm_min}: it must be from 0 to 30000 mm/min"
         ));
     }
-    let mut g = format!("G21\nG90\nF{}\n", number(feed_mm_min)?);
+    let mut g = format!(
+        "G21
+G90
+F{}
+",
+        number(feed_mm_min)?
+    );
     for path in ordered(paths) {
+        let (entry, exit) = lead_points(&path, lead_in_mm, lead_out_mm);
+        let start = entry.unwrap_or(path[0]);
         g.push_str(&format!(
-            "G0 X{} Y{}\nM3 S{s_value}\n",
-            number(path[0].0)?,
-            number(path[0].1)?
+            "G0 X{} Y{}
+M3 S{s_value}
+",
+            number(start.0)?,
+            number(start.1)?
         ));
         if wait_s > 0.0 {
-            g.push_str(&format!("G4 P{}\n", number(wait_s)?));
+            g.push_str(&format!(
+                "G4 P{}
+",
+                number(wait_s)?
+            ));
+        }
+        if entry.is_some() {
+            g.push_str(&format!(
+                "G1 X{} Y{}
+",
+                number(path[0].0)?,
+                number(path[0].1)?
+            ));
         }
         for p in &path[1..] {
-            g.push_str(&format!("G1 X{} Y{}\n", number(p.0)?, number(p.1)?));
+            g.push_str(&format!(
+                "G1 X{} Y{}
+",
+                number(p.0)?,
+                number(p.1)?
+            ));
         }
-        g.push_str("M5\n");
+        if let Some(e) = exit {
+            g.push_str(&format!(
+                "G1 X{} Y{}
+",
+                number(e.0)?,
+                number(e.1)?
+            ));
+        }
+        g.push_str(
+            "M5
+",
+        );
     }
-    g.push_str("M2\n");
+    g.push_str(
+        "M2
+",
+    );
     Ok(g)
 }
 

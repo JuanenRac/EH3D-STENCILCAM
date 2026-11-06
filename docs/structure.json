@@ -54,6 +54,19 @@
           }
         },
         {
+          "name": "config.rs",
+          "desc": {
+            "en": "the settings file: the lead-in and lead-out of the cuts and the laser wait",
+            "es": "el fichero de ajustes: la entrada y la salida de los cortes y la espera del láser",
+            "de": "die Einstellungsdatei: Ein- und Auslauf der Schnitte und die Laser-Wartezeit",
+            "fr": "le fichier de réglages : l'entrée et la sortie des coupes et l'attente du laser",
+            "it": "il file delle impostazioni: ingresso e uscita dei tagli e l'attesa del laser",
+            "ja": "設定ファイル：切断の進入部と退出部、レーザーの待ち",
+            "zh": "设置文件：切割的引入段和引出段以及激光等待",
+            "pt": "o ficheiro de definições: a entrada e a saída dos cortes e a espera do laser"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "the window (egui, with the gui feature): draws the state and passes on what the person does",
@@ -190,6 +203,19 @@
       "span": 3,
       "accent": "d",
       "rows": [
+        {
+          "name": "leads.rs",
+          "desc": {
+            "en": "tests of the straight lead-in and lead-out of the cuts and of the settings file",
+            "es": "pruebas de la entrada y la salida rectas de los cortes y del fichero de ajustes",
+            "de": "Tests des geraden Ein- und Auslaufs der Schnitte und der Einstellungsdatei",
+            "fr": "tests de l'entrée et de la sortie droites des coupes et du fichier de réglages",
+            "it": "test dell'ingresso e dell'uscita retti dei tagli e del file delle impostazioni",
+            "ja": "切断の直線の進入部・退出部と設定ファイルのテスト",
+            "zh": "切割直线引入段和引出段以及设置文件的测试",
+            "pt": "testes da entrada e da saída retas dos cortes e do ficheiro de definições"
+          }
+        },
         {
           "name": "reading.rs",
           "desc": {

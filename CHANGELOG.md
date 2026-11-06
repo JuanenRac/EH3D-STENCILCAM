@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A straight lead-in and lead-out on every cut:** each contour of the G-code can be entered along a straight line tangent to its first segment and left along the prolongation of its last one (`gcode_with_leads`; 0.3 mm each by default, from 0 to 5). The laser is off while the head travels to the start of the lead-in, is switched on there (after the `--laser-wait` wait, if any) and is switched off at the end of the lead-out. The outlines are convex and counter-clockwise, so both leads lie outside the opening, on the sheet that is kept. With 0 the program is exactly the one written before, and HP-GL has no leads.
+- **A settings file, `stencil.cfg`:** the strict keys `lead_in_mm`, `lead_out_mm` and `laser_wait_s` (comments with `#`; an unknown key, a key given twice or a value out of its range is an error with the number of the line), read with `--config FILE` and printed with their defaults by `eh3d-stencilcam config` (`examples/stencil.cfg`); the new options `--lead-in MM` and `--lead-out MM` and the existing `--laser-wait` win over the file.
+
 ## [0.0.5] - The window of the stencil program, a laser wait before the cut and the Windows icon
 
 - **Binaries for every system:** `release-binaries.yml` builds the program with its window for Windows (64 and 32 bits), Linux and macOS (Apple silicon and Intel), packs each one with the licence, the readme, the icon and the examples, writes `SHA256SUMS` and a build manifest, attests their provenance, verifies the artifact as a stranger would, prepares a draft release only after the owner approves it (a dry run is the default) and opens an issue `build-failed` when anything does not finish.

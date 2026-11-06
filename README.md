@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 117 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 129 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Maturity | Scaffolding |
-| Tests | 117 |
+| Tests | 129 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 117 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 129 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -82,6 +82,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **No unsafe code:** `#![forbid(unsafe_code)]` in the library and the program.
 * **The G-code carries the standard header and a faster order:** the file starts with comment lines for the generator, the units and the layer with its SHA-256, a rectangle with sharp corners has no repeated points, and the order of the cuts is found with a grid, so a hundred thousand openings are ordered in moments.
 * **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` so that the laser is at its power before the head moves (0 by default: no wait); the tests read the G-code back with the reader of the suite and find no warning and no cut with the laser off.
+* **A straight lead-in and lead-out on every cut:** the G-code can enter each contour along a straight line tangent to its first segment and leave it along the prolongation of its last one (0.3 mm each by default, `--lead-in MM`, `--lead-out MM` or `lead_in_mm` and `lead_out_mm` in `stencil.cfg`; 0 writes none and the program is the one written without leads). The laser stays off while the head travels to the start of the lead-in, is switched on there (and waits, if asked), and is switched off at the end of the lead-out. The outlines are convex and run counter-clockwise, so both leads lie outside the opening, on the sheet that is kept; a lead is not written in HP-GL.
 
 ## 🔒 Security & Safety
 
@@ -102,6 +103,7 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
 │   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
@@ -113,6 +115,7 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
+│   ├── leads.rs                                 tests of the straight lead-in and lead-out of the cuts and of the settings file
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
@@ -136,7 +139,7 @@ EH3D-STENCILCAM/
 
 ## ⚙️ Configuration
 
-There is no configuration file yet: what a person chooses is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests.
+A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests.
 
 ## 🚀 Quick start
 
@@ -151,7 +154,7 @@ cargo run --release --features gui   # the window
 
 ## 🧪 Testing
 
-The suite has 117 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 129 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -175,6 +178,7 @@ EH3D-STENCILCAM/
 ├── src/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
+│   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
 │   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
@@ -186,6 +190,7 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
+│   ├── leads.rs                                 tests of the straight lead-in and lead-out of the cuts and of the settings file
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line

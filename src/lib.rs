@@ -5,6 +5,7 @@
 //! comes out of an opening are checked; and the closed paths are written as G-code for a laser or as HP-GL for a plotter.
 
 pub mod browse;
+pub mod config;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod lang;
