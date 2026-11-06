@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 129 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 139 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.5` |
 | Maturity | Scaffolding |
-| Tests | 129 |
+| Tests | 139 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 129 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 139 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -112,6 +112,7 @@ EH3D-STENCILCAM/
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
 │   ├── profile.rs                               a part of the logic
+│   ├── shot.rs                                  the picture mode of the window (--shot): its arguments, read and checked without a screen
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
@@ -150,11 +151,14 @@ cargo build --release
 cargo test
 cargo run --release -- check examples/paste.gtp
 cargo run --release --features gui   # the window
+cargo run --release --features gui -- --shot screen.png examples/paste.gtp   # a picture of the window
 ```
+
+To take a picture of the window without opening it by hand, run it with `--shot FILE.png` (also `--size WxH`, `--theme forge|dark|light`, `--wait N`, `--lang CODE`, `--open FILE`, `--replace`): it opens at that size, saves the PNG, keeps no settings and closes by itself (exit code 0 when the file was written, 1 when it was not, 2 for wrong arguments).
 
 ## 🧪 Testing
 
-The suite has 129 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 139 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -187,6 +191,7 @@ EH3D-STENCILCAM/
 │   ├── openings.rs                              a part of the logic
 │   ├── output.rs                                a part of the logic
 │   ├── profile.rs                               a part of the logic
+│   ├── shot.rs                                  the picture mode of the window (--shot): its arguments, read and checked without a screen
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
