@@ -282,6 +282,84 @@ M3 S{s_value}
     Ok(g)
 }
 
+/// The time of a G-code job, estimated from the speeds and not from a machine: the seconds of cutting, of waiting for the laser and of the moves with the laser off.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TimeEstimate {
+    pub cutting_s: f64,
+    pub waiting_s: f64,
+    pub rapid_s: f64,
+}
+
+impl TimeEstimate {
+    pub fn total_s(&self) -> f64 {
+        self.cutting_s + self.waiting_s + self.rapid_s
+    }
+}
+
+/// The time [`gcode_with_leads`] would take for the same arguments plus `rapid_mm_min`, the speed of the moves with the laser off. The head starts at the origin and walks
+/// the paths in the order of [`ordered`]: it travels to the start of each lead-in (or of the path), cuts the lead-in, the path and the lead-out at `feed_mm_min`, and waits
+/// `wait_s` after each `M3`. Acceleration is not counted, so the real job takes longer. A feed or a rapid speed that is not above zero is refused.
+pub fn estimate_time(
+    paths: &[Path],
+    feed_mm_min: f64,
+    wait_s: f64,
+    leads: (f64, f64),
+    rapid_mm_min: f64,
+) -> Result<TimeEstimate, String> {
+    if !(feed_mm_min.is_finite() && feed_mm_min > 0.0) {
+        return Err("the feed must be above 0 to estimate the time".into());
+    }
+    if !(rapid_mm_min.is_finite() && rapid_mm_min > 0.0) {
+        return Err("the rapid speed must be above 0 to estimate the time".into());
+    }
+    if !(wait_s.is_finite() && wait_s >= 0.0) {
+        return Err("the laser wait must not be negative to estimate the time".into());
+    }
+    let (mut cut_mm, mut travel_mm, mut runs) = (0.0_f64, 0.0_f64, 0.0_f64);
+    let mut at = (0.0_f64, 0.0_f64);
+    for path in ordered(paths) {
+        let (entry, exit) = lead_points(&path, leads.0, leads.1);
+        let start = entry.unwrap_or(path[0]);
+        travel_mm += (start.0 - at.0).hypot(start.1 - at.1);
+        if let Some(e) = entry {
+            cut_mm += (path[0].0 - e.0).hypot(path[0].1 - e.1);
+        }
+        cut_mm += path
+            .windows(2)
+            .map(|w| (w[1].0 - w[0].0).hypot(w[1].1 - w[0].1))
+            .sum::<f64>();
+        let last = path[path.len() - 1];
+        at = last;
+        if let Some(x) = exit {
+            cut_mm += (x.0 - last.0).hypot(x.1 - last.1);
+            at = x;
+        }
+        runs += 1.0;
+    }
+    Ok(TimeEstimate {
+        cutting_s: cut_mm / feed_mm_min * 60.0,
+        waiting_s: runs * wait_s,
+        rapid_s: travel_mm / rapid_mm_min * 60.0,
+    })
+}
+
+/// A time for a person: `45 s`, `2 min 27 s`, `1 h 2 min` (the seconds are rounded first, and the seconds are left out from an hour on).
+pub fn duration_text(seconds: f64) -> String {
+    let total = if seconds.is_finite() && seconds > 0.0 {
+        seconds.round() as u64
+    } else {
+        0
+    };
+    let (h, m, s) = (total / 3600, total % 3600 / 60, total % 60);
+    if h > 0 {
+        format!("{h} h {m} min")
+    } else if m > 0 {
+        format!("{m} min {s} s")
+    } else {
+        format!("{s} s")
+    }
+}
+
 /// HP-GL for a plotter or a cutter: 40 units to the millimetre, pen 1 down while a path is drawn.
 pub fn hpgl(paths: &[Path]) -> String {
     let u = |v: f64| (v * 40.0).round() as i64;

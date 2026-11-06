@@ -1,6 +1,6 @@
 //! The settings file of the project, `stencil.cfg`: `key = value`, one per line, `#` starts a comment. Its keys are `lead_in_mm` and `lead_out_mm` (the straight tangent lead-in
-//! and lead-out of every cut) and `laser_wait_s` (the wait after the laser is switched on). The command line takes the same settings as options (`--lead-in`, `--lead-out`,
-//! `--laser-wait`), which win over the file. A line that makes no sense is an error that says its number.
+//! and lead-out of every cut) `laser_wait_s` (the wait after the laser is switched on) and `rapid_mm_min` (the speed of the moves with the laser off, to estimate the time; 0: no estimate). The command line takes the same settings as options (`--lead-in`, `--lead-out`,
+//! `--laser-wait`, `--rapid`), which win over the file. A line that makes no sense is an error that says its number.
 
 use crate::output::MAX_LEAD_MM;
 
@@ -8,6 +8,8 @@ use crate::output::MAX_LEAD_MM;
 pub const DEFAULT_LEAD_MM: f64 = 0.3;
 /// The most the laser may wait after it is switched on, in seconds.
 pub const MAX_LASER_WAIT_S: f64 = 60.0;
+/// The slowest and the fastest speed of the moves with the laser off that may be given, in mm/min (0 gives none).
+pub const RAPID_MM_MIN_RANGE: (f64, f64) = (100.0, 100_000.0);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Settings {
@@ -17,6 +19,8 @@ pub struct Settings {
     pub lead_out_mm: f64,
     /// The wait after each `M3`, from 0 to 60 seconds (0: none).
     pub laser_wait_s: f64,
+    /// The speed of the moves with the laser off, from 100 to 100000 mm/min, used only to estimate the time (0: no estimate).
+    pub rapid_mm_min: f64,
 }
 
 impl Default for Settings {
@@ -25,6 +29,7 @@ impl Default for Settings {
             lead_in_mm: DEFAULT_LEAD_MM,
             lead_out_mm: DEFAULT_LEAD_MM,
             laser_wait_s: 0.0,
+            rapid_mm_min: 0.0,
         }
     }
 }
@@ -47,6 +52,20 @@ pub fn parse_wait(name: &str, text: &str) -> Result<f64, String> {
     number_in(name, text, MAX_LASER_WAIT_S, "seconds")
 }
 
+/// The value of the speed of the rapid moves as the file or the command line gives it: 0 (no estimate) or from 100 to 100000 mm/min.
+pub fn parse_rapid(name: &str, text: &str) -> Result<f64, String> {
+    let (low, high) = RAPID_MM_MIN_RANGE;
+    text.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|v| *v == 0.0 || (v.is_finite() && (low..=high).contains(v)))
+        .ok_or_else(|| {
+            format!(
+                "{name} '{text}' must be 0 (no estimate) or a number from {low} to {high} mm/min"
+            )
+        })
+}
+
 /// Reads a settings file. A key that is not known, a line with no `=` and a value that is not valid are errors with the number of the line; a key given twice is an error too.
 pub fn parse(text: &str) -> Result<Settings, String> {
     let mut settings = Settings::default();
@@ -61,7 +80,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             .split_once('=')
             .ok_or_else(|| format!("line {n}: '{line}' is not 'key = value'"))?;
         let (key, value) = (key.trim(), value.trim());
-        let known = ["lead_in_mm", "lead_out_mm", "laser_wait_s"];
+        let known = ["lead_in_mm", "lead_out_mm", "laser_wait_s", "rapid_mm_min"];
         let Some(&name) = known.iter().find(|k| **k == key) else {
             return Err(format!("line {n}: '{key}' is not a setting"));
         };
@@ -71,13 +90,15 @@ pub fn parse(text: &str) -> Result<Settings, String> {
         seen.push(name);
         let parsed = match name {
             "laser_wait_s" => parse_wait(name, value),
+            "rapid_mm_min" => parse_rapid(name, value),
             _ => parse_lead(name, value),
         }
         .map_err(|e| format!("line {n}: {e}"))?;
         match name {
             "lead_in_mm" => settings.lead_in_mm = parsed,
             "lead_out_mm" => settings.lead_out_mm = parsed,
-            _ => settings.laser_wait_s = parsed,
+            "laser_wait_s" => settings.laser_wait_s = parsed,
+            _ => settings.rapid_mm_min = parsed,
         }
     }
     Ok(settings)
@@ -87,7 +108,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n",
-        d.lead_in_mm, d.lead_out_mm, d.laser_wait_s
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n",
+        d.lead_in_mm, d.lead_out_mm, d.laser_wait_s, d.rapid_mm_min
     )
 }

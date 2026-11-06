@@ -217,6 +217,19 @@
       "accent": "d",
       "rows": [
         {
+          "name": "estimate.rs",
+          "desc": {
+            "en": "tests of the estimated time of a job and of the rapid speed of the settings",
+            "es": "pruebas del tiempo estimado de un trabajo y de la velocidad rápida de los ajustes",
+            "de": "Tests der geschätzten Dauer eines Auftrags und der Eilgangsgeschwindigkeit der Einstellungen",
+            "fr": "tests du temps estimé d'un travail et de la vitesse rapide des réglages",
+            "it": "test del tempo stimato di un lavoro e della velocità rapida delle impostazioni",
+            "ja": "ジョブの推定時間と設定の早送り速度のテスト",
+            "zh": "作业预计时间和设置中快速移动速度的测试",
+            "pt": "testes do tempo estimado de um trabalho e da velocidade rápida das definições"
+          }
+        },
+        {
           "name": "leads.rs",
           "desc": {
             "en": "tests of the straight lead-in and lead-out of the cuts and of the settings file",
