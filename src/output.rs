@@ -46,10 +46,23 @@ pub fn paths(openings: &[Opening], p: &Profile) -> Result<Vec<Path>, String> {
         .collect()
 }
 
+/// The forms of the openings, in the order of [`paths`] (the form of each path, to choose its leads).
+pub fn forms(openings: &[Opening]) -> Vec<Form> {
+    openings.iter().map(|o| o.form).collect()
+}
+
 /// The paths in the order of a greedy walk: always the nearest one that is left, starting at the origin, so that the head does not cross the sheet back and forth.
 /// The start points go in a grid of about one per cell and the nearest one is looked for ring by ring, so a layer of a hundred thousand openings is ordered in moments
 /// (the plain walk is quadratic). The result is the one of the plain walk: of two paths at the same distance the first of the list goes first.
 pub fn ordered(paths: &[Path]) -> Vec<Path> {
+    ordered_indices(paths)
+        .into_iter()
+        .map(|k| paths[k].clone())
+        .collect()
+}
+
+/// The indices of `paths` in the order of [`ordered`], so that what belongs to each path (its form, for example) can follow it.
+pub fn ordered_indices(paths: &[Path]) -> Vec<usize> {
     let n = paths.len();
     let mut out = Vec::with_capacity(n);
     if n == 0 {
@@ -118,7 +131,7 @@ pub fn ordered(paths: &[Path]) -> Vec<Path> {
             bucket.swap_remove(pos);
         }
         at = starts[k];
-        out.push(paths[k].clone());
+        out.push(k);
     }
     out
 }
@@ -140,6 +153,55 @@ pub fn gcode_with_wait(
 
 /// The most a lead-in or a lead-out may measure, in millimetres.
 pub const MAX_LEAD_MM: f64 = 5.0;
+
+/// The length of the lead-in and of the lead-out of a cut, in millimetres (0: none).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Lead {
+    pub in_mm: f64,
+    pub out_mm: f64,
+}
+
+/// The leads of the cuts by the form of the opening: one for a round opening, one for a rectangular one and one for the rest (the obround openings and every path whose form is not
+/// given).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FormLeads {
+    pub general: Lead,
+    pub round: Lead,
+    pub rect: Lead,
+}
+
+impl FormLeads {
+    /// The same leads for every form (what [`gcode_with_leads`] writes).
+    pub fn uniform(in_mm: f64, out_mm: f64) -> FormLeads {
+        let lead = Lead { in_mm, out_mm };
+        FormLeads {
+            general: lead,
+            round: lead,
+            rect: lead,
+        }
+    }
+
+    /// The leads of an opening of the form `form`: a circle uses `round`, a rectangle `rect`, an obround opening `general`.
+    pub fn for_form(&self, form: Form) -> Lead {
+        match form {
+            Form::Round => self.round,
+            Form::Rectangle => self.rect,
+            Form::Obround => self.general,
+        }
+    }
+
+    /// Every length with the name the messages call it by, in the order they are checked.
+    pub fn named(&self) -> [(&'static str, f64); 6] {
+        [
+            ("lead-in", self.general.in_mm),
+            ("lead-out", self.general.out_mm),
+            ("lead-in-round", self.round.in_mm),
+            ("lead-out-round", self.round.out_mm),
+            ("lead-in-rect", self.rect.in_mm),
+            ("lead-out-rect", self.rect.out_mm),
+        ]
+    }
+}
 
 /// Points closer than this (in millimetres) are the same point: the end of a closed circle comes back to its start with a rounding error of the sine.
 const SAME_POINT_MM: f64 = 1e-9;
@@ -205,12 +267,49 @@ pub fn gcode_with_leads(
     lead_in_mm: f64,
     lead_out_mm: f64,
 ) -> Result<String, String> {
+    write_gcode(
+        paths,
+        None,
+        feed_mm_min,
+        s_value,
+        wait_s,
+        &FormLeads::uniform(lead_in_mm, lead_out_mm),
+    )
+}
+
+/// Like [`gcode_with_leads`], with the leads chosen by the form of each opening (`forms[i]` is the form of `paths[i]`; see [`FormLeads::for_form`]). Both lists must have the same length.
+pub fn gcode_with_form_leads(
+    paths: &[Path],
+    forms: &[Form],
+    feed_mm_min: f64,
+    s_value: u32,
+    wait_s: f64,
+    leads: &FormLeads,
+) -> Result<String, String> {
+    if forms.len() != paths.len() {
+        return Err(format!(
+            "there are {} forms for {} paths",
+            forms.len(),
+            paths.len()
+        ));
+    }
+    write_gcode(paths, Some(forms), feed_mm_min, s_value, wait_s, leads)
+}
+
+fn write_gcode(
+    paths: &[Path],
+    forms: Option<&[Form]>,
+    feed_mm_min: f64,
+    s_value: u32,
+    wait_s: f64,
+    leads: &FormLeads,
+) -> Result<String, String> {
     if !(wait_s.is_finite() && (0.0..=60.0).contains(&wait_s)) {
         return Err(format!(
             "the laser wait is {wait_s}: it must be from 0 to 60 seconds"
         ));
     }
-    for (name, v) in [("lead-in", lead_in_mm), ("lead-out", lead_out_mm)] {
+    for (name, v) in leads.named() {
         if !(v.is_finite() && (0.0..=MAX_LEAD_MM).contains(&v)) {
             return Err(format!(
                 "the {name} is {v}: it must be from 0 to {MAX_LEAD_MM} mm"
@@ -229,8 +328,10 @@ F{}
 ",
         number(feed_mm_min)?
     );
-    for path in ordered(paths) {
-        let (entry, exit) = lead_points(&path, lead_in_mm, lead_out_mm);
+    for k in ordered_indices(paths) {
+        let path = &paths[k];
+        let lead = forms.map_or(leads.general, |f| leads.for_form(f[k]));
+        let (entry, exit) = lead_points(path, lead.in_mm, lead.out_mm);
         let start = entry.unwrap_or(path[0]);
         g.push_str(&format!(
             "G0 X{} Y{}
@@ -306,6 +407,43 @@ pub fn estimate_time(
     leads: (f64, f64),
     rapid_mm_min: f64,
 ) -> Result<TimeEstimate, String> {
+    estimate_inner(
+        paths,
+        None,
+        feed_mm_min,
+        wait_s,
+        &FormLeads::uniform(leads.0, leads.1),
+        rapid_mm_min,
+    )
+}
+
+/// Like [`estimate_time`], with the leads chosen by the form of each opening, the way [`gcode_with_form_leads`] writes them (`forms[i]` is the form of `paths[i]`).
+pub fn estimate_time_with_forms(
+    paths: &[Path],
+    forms: &[Form],
+    feed_mm_min: f64,
+    wait_s: f64,
+    leads: &FormLeads,
+    rapid_mm_min: f64,
+) -> Result<TimeEstimate, String> {
+    if forms.len() != paths.len() {
+        return Err(format!(
+            "there are {} forms for {} paths",
+            forms.len(),
+            paths.len()
+        ));
+    }
+    estimate_inner(paths, Some(forms), feed_mm_min, wait_s, leads, rapid_mm_min)
+}
+
+fn estimate_inner(
+    paths: &[Path],
+    forms: Option<&[Form]>,
+    feed_mm_min: f64,
+    wait_s: f64,
+    leads: &FormLeads,
+    rapid_mm_min: f64,
+) -> Result<TimeEstimate, String> {
     if !(feed_mm_min.is_finite() && feed_mm_min > 0.0) {
         return Err("the feed must be above 0 to estimate the time".into());
     }
@@ -317,8 +455,10 @@ pub fn estimate_time(
     }
     let (mut cut_mm, mut travel_mm, mut runs) = (0.0_f64, 0.0_f64, 0.0_f64);
     let mut at = (0.0_f64, 0.0_f64);
-    for path in ordered(paths) {
-        let (entry, exit) = lead_points(&path, leads.0, leads.1);
+    for k in ordered_indices(paths) {
+        let path = &paths[k];
+        let lead = forms.map_or(leads.general, |f| leads.for_form(f[k]));
+        let (entry, exit) = lead_points(path, lead.in_mm, lead.out_mm);
         let start = entry.unwrap_or(path[0]);
         travel_mm += (start.0 - at.0).hypot(start.1 - at.1);
         if let Some(e) = entry {

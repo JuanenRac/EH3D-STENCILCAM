@@ -195,7 +195,8 @@ fn the_settings_file_has_the_leads_and_the_wait_with_comments_and_the_default() 
             lead_in_mm: 0.3,
             lead_out_mm: 0.3,
             laser_wait_s: 0.0,
-            rapid_mm_min: 0.0
+            rapid_mm_min: 0.0,
+            ..Settings::default()
         }
     );
     assert_eq!(parse_settings("").unwrap(), Settings::default());
@@ -206,7 +207,8 @@ fn the_settings_file_has_the_leads_and_the_wait_with_comments_and_the_default() 
             lead_in_mm: 0.5,
             lead_out_mm: 0.0,
             laser_wait_s: 2.5,
-            rapid_mm_min: 0.0
+            rapid_mm_min: 0.0,
+            ..Settings::default()
         }
     );
     assert_eq!(

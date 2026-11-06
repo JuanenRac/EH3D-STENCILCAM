@@ -9,7 +9,10 @@ use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
-use eh3d_stencilcam::output::{duration_text, estimate_time, gcode_with_leads, hpgl, paths};
+use eh3d_stencilcam::output::{
+    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, paths, FormLeads,
+    Lead,
+};
 use eh3d_stencilcam::profile::{Material, Profile};
 use std::env;
 use std::fs;
@@ -18,7 +21,8 @@ use std::process::ExitCode;
 const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer of a board
 
   eh3d-stencilcam convert LAYER.gtp OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
-                  [--kerf MM] [--feed 600] [--smax 1000] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM] [--rapid MM_MIN] [--config FILE] [--mirror] [--force]
+                  [--kerf MM] [--feed 600] [--smax 1000] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
+                  [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
   eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
@@ -29,11 +33,24 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 
 --laser-wait SECONDS writes a G4 wait after each M3 so that the laser reaches its power before the head moves (0 by default: no wait).
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
+--lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
---config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, laser_wait_s, rapid_mm_min); the options win over the file.
+--config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min); the options win over the file.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
+
+/// A lead of one form: the option when it is given, otherwise what the file says (`None`: the lead of every other opening).
+fn lead_option(
+    args: &mut Vec<String>,
+    name: &str,
+    from_file: Option<f64>,
+) -> Result<Option<f64>, String> {
+    match flag(args, name)? {
+        Some(v) => config::parse_lead(name, &v).map(Some),
+        None => Ok(from_file),
+    }
+}
 
 fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
     let mut p = Profile::of(match flag(args, "--material")? {
@@ -83,6 +100,24 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     let lead_out = match flag(&mut args, "--lead-out")? {
         Some(v) => config::parse_lead("--lead-out", &v)?,
         None => settings.lead_out_mm,
+    };
+    let round_in = lead_option(&mut args, "--lead-in-round", settings.lead_in_round_mm)?;
+    let round_out = lead_option(&mut args, "--lead-out-round", settings.lead_out_round_mm)?;
+    let rect_in = lead_option(&mut args, "--lead-in-rect", settings.lead_in_rect_mm)?;
+    let rect_out = lead_option(&mut args, "--lead-out-rect", settings.lead_out_rect_mm)?;
+    let leads = FormLeads {
+        general: Lead {
+            in_mm: lead_in,
+            out_mm: lead_out,
+        },
+        round: Lead {
+            in_mm: round_in.unwrap_or(lead_in),
+            out_mm: round_out.unwrap_or(lead_out),
+        },
+        rect: Lead {
+            in_mm: rect_in.unwrap_or(lead_in),
+            out_mm: rect_out.unwrap_or(lead_out),
+        },
     };
     let p = profile(&mut args)?;
     let mirror = switch(&mut args, "--mirror");
@@ -212,14 +247,11 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                 return Err(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n")));
             }
             let all = paths(&openings, &p)?;
+            let all_forms = forms(&openings);
             let is_plot = out.to_ascii_lowercase().ends_with(".plt");
             let estimate = if rapid > 0.0 && !is_plot {
-                Some(estimate_time(
-                    &all,
-                    feed,
-                    laser_wait,
-                    (lead_in, lead_out),
-                    rapid,
+                Some(estimate_time_with_forms(
+                    &all, &all_forms, feed, laser_wait, &leads, rapid,
                 )?)
             } else {
                 None
@@ -241,7 +273,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                 });
                 format!(
                     "{head}{}",
-                    gcode_with_leads(&all, feed, smax as u32, laser_wait, lead_in, lead_out)?
+                    gcode_with_form_leads(&all, &all_forms, feed, smax as u32, laser_wait, &leads)?
                 )
             };
             fs::write(out, text).map_err(|e| format!("{out}: {e}"))?;

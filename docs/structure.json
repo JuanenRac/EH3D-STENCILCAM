@@ -230,6 +230,19 @@
           }
         },
         {
+          "name": "lead_forms.rs",
+          "desc": {
+            "en": "tests of the leads by form of the opening, their keys and options",
+            "es": "pruebas de la entrada y salida por forma de la apertura y de sus ajustes",
+            "de": "Tests von Ein- und Auslauf je nach Form der Öffnung und ihrer Einstellungen",
+            "fr": "tests de l'entrée et de la sortie selon la forme de l'ouverture et de leurs réglages",
+            "it": "test di ingresso e uscita per forma dell'apertura e delle loro impostazioni",
+            "ja": "開口の形状ごとの進入部・退出部と設定のテスト",
+            "zh": "按开口形状设置引入段和引出段及其设置的测试",
+            "pt": "testes da entrada e saída por forma da abertura e das suas definições"
+          }
+        },
+        {
           "name": "leads.rs",
           "desc": {
             "en": "tests of the straight lead-in and lead-out of the cuts and of the settings file",
@@ -334,6 +347,19 @@
       "span": 3,
       "accent": "d",
       "rows": [
+        {
+          "name": "leads-by-form.md",
+          "desc": {
+            "en": "leads by form of the opening, with worked values",
+            "es": "entrada y salida por forma de apertura, con valores calculados",
+            "de": "Ein- und Auslauf je nach Form, mit berechneten Werten",
+            "fr": "entrée et sortie selon la forme, avec des valeurs calculées",
+            "it": "ingresso e uscita per forma, con valori calcolati",
+            "ja": "形状ごとの進入部・退出部と計算例",
+            "zh": "按形状设置引入段和引出段，附计算示例",
+            "pt": "entrada e saída por forma, com valores calculados"
+          }
+        },
         {
           "name": "architecture.json",
           "desc": {

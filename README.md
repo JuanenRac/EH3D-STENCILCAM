@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 146 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 160 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturity | Scaffolding |
-| Tests | 146 |
+| Tests | 160 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 146 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 160 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -83,6 +83,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **The G-code carries the standard header and a faster order:** the file starts with comment lines for the generator, the units and the layer with its SHA-256, a rectangle with sharp corners has no repeated points, and the order of the cuts is found with a grid, so a hundred thousand openings are ordered in moments.
 * **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` so that the laser is at its power before the head moves (0 by default: no wait); the tests read the G-code back with the reader of the suite and find no warning and no cut with the laser off. `--rapid MM_MIN` (or `rapid_mm_min` in `stencil.cfg`, from 100 to 100000, 0 by default: no estimate) is the speed of the moves with the laser off: `convert` then prints the estimated time of the G-code job (cutting, waiting for the laser and moving; the acceleration of the machine is not counted).
 * **A straight lead-in and lead-out on every cut:** the G-code can enter each contour along a straight line tangent to its first segment and leave it along the prolongation of its last one (0.3 mm each by default, `--lead-in MM`, `--lead-out MM` or `lead_in_mm` and `lead_out_mm` in `stencil.cfg`; 0 writes none and the program is the one written without leads). The laser stays off while the head travels to the start of the lead-in, is switched on there (and waits, if asked), and is switched off at the end of the lead-out. The outlines are convex and run counter-clockwise, so both leads lie outside the opening, on the sheet that is kept; a lead is not written in HP-GL.
+* **Leads by form:** a round opening and a rectangular one can have their own lead-in and lead-out (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` or `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, from 0 to 5 mm); one that is not given is the general `--lead-in` or `--lead-out`, and an obround opening always uses the general ones. The estimate of the time counts the leads of each form. See `docs/leads-by-form.md`.
 
 ## 🔒 Security & Safety
 
@@ -117,6 +118,7 @@ EH3D-STENCILCAM/
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
 │   ├── estimate.rs                              tests of the estimated time of a job and of the rapid speed of the settings
+│   ├── lead_forms.rs                            tests of the leads by form of the opening, their keys and options
 │   ├── leads.rs                                 tests of the straight lead-in and lead-out of the cuts and of the settings file
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
@@ -126,6 +128,7 @@ EH3D-STENCILCAM/
 ├── examples/
 │   └── paste.gtp                                a sample to try the program with
 ├── docs/
+│   ├── leads-by-form.md                         leads by form of the opening, with worked values
 │   ├── architecture.json                        data of the Architecture picture
 │   └── structure.json                           data of the Repository Structure picture
 ├── tools/                                       CI check, README check and the picture tools
@@ -141,7 +144,7 @@ EH3D-STENCILCAM/
 
 ## ⚙️ Configuration
 
-A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests.
+A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (with the options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` and `--lead-out-rect`) give the leads of the round and of the rectangular openings; they are written as comments in the file and, when they are not given, the general `lead_in_mm` and `lead_out_mm` are used.
 
 ## 🚀 Quick start
 
@@ -159,7 +162,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 146 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 160 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

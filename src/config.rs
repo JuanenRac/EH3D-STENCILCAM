@@ -1,8 +1,9 @@
 //! The settings file of the project, `stencil.cfg`: `key = value`, one per line, `#` starts a comment. Its keys are `lead_in_mm` and `lead_out_mm` (the straight tangent lead-in
 //! and lead-out of every cut) `laser_wait_s` (the wait after the laser is switched on) and `rapid_mm_min` (the speed of the moves with the laser off, to estimate the time; 0: no estimate). The command line takes the same settings as options (`--lead-in`, `--lead-out`,
-//! `--laser-wait`, `--rapid`), which win over the file. A line that makes no sense is an error that says its number.
+//! `--laser-wait`, `--rapid`), which win over the file. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm` and `lead_out_rect_mm` (`--lead-in-round`, `--lead-out-round`, `--lead-in-rect`, `--lead-out-rect`) give the
+//! leads of the round and of the rectangular openings; one that is not given is the lead-in or the lead-out of every other opening. A line that makes no sense is an error that says its number.
 
-use crate::output::MAX_LEAD_MM;
+use crate::output::{FormLeads, Lead, MAX_LEAD_MM};
 
 /// The default length of the lead-in and of the lead-out, in millimetres.
 pub const DEFAULT_LEAD_MM: f64 = 0.3;
@@ -21,6 +22,34 @@ pub struct Settings {
     pub laser_wait_s: f64,
     /// The speed of the moves with the laser off, from 100 to 100000 mm/min, used only to estimate the time (0: no estimate).
     pub rapid_mm_min: f64,
+    /// The lead-in of a round opening, from 0 to 5 mm; `None`: the same as `lead_in_mm`.
+    pub lead_in_round_mm: Option<f64>,
+    /// The lead-out of a round opening, from 0 to 5 mm; `None`: the same as `lead_out_mm`.
+    pub lead_out_round_mm: Option<f64>,
+    /// The lead-in of a rectangular opening, from 0 to 5 mm; `None`: the same as `lead_in_mm`.
+    pub lead_in_rect_mm: Option<f64>,
+    /// The lead-out of a rectangular opening, from 0 to 5 mm; `None`: the same as `lead_out_mm`.
+    pub lead_out_rect_mm: Option<f64>,
+}
+
+impl Settings {
+    /// The leads by form: a form with no lead of its own takes the general one.
+    pub fn leads(&self) -> FormLeads {
+        FormLeads {
+            general: Lead {
+                in_mm: self.lead_in_mm,
+                out_mm: self.lead_out_mm,
+            },
+            round: Lead {
+                in_mm: self.lead_in_round_mm.unwrap_or(self.lead_in_mm),
+                out_mm: self.lead_out_round_mm.unwrap_or(self.lead_out_mm),
+            },
+            rect: Lead {
+                in_mm: self.lead_in_rect_mm.unwrap_or(self.lead_in_mm),
+                out_mm: self.lead_out_rect_mm.unwrap_or(self.lead_out_mm),
+            },
+        }
+    }
 }
 
 impl Default for Settings {
@@ -30,6 +59,10 @@ impl Default for Settings {
             lead_out_mm: DEFAULT_LEAD_MM,
             laser_wait_s: 0.0,
             rapid_mm_min: 0.0,
+            lead_in_round_mm: None,
+            lead_out_round_mm: None,
+            lead_in_rect_mm: None,
+            lead_out_rect_mm: None,
         }
     }
 }
@@ -80,7 +113,16 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             .split_once('=')
             .ok_or_else(|| format!("line {n}: '{line}' is not 'key = value'"))?;
         let (key, value) = (key.trim(), value.trim());
-        let known = ["lead_in_mm", "lead_out_mm", "laser_wait_s", "rapid_mm_min"];
+        let known = [
+            "lead_in_mm",
+            "lead_out_mm",
+            "laser_wait_s",
+            "rapid_mm_min",
+            "lead_in_round_mm",
+            "lead_out_round_mm",
+            "lead_in_rect_mm",
+            "lead_out_rect_mm",
+        ];
         let Some(&name) = known.iter().find(|k| **k == key) else {
             return Err(format!("line {n}: '{key}' is not a setting"));
         };
@@ -98,7 +140,11 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "lead_in_mm" => settings.lead_in_mm = parsed,
             "lead_out_mm" => settings.lead_out_mm = parsed,
             "laser_wait_s" => settings.laser_wait_s = parsed,
-            _ => settings.rapid_mm_min = parsed,
+            "rapid_mm_min" => settings.rapid_mm_min = parsed,
+            "lead_in_round_mm" => settings.lead_in_round_mm = Some(parsed),
+            "lead_out_round_mm" => settings.lead_out_round_mm = Some(parsed),
+            "lead_in_rect_mm" => settings.lead_in_rect_mm = Some(parsed),
+            _ => settings.lead_out_rect_mm = Some(parsed),
         }
     }
     Ok(settings)
@@ -108,7 +154,14 @@ pub fn parse(text: &str) -> Result<Settings, String> {
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n",
-        d.lead_in_mm, d.lead_out_mm, d.laser_wait_s, d.rapid_mm_min
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n",
+        d.lead_in_mm,
+        d.lead_out_mm,
+        d.laser_wait_s,
+        d.rapid_mm_min,
+        d.lead_in_mm,
+        d.lead_out_mm,
+        d.lead_in_mm,
+        d.lead_out_mm
     )
 }
