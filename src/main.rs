@@ -10,8 +10,8 @@ use eh3d_stencilcam::config;
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{
-    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, paths, FormLeads,
-    Lead,
+    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, paths,
+    write_atomic, FormLeads, Lead,
 };
 use eh3d_stencilcam::profile::{Material, Profile};
 use std::env;
@@ -276,7 +276,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                     gcode_with_form_leads(&all, &all_forms, feed, smax as u32, laser_wait, &leads)?
                 )
             };
-            fs::write(out, text).map_err(|e| format!("{out}: {e}"))?;
+            write_atomic(std::path::Path::new(out), &text)?;
             println!("{} openings written to {out}", all.len());
             if let Some(t) = estimate {
                 println!(

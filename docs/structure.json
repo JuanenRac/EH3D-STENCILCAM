@@ -308,6 +308,19 @@
           }
         },
         {
+          "name": "atomic_write.rs",
+          "desc": {
+            "en": "tests of the write through a temporary file that is renamed",
+            "es": "pruebas de la escritura por un fichero temporal que se renombra",
+            "de": "Tests des Schreibens über eine temporäre Datei, die umbenannt wird",
+            "fr": "tests de l'écriture par un fichier temporaire renommé",
+            "it": "test della scrittura tramite un file temporaneo rinominato",
+            "ja": "名前を変更する一時ファイル経由の書き込みのテスト",
+            "zh": "经改名的临时文件写入的测试",
+            "pt": "testes da escrita por um ficheiro temporário que é renomeado"
+          }
+        },
+        {
           "name": "window_cli.rs",
           "desc": {
             "en": "tests that a build without the gui feature stays a command line",

@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 160 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 164 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturity | Scaffolding |
-| Tests | 160 |
+| Tests | 164 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 160 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 164 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -79,6 +79,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **Strict command line:** an option that is written wrong (`--powr`) or a word too many is an error that names it, not something to ignore; the program would otherwise make its output with the default values.
 * **Tests with damaged input:** the tests also feed empty files, garbage, huge numbers and cut files, and none of them may panic.
 * **No guessing:** a value that does not make sense is an error that says which value and why, never a result that only looks right.
+* **The program for the laser is never half written:** the G-code or HP-GL file is written to a temporary file beside the real one and renamed over it, in the command line and in the window, so that a cut or a full disk leaves the old file whole and not a program that stops in the middle of a cut. When it fails the temporary file is removed and the error starts with the code `file_unwritable` and the name of the file.
 * **No unsafe code:** `#![forbid(unsafe_code)]` in the library and the program.
 * **The G-code carries the standard header and a faster order:** the file starts with comment lines for the generator, the units and the layer with its SHA-256, a rectangle with sharp corners has no repeated points, and the order of the cuts is found with a grid, so a hundred thousand openings are ordered in moments.
 * **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` so that the laser is at its power before the head moves (0 by default: no wait); the tests read the G-code back with the reader of the suite and find no warning and no cut with the laser off. `--rapid MM_MIN` (or `rapid_mm_min` in `stencil.cfg`, from 100 to 100000, 0 by default: no estimate) is the speed of the moves with the laser off: `convert` then prints the estimated time of the G-code job (cutting, waiting for the laser and moving; the acceleration of the machine is not counted).
@@ -124,6 +125,7 @@ EH3D-STENCILCAM/
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
 │   ├── strict.rs                                tests of the command line: options and words it does not know
+│   ├── atomic_write.rs                          tests of the write through a temporary file that is renamed
 │   └── window_cli.rs                            tests that a build without the gui feature stays a command line
 ├── examples/
 │   └── paste.gtp                                a sample to try the program with
@@ -162,7 +164,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 160 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 164 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

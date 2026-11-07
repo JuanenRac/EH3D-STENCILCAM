@@ -518,3 +518,20 @@ pub fn hpgl(paths: &[Path]) -> String {
     s.push_str("PU0,0;SP0;\n");
     s
 }
+
+/// Writes `text` to a temporary file beside `file` and renames it over `file`, so that a cut or a full disk leaves the old file whole, never a half written program for the
+/// laser. When anything fails the temporary file is removed and the error starts with the code `file_unwritable`. Whether a file may be replaced is for the caller to decide before.
+pub fn write_atomic(file: &std::path::Path, text: &str) -> Result<(), String> {
+    let mut tmp = file.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = std::path::PathBuf::from(tmp);
+    let fail = |e: std::io::Error| format!("file_unwritable: {}: {e}", file.display());
+    if let Err(e) = std::fs::write(&tmp, text) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(fail(e));
+    }
+    std::fs::rename(&tmp, file).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        fail(e)
+    })
+}

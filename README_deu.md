@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 160 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 164 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Reifegrad | Gerüst |
-| Tests | 160 |
+| Tests | 164 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 160 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
+| Tests | 🟡 | 164 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -79,6 +79,7 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 * **Strenge Kommandozeile:** Eine falsch geschriebene Option (`--powr`) oder ein überzähliges Wort ist ein Fehler, der sie nennt, und wird nicht ignoriert; sonst würde das Programm seine Ausgabe mit den Standardwerten erzeugen.
 * **Tests mit beschädigten Eingaben:** Die Tests füttern auch leere Dateien, Datenmüll, riesige Zahlen und abgeschnittene Dateien; keiner darf in Panik geraten.
 * **Kein Raten:** Ein unsinniger Wert ist ein Fehler, der sagt welcher und warum, nie ein Ergebnis, das nur richtig aussieht.
+* **Das Programm für den Laser wird nie halb geschrieben:** Die G-Code- oder HP-GL-Datei wird in der Kommandozeile und im Fenster in eine temporäre Datei neben der echten geschrieben und darüber umbenannt, sodass ein Abbruch oder eine volle Platte die alte Datei heil lassen und kein Programm, das mitten im Schnitt endet. Bei einem Fehler wird die temporäre Datei entfernt und der Fehler beginnt mit dem Code `file_unwritable` und dem Dateinamen.
 * **Kein unsafe-Code:** `#![forbid(unsafe_code)]` in Bibliothek und Programm.
 * **Der G-Code trägt den Standardkopf und eine schnellere Reihenfolge:** die Datei beginnt mit Kommentarzeilen für den Erzeuger, die Einheiten und die Ebene mit ihrem SHA-256, ein Rechteck mit scharfen Ecken hat keine wiederholten Punkte, und die Reihenfolge der Schnitte wird mit einem Raster gefunden, sodass hunderttausend Öffnungen in Augenblicken geordnet sind.
 * **Eine Wartezeit nach dem Einschalten des Lasers:** `--laser-wait SEKUNDEN` schreibt nach jedem `M3` eine `G4`-Wartezeit, damit der Laser seine Leistung hat, bevor sich der Kopf bewegt (standardmäßig 0: keine Wartezeit); die Tests lesen den G-Code mit dem Leser der Suite wieder ein und finden keine Warnung und keinen Schnitt bei ausgeschaltetem Laser. `--rapid MM_MIN` (oder `rapid_mm_min` in `stencil.cfg`, von 100 bis 100000, standardmäßig 0: keine Schätzung) ist die Geschwindigkeit der Bewegungen bei ausgeschaltetem Laser: `convert` gibt dann die geschätzte Dauer des G-Code-Auftrags aus (Schneiden, Warten auf den Laser und Verfahren; die Beschleunigung der Maschine wird nicht gezählt).
@@ -124,6 +125,7 @@ EH3D-STENCILCAM/
 │   ├── readme.rs                                Tests, die ausführen, was README und run-Skripte versprechen
 │   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
 │   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
+│   ├── atomic_write.rs                          Tests des Schreibens über eine temporäre Datei, die umbenannt wird
 │   └── window_cli.rs                            Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt
 ├── examples/
 │   └── paste.gtp                                ein Beispiel zum Ausprobieren
@@ -162,7 +164,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 160 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 164 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 

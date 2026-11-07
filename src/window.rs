@@ -5,7 +5,7 @@
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
 use crate::openings::{from_gerber_with, mirrored, shrunk, weak, Opening};
-use crate::output::{gcode, hpgl, paths, Path as CutPath};
+use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
@@ -365,7 +365,7 @@ impl Window {
                 return false;
             }
         };
-        match fs::write(out, text) {
+        match write_atomic(out, &text) {
             Ok(()) => {
                 self.status = Status::Exported {
                     file: out
@@ -376,7 +376,7 @@ impl Window {
                 true
             }
             Err(e) => {
-                self.status = Status::Failed(format!("{}: {e}", out.display()));
+                self.status = Status::Failed(e);
                 false
             }
         }
@@ -605,6 +605,36 @@ mod tests {
                 assert!(text.contains("\nG21\nG90\n"), "{name}");
             }
         }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_export_that_cannot_be_written_says_why_and_leaves_no_temporary_file() {
+        let dir = scratch("failexport");
+        let layer = layer_in(&dir, "paste.gtp", TWO_PADS);
+        let mut w = Window::new(Lang::En);
+        w.set_field(0, "0.1".into());
+        assert!(w.open(&layer));
+        // an old program is replaced whole, with nothing left beside it
+        let out = dir.join("out.nc");
+        fs::write(
+            &out,
+            "an old program
+",
+        )
+        .unwrap();
+        assert!(w.export(&out));
+        assert!(fs::read_to_string(&out)
+            .unwrap()
+            .starts_with("; generator: eh3d-stencilcam "));
+        assert!(!dir.join("out.nc.tmp").exists());
+        // a folder cannot be replaced by a file: the folder stays and the reason has its code
+        let folder = dir.join("folder.nc");
+        fs::create_dir_all(&folder).unwrap();
+        assert!(!w.export(&folder));
+        assert!(matches!(&w.status, Status::Failed(e) if e.starts_with("file_unwritable: ")));
+        assert!(folder.is_dir());
+        assert!(!dir.join("folder.nc.tmp").exists());
         let _ = fs::remove_dir_all(&dir);
     }
 

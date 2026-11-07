@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 160 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 164 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.0.6` |
 | Maturità | Impalcatura |
-| Test | 160 |
+| Test | 164 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 160 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
+| Test | 🟡 | 164 test passano (`cargo test`), con casi normali, casi limite e input danneggiati. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -79,6 +79,7 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 * **Riga di comando rigorosa:** un'opzione scritta male (`--powr`) o una parola in più è un errore che la nomina, non qualcosa da ignorare; altrimenti il programma farebbe la sua uscita con i valori predefiniti.
 * **Test con input danneggiati:** i test forniscono anche file vuoti, spazzatura, numeri enormi e file tagliati, e nessuno può andare in panico.
 * **Nessuna ipotesi:** un valore privo di senso è un errore che dice quale e perché, mai un risultato che sembra solo giusto.
+* **Il programma per il laser non resta mai scritto a metà:** il file G-code o HP-GL si scrive, nella riga di comando e nella finestra, in un file temporaneo accanto a quello vero e vi si rinomina sopra, così un'interruzione o un disco pieno lasciano intero il file precedente e non un programma che si ferma a metà di un taglio. Se fallisce, il temporaneo viene rimosso e l'errore inizia con il codice `file_unwritable` e il nome del file.
 * **Nessun codice unsafe:** `#![forbid(unsafe_code)]` nella libreria e nel programma.
 * **Il G-code porta l'intestazione standard e un ordine più veloce:** il file inizia con righe di commento per il generatore, le unità e il livello con il suo SHA-256, un rettangolo a spigoli vivi non ha punti ripetuti e l'ordine dei tagli si trova con una griglia, così centomila aperture sono ordinate in un attimo.
 * **Un'attesa dopo l'accensione del laser:** `--laser-wait SECONDI` scrive un'attesa `G4` dopo ogni `M3` perché il laser sia alla sua potenza prima che la testa si muova (0 per impostazione predefinita: nessuna attesa); i test rileggono il G-code con il lettore della suite e non trovano alcun avviso né alcun taglio con il laser spento. `--rapid MM_MIN` (o `rapid_mm_min` in `stencil.cfg`, da 100 a 100000, 0 per impostazione predefinita: nessuna stima) è la velocità dei movimenti con il laser spento: `convert` stampa allora il tempo stimato del lavoro in G-code (taglio, attesa del laser e spostamenti; l'accelerazione della macchina non è conteggiata).
@@ -124,6 +125,7 @@ EH3D-STENCILCAM/
 │   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
+│   ├── atomic_write.rs                          test della scrittura tramite un file temporaneo rinominato
 │   └── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
 ├── examples/
 │   └── paste.gtp                                un esempio per provare il programma
@@ -162,7 +164,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 160 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 164 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
