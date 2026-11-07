@@ -73,6 +73,14 @@ EH3D-STENCILCAM は EH3D Fabrication Suite のプログラムの一つです。�
 
 このリポジトリの各部分の関係：誰が使い、何を持ち、何に依存するか。図は `docs/architecture.json` から描かれ、コードと照合されます。
 
+## 🖼️ スクリーンショット
+
+<p align="center">
+  <img src="images/screens/stencilcam-01-window.png" alt="サンプルのペースト層を開いたウィンドウ" width="100%">
+</p>
+
+<p align="center"><em>サンプルのペースト層を開いたウィンドウ：パッド、各開口部の切断経路、ペーストが抜けない開口部と、その通知を下部に表示します。</em></p>
+
 ## ✨ 機能
 
 * **ライブラリとコマンドライン：** `eh3d-stencilcam` の各コマンドはライブラリの関数なので、スイートの他のプログラムがプロセスを起動せずに呼び出せます。

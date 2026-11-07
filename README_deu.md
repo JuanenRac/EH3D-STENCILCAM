@@ -73,6 +73,14 @@ EH3D-STENCILCAM ist ein Programm der EH3D Fabrication Suite. Es arbeitet als Bib
 
 Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält und wovon es abhängt. Das Bild wird aus `docs/architecture.json` gezeichnet und gegen den Code geprüft.
 
+## 🖼️ Screenshots
+
+<p align="center">
+  <img src="images/screens/stencilcam-01-window.png" alt="Das Fenster mit der Beispiel-Pastenlage" width="100%">
+</p>
+
+<p align="center"><em>Das Fenster mit der Beispiel-Pastenlage: die Pads, der Schneidpfad jeder Öffnung und die Öffnung, die die Paste nicht löst, mit ihrem Hinweis unten.</em></p>
+
 ## ✨ Funktionen
 
 * **Bibliothek und Kommandozeile:** Jeder Befehl von `eh3d-stencilcam` ist eine Funktion der Bibliothek, sodass ein anderes Programm der Suite ihn ohne Prozessstart aufrufen kann.
