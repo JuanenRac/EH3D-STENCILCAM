@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Fuzz tests with a fixed seed:** every cut of the example drawing and 500 damaged copies of it, damaged layers and numbers that are huge or not numbers are read without a panic; an entity whose size or place overflows is left out with a note.
+
 - **A drawing (DXF) as input:** a file ending in `.dxf` is read by `eh3d_stencilcam::dxf_in` (circles become round openings, closed rectangles with their sides along the axes rectangular ones, the unit of the drawing is read, any other entity is a note and `convert` refuses to write unless `--force` is given).
 - **The speed, the laser scale and the passes are settings:** `feed_mm_min` (600), `smax` (1000) and `passes` (1, up to 10; all the contours are cut once before the next pass) in `stencil.cfg`, and `--feed`, `--smax` and `--passes` on the command line, which win over the file; a value out of its range is refused with the name of the option.
 

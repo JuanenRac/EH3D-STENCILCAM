@@ -170,6 +170,21 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
             ),
         }
     }
+    // a size or a place so big that it overflows is not an opening
+    let before = openings.len();
+    openings.retain(|o| {
+        o.x.is_finite()
+            && o.y.is_finite()
+            && o.w.is_finite()
+            && o.h.is_finite()
+            && o.w > 0.0
+            && o.h > 0.0
+    });
+    if openings.len() != before {
+        notes.push(String::from(
+            "dxf: an entity with a size or a place too big to be a number was left out",
+        ));
+    }
     if openings.is_empty() && notes.is_empty() {
         notes.push(String::from(
             "the drawing has no circle or rectangle: there is nothing to cut",
