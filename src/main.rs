@@ -7,6 +7,7 @@ mod cli_args;
 use cli_args::{finish, flag, num, switch};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_stencilcam::config;
+use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{
@@ -20,11 +21,11 @@ use std::process::ExitCode;
 
 const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer of a board
 
-  eh3d-stencilcam convert LAYER.gtp OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
-                  [--kerf MM] [--feed 600] [--smax 1000] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
+  eh3d-stencilcam convert LAYER.gtp|DRAWING.dxf OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
+                  [--kerf MM] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
                   [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
-  eh3d-stencilcam check LAYER.gtp [--material ...] [--thickness MM] [--shrink PERCENT]
+  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
   eh3d-stencilcam gui [FILE...] --shot OUT.png [--size WxH] [--theme forge|dark|light] [--wait N] [--lang CODE] [--replace]   a picture of the window (a build with --features gui)
 
@@ -35,7 +36,9 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
---config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min); the options win over the file.
+--config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes); the options win over the file.
+--feed MM_MIN (1 to 100000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
+A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
@@ -122,17 +125,18 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     let p = profile(&mut args)?;
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
-    let feed = flag(&mut args, "--feed")?
-        .map(|v| num(&v, "--feed"))
-        .transpose()?
-        .unwrap_or(600.0);
-    let smax = flag(&mut args, "--smax")?
-        .map(|v| num(&v, "--smax"))
-        .transpose()?
-        .unwrap_or(1000.0);
-    if !(1.0..=100_000.0).contains(&smax) {
-        return Err(format!("--smax {smax} must be from 1 to 100000"));
-    }
+    let feed = match flag(&mut args, "--feed")? {
+        Some(v) => config::parse_feed("--feed", &v)?,
+        None => settings.feed_mm_min,
+    };
+    let smax = match flag(&mut args, "--smax")? {
+        Some(v) => config::parse_smax("--smax", &v)?,
+        None => settings.smax,
+    };
+    let passes = match flag(&mut args, "--passes")? {
+        Some(v) => config::parse_passes("--passes", &v)?,
+        None => settings.passes,
+    };
     let laser_wait = flag(&mut args, "--laser-wait")?
         .map(|v| num(&v, "--laser-wait"))
         .transpose()?
@@ -187,19 +191,27 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
     let bytes = read_layer_file(&layer, max_bytes, eh3d_stencilcam::layer::language())
         .map_err(|e| format!("{layer}: {e}"))?;
-    let reading = read_layer(&bytes, max_bytes, &hide).map_err(|e| format!("{layer}: {e}"))?;
-    let (mut openings, mut notes) = from_gerber_with(&reading.file, arc_tolerance);
+    let drawing = is_drawing(&layer);
+    let (mut openings, mut notes, reader_notes, reader_errors) = if drawing {
+        let text = String::from_utf8_lossy(&bytes);
+        let (o, n) = from_dxf(&text).map_err(|e| format!("{layer}: {e}"))?;
+        (o, n, Vec::new(), 0)
+    } else {
+        let reading = read_layer(&bytes, max_bytes, &hide).map_err(|e| format!("{layer}: {e}"))?;
+        let (o, n) = from_gerber_with(&reading.file, arc_tolerance);
+        (o, n, reading.shown, reading.errors)
+    };
     if mirror {
         openings = mirrored(&openings);
     }
     for n in &notes {
         eprintln!("note: {n}");
     }
-    for n in &reading.shown {
+    for n in &reader_notes {
         eprintln!("note: {n}");
     }
     // what the reader lost is lost from the stencil too
-    for _ in 0..reading.errors {
+    for _ in 0..reader_errors {
         notes.push(String::from("reader error"));
     }
     // a stencil that leaves out pads is not the stencil of the board: it is written only when it is asked for
@@ -246,8 +258,13 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if !problems.is_empty() && !force {
                 return Err(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n")));
             }
-            let all = paths(&openings, &p)?;
-            let all_forms = forms(&openings);
+            let once = paths(&openings, &p)?;
+            let once_forms = forms(&openings);
+            // every contour is cut `passes` times: all the contours once, then all of them again
+            let all: Vec<_> = (0..passes).flat_map(|_| once.iter().cloned()).collect();
+            let all_forms: Vec<_> = (0..passes)
+                .flat_map(|_| once_forms.iter().copied())
+                .collect();
             let is_plot = out.to_ascii_lowercase().ends_with(".plt");
             let estimate = if rapid > 0.0 && !is_plot {
                 Some(estimate_time_with_forms(
@@ -277,7 +294,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                 )
             };
             write_atomic(std::path::Path::new(out), &text)?;
-            println!("{} openings written to {out}", all.len());
+            println!("{} openings written to {out}", once.len());
+            if passes > 1 {
+                println!("{passes} passes over every contour");
+            }
             if let Some(t) = estimate {
                 println!(
                     "estimated time: {} ({} cutting, {} waiting for the laser, {} moving); the acceleration of the machine is not counted",

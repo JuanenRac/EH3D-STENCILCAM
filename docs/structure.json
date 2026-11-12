@@ -67,6 +67,19 @@
           }
         },
         {
+          "name": "dxf_in.rs",
+          "desc": {
+            "en": "reads a drawing (DXF): circles and rectangles become openings, the rest is a note",
+            "es": "lee un dibujo (DXF): círculos y rectángulos pasan a ser aberturas, lo demás es un aviso",
+            "de": "liest eine Zeichnung (DXF): Kreise und Rechtecke werden zu Öffnungen, der Rest ist ein Hinweis",
+            "fr": "lit un dessin (DXF) : les cercles et les rectangles deviennent des ouvertures, le reste est une note",
+            "it": "legge un disegno (DXF): cerchi e rettangoli diventano aperture, il resto è un avviso",
+            "ja": "図面（DXF）を読む：円と長方形が開口になり、それ以外は注記になる",
+            "zh": "读取图纸（DXF）：圆和矩形成为开口，其余只作提示",
+            "pt": "lê um desenho (DXF): círculos e retângulos passam a ser aberturas, o resto é um aviso"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "the window (egui, with the gui feature): draws the state and passes on what the person does",
@@ -217,6 +230,19 @@
       "accent": "d",
       "rows": [
         {
+          "name": "dxf.rs",
+          "desc": {
+            "en": "tests of the DXF drawing, the speed, the laser scale and the passes of the cut",
+            "es": "pruebas del dibujo DXF, la velocidad, la escala del láser y las pasadas del corte",
+            "de": "Tests der DXF-Zeichnung, der Geschwindigkeit, der Laserskala und der Durchgänge des Schnitts",
+            "fr": "tests du dessin DXF, de la vitesse, de l'échelle du laser et des passes de la coupe",
+            "it": "test del disegno DXF, della velocità, della scala del laser e delle passate del taglio",
+            "ja": "DXF図面、速度、レーザーの出力スケール、切断の回数のテスト",
+            "zh": "DXF 图纸、速度、激光功率刻度和切割遍数的测试",
+            "pt": "testes do desenho DXF, da velocidade, da escala do laser e das passagens do corte"
+          }
+        },
+        {
           "name": "estimate.rs",
           "desc": {
             "en": "tests of the estimated time of a job and of the rapid speed of the settings",
@@ -351,6 +377,19 @@
             "ja": "試すためのサンプル",
             "zh": "试用的示例",
             "pt": "um exemplo para experimentar o programa"
+          }
+        },
+        {
+          "name": "paste.dxf",
+          "desc": {
+            "en": "the same pads as a drawing (DXF)",
+            "es": "las mismas almohadillas como dibujo (DXF)",
+            "de": "dieselben Pads als Zeichnung (DXF)",
+            "fr": "les mêmes pastilles en dessin (DXF)",
+            "it": "gli stessi pad come disegno (DXF)",
+            "ja": "同じパッドを図面（DXF）にしたもの",
+            "zh": "同样的焊盘，以图纸（DXF）形式给出",
+            "pt": "as mesmas pastilhas como desenho (DXF)"
           }
         }
       ]

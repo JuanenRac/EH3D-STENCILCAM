@@ -6,6 +6,7 @@
 
 pub mod browse;
 pub mod config;
+pub mod dxf_in;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod lang;

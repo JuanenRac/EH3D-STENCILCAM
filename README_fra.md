@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 164 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 173 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturité | Échafaudage |
-| Tests | 164 |
+| Tests | 173 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 164 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées. |
+| Tests | 🟡 | 173 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -93,6 +93,7 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Une attente après l'allumage du laser :** `--laser-wait SECONDES` écrit une attente `G4` après chaque `M3` pour que le laser soit à sa puissance avant que la tête ne bouge (0 par défaut : pas d'attente) ; les tests relisent le G-code avec le lecteur de la suite et ne trouvent aucun avertissement ni aucune coupe laser éteint. `--rapid MM_MIN` (ou `rapid_mm_min` dans `stencil.cfg`, de 100 à 100000, 0 par défaut : pas d'estimation) est la vitesse des déplacements laser éteint : `convert` affiche alors le temps estimé du travail en G-code (coupe, attente du laser et déplacements ; l'accélération de la machine n'est pas comptée).
 * **Un tronçon droit d'entrée et de sortie sur chaque coupe :** le G-code peut entrer dans chaque contour par une droite tangente à son premier segment et en sortir par le prolongement du dernier (0,3 mm chacun par défaut, `--lead-in MM`, `--lead-out MM` ou `lead_in_mm` et `lead_out_mm` dans `stencil.cfg` ; 0 n'en écrit aucun et le programme est celui écrit sans tronçons). Le laser reste éteint pendant que la tête se rend au début de l'entrée, s'allume là (et attend, si on le demande) et s'éteint à la fin de la sortie. Les contours sont convexes et tournent dans le sens antihoraire : les deux tronçons sont donc hors de l'ouverture, sur la feuille qui est conservée ; aucun n'est écrit en HP-GL.
 * **Entrée et sortie selon la forme :** une ouverture ronde et une ouverture rectangulaire peuvent avoir leur propre entrée et sortie (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` ou `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` dans `stencil.cfg`, de 0 à 5 mm) ; celle qui n'est pas donnée est la générale `--lead-in` ou `--lead-out`, et une ouverture oblongue utilise toujours les générales. L'estimation du temps compte celles de chaque forme. Voir `docs/leads-by-form.md`.
+* **Un dessin en entrée, et la vitesse, l'échelle du laser et les passes dans `stencil.cfg` :** un fichier se terminant par `.dxf` est lu comme un dessin (les cercles deviennent des ouvertures rondes et les rectangles fermés aux côtés sur les axes des ouvertures rectangulaires ; l'unité du dessin est lue et toute autre entité est une note, si bien que `convert` refuse d'écrire sans `--force`) ; `--feed`, `--smax` et `--passes` (`feed_mm_min`, `smax` et `passes` dans le fichier ; 600 mm/min, 1000 et une passe par défaut) fixent la vitesse de coupe, le haut de l'échelle de puissance du laser et le nombre de fois que chaque contour est coupé. Testé seulement sur ordinateur : rien n'a été coupé sur un laser.
 
 ## 🔒 Sécurité et protection
 
@@ -114,6 +115,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                la liste des fichiers de la fenêtre d'ouverture d'un fichier
 │   ├── cli_args.rs                              les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire
 │   ├── config.rs                                le fichier de réglages : l'entrée et la sortie des coupes et l'attente du laser
+│   ├── dxf_in.rs                                lit un dessin (DXF) : les cercles et les rectangles deviennent des ouvertures, le reste est une note
 │   ├── gui.rs                                   la fenêtre (egui, avec la fonctionnalité gui) : dessine l'état et transmet ce que fait la personne
 │   ├── lang.rs                                  les mots de la fenêtre dans les huit langues
 │   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
@@ -126,6 +128,7 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom et déplacement de l'image, en simples nombres
 │   └── window.rs                                l'état de la fenêtre sans écran : couche, matériau, paramètres, coupes, export et état
 ├── tests/
+│   ├── dxf.rs                                   tests du dessin DXF, de la vitesse, de l'échelle du laser et des passes de la coupe
 │   ├── estimate.rs                              tests du temps estimé d'un travail et de la vitesse rapide des réglages
 │   ├── lead_forms.rs                            tests de l'entrée et de la sortie selon la forme de l'ouverture et de leurs réglages
 │   ├── leads.rs                                 tests de l'entrée et de la sortie droites des coupes et du fichier de réglages
@@ -136,7 +139,8 @@ EH3D-STENCILCAM/
 │   ├── atomic_write.rs                          tests de l'écriture par un fichier temporaire renommé
 │   └── window_cli.rs                            tests qu'une compilation sans la fonctionnalité gui reste une ligne de commande
 ├── examples/
-│   └── paste.gtp                                un exemple pour essayer le programme
+│   ├── paste.gtp                                un exemple pour essayer le programme
+│   └── paste.dxf                                les mêmes pastilles en dessin (DXF)
 ├── docs/
 │   ├── leads-by-form.md                         entrée et sortie selon la forme, avec des valeurs calculées
 │   ├── architecture.json                        données de l'image d'Architecture
@@ -172,7 +176,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 164 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 173 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 

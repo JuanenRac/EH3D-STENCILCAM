@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 164 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 173 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.6` |
 | Maturity | Scaffolding |
-| Tests | 164 |
+| Tests | 173 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 164 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
+| Tests | 🟡 | 173 tests pass (`cargo test`), with normal cases, edge cases and damaged input. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -93,6 +93,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` so that the laser is at its power before the head moves (0 by default: no wait); the tests read the G-code back with the reader of the suite and find no warning and no cut with the laser off. `--rapid MM_MIN` (or `rapid_mm_min` in `stencil.cfg`, from 100 to 100000, 0 by default: no estimate) is the speed of the moves with the laser off: `convert` then prints the estimated time of the G-code job (cutting, waiting for the laser and moving; the acceleration of the machine is not counted).
 * **A straight lead-in and lead-out on every cut:** the G-code can enter each contour along a straight line tangent to its first segment and leave it along the prolongation of its last one (0.3 mm each by default, `--lead-in MM`, `--lead-out MM` or `lead_in_mm` and `lead_out_mm` in `stencil.cfg`; 0 writes none and the program is the one written without leads). The laser stays off while the head travels to the start of the lead-in, is switched on there (and waits, if asked), and is switched off at the end of the lead-out. The outlines are convex and run counter-clockwise, so both leads lie outside the opening, on the sheet that is kept; a lead is not written in HP-GL.
 * **Leads by form:** a round opening and a rectangular one can have their own lead-in and lead-out (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` or `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, from 0 to 5 mm); one that is not given is the general `--lead-in` or `--lead-out`, and an obround opening always uses the general ones. The estimate of the time counts the leads of each form. See `docs/leads-by-form.md`.
+* **A drawing as input, and the speed, the laser scale and the passes in `stencil.cfg`:** a file ending in `.dxf` is read as a drawing (the circles become round openings and the closed rectangles with their sides along the axes rectangular ones; the unit of the drawing is read and any other entity is a note, so `convert` refuses to write unless `--force` is given); `--feed`, `--smax` and `--passes` (`feed_mm_min`, `smax` and `passes` in the file; 600 mm/min, 1000 and one pass by default) set the speed of the cut, the top of the laser power scale and how many times every contour is cut. Tested on a computer only: nothing has been cut on a laser.
 
 ## 🔒 Security & Safety
 
@@ -114,6 +115,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
 │   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
+│   ├── dxf_in.rs                                reads a drawing (DXF): circles and rectangles become openings, the rest is a note
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
 │   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
@@ -126,6 +128,7 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
+│   ├── dxf.rs                                   tests of the DXF drawing, the speed, the laser scale and the passes of the cut
 │   ├── estimate.rs                              tests of the estimated time of a job and of the rapid speed of the settings
 │   ├── lead_forms.rs                            tests of the leads by form of the opening, their keys and options
 │   ├── leads.rs                                 tests of the straight lead-in and lead-out of the cuts and of the settings file
@@ -136,7 +139,8 @@ EH3D-STENCILCAM/
 │   ├── atomic_write.rs                          tests of the write through a temporary file that is renamed
 │   └── window_cli.rs                            tests that a build without the gui feature stays a command line
 ├── examples/
-│   └── paste.gtp                                a sample to try the program with
+│   ├── paste.gtp                                a sample to try the program with
+│   └── paste.dxf                                the same pads as a drawing (DXF)
 ├── docs/
 │   ├── leads-by-form.md                         leads by form of the opening, with worked values
 │   ├── architecture.json                        data of the Architecture picture
@@ -172,7 +176,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 164 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 173 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

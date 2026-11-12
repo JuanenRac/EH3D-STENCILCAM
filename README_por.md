@@ -17,7 +17,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 164 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 173 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versão | `0.0.6` |
 | Maturidade | Estrutura inicial |
-| Testes | 164 |
+| Testes | 173 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -46,7 +46,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `eh3d-stencilcam` executa as mesmas funções da biblioteca e imprime o resultado; cada erro volta como mensagem e código de saída diferente de zero. |
-| Testes | 🟡 | 164 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas. |
+| Testes | 🟡 | 173 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
 | Janela | 🟠 | Escrita (egui, `--features gui`): abrir ou largar uma camada de pasta, escolher o material, editar os parâmetros, ver os pads e as trajetórias de corte (a vermelho as aberturas que não libertarão a pasta), zoom e deslocamento, exportar; a sua lógica está testada, mas ainda não foi compilada nem vista num ecrã. |
 | Hardware real | 🔴 | Não experimentado: nada disto foi executado numa máquina. |
@@ -93,6 +93,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Uma espera depois de ligar o laser:** `--laser-wait SEGUNDOS` escreve uma espera `G4` depois de cada `M3` para que o laser esteja à sua potência antes de a cabeça se mover (0 por omissão: sem espera); os testes voltam a ler o G-code com o leitor da suite e não encontram nenhum aviso nem nenhum corte com o laser desligado. `--rapid MM_MIN` (ou `rapid_mm_min` em `stencil.cfg`, de 100 a 100000, 0 por omissão: sem estimativa) é a velocidade dos movimentos com o laser desligado: o `convert` imprime então o tempo estimado do trabalho em G-code (corte, espera do laser e deslocações; a aceleração da máquina não é contada).
 * **Um troço reto de entrada e de saída em cada corte:** o G-code pode entrar em cada contorno por uma reta tangente ao seu primeiro segmento e sair pelo prolongamento do último (0,3 mm cada um por omissão, `--lead-in MM`, `--lead-out MM` ou `lead_in_mm` e `lead_out_mm` em `stencil.cfg`; 0 não escreve nenhum e o programa é o que se escreve sem troços). O laser fica desligado enquanto a cabeça viaja até ao início da entrada, liga-se aí (e espera, se for pedido) e desliga-se no fim da saída. Os contornos são convexos e vão no sentido anti-horário, por isso ambos os troços ficam fora da abertura, sobre a folha que se conserva; em HP-GL não se escreve nenhum.
 * **Entrada e saída por forma:** uma abertura redonda e uma retangular podem ter a sua própria entrada e saída (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` ou `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` em `stencil.cfg`, de 0 a 5 mm); a que não for indicada é a geral `--lead-in` ou `--lead-out`, e uma abertura oblonga usa sempre as gerais. A estimativa do tempo conta as de cada forma. Ver `docs/leads-by-form.md`.
+* **Um desenho como entrada, e a velocidade, a escala do laser e as passagens em `stencil.cfg`:** um ficheiro que termina em `.dxf` é lido como desenho (os círculos passam a ser aberturas redondas e os retângulos fechados com os lados sobre os eixos, retangulares; lê-se a unidade do desenho e qualquer outra entidade é um aviso, pelo que `convert` recusa escrever sem `--force`); `--feed`, `--smax` e `--passes` (`feed_mm_min`, `smax` e `passes` no ficheiro; por omissão 600 mm/min, 1000 e uma passagem) definem a velocidade do corte, o topo da escala de potência do laser e quantas vezes se corta cada contorno. Testado apenas no computador: nada foi cortado num laser.
 
 ## 🔒 Segurança e proteção
 
@@ -114,6 +115,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                a lista de ficheiros da janela que abre um ficheiro
 │   ├── cli_args.rs                              os argumentos da linha de comandos, o mesmo ficheiro em cada utilitário pequeno
 │   ├── config.rs                                o ficheiro de definições: a entrada e a saída dos cortes e a espera do laser
+│   ├── dxf_in.rs                                lê um desenho (DXF): círculos e retângulos passam a ser aberturas, o resto é um aviso
 │   ├── gui.rs                                   a janela (egui, com a funcionalidade gui): desenha o estado e transmite o que a pessoa faz
 │   ├── lang.rs                                  as palavras da janela nos oito idiomas
 │   ├── layer.rs                                 lê uma camada a partir de bytes e mostra o que o leitor diz pelo seu código
@@ -126,6 +128,7 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom e deslocamento da imagem, em números simples
 │   └── window.rs                                o estado da janela sem ecrã: camada, material, parâmetros, cortes, exportação e estado
 ├── tests/
+│   ├── dxf.rs                                   testes do desenho DXF, da velocidade, da escala do laser e das passagens do corte
 │   ├── estimate.rs                              testes do tempo estimado de um trabalho e da velocidade rápida das definições
 │   ├── lead_forms.rs                            testes da entrada e saída por forma da abertura e das suas definições
 │   ├── leads.rs                                 testes da entrada e da saída retas dos cortes e do ficheiro de definições
@@ -136,7 +139,8 @@ EH3D-STENCILCAM/
 │   ├── atomic_write.rs                          testes da escrita por um ficheiro temporário que é renomeado
 │   └── window_cli.rs                            testes de que uma compilação sem a funcionalidade gui continua a ser só linha de comandos
 ├── examples/
-│   └── paste.gtp                                um exemplo para experimentar o programa
+│   ├── paste.gtp                                um exemplo para experimentar o programa
+│   └── paste.dxf                                as mesmas pastilhas como desenho (DXF)
 ├── docs/
 │   ├── leads-by-form.md                         entrada e saída por forma, com valores calculados
 │   ├── architecture.json                        dados da imagem de Arquitetura
@@ -172,7 +176,7 @@ Para tirar uma captura da janela sem a abrir à mão, execute-o com `--shot FICH
 
 ## 🧪 Testes
 
-O conjunto tem 164 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 173 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 
