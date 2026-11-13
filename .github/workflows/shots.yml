@@ -1,7 +1,8 @@
 name: Window pictures
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [shots-tmp]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
