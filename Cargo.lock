@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "eh3d-stencilcam"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "eframe",
  "eh3d-gerberviewer",

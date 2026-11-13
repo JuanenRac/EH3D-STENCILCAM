@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.0.7] - DXF input, lead-in by form and speed, passes and laser scale settings
+
 - **Fuzz tests with a fixed seed:** every cut of the example drawing and 500 damaged copies of it, damaged layers and numbers that are huge or not numbers are read without a panic; an entity whose size or place overflows is left out with a note.
 
 - **A drawing (DXF) as input:** a file ending in `.dxf` is read by `eh3d_stencilcam::dxf_in` (circles become round openings, closed rectangles with their sides along the axes rectangular ones, the unit of the drawing is read, any other entity is a note and `convert` refuses to write unless `--force` is given).
