@@ -1,6 +1,6 @@
 [package]
 name = "eh3d-stencilcam"
-version = "0.0.6"
+version = "0.0.7"
 edition = "2021"
 rust-version = "1.75"
 description = "Solder paste stencils from the paste layer of a board: shrunk and rounded openings, laser kerf compensation, ratio checks and G-code or HP-GL cutting paths"
