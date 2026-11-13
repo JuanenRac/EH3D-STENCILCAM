@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The pins follow the new releases:** the CI and the release build take `EH3D-COMMON` at `v0.2.1` and `EH3D-CORE-LIBS` at `v0.0.9`, and the manifest asks for `min_common` 0.2.1. The picture of the window in the README is taken again with the program of today.
+
 ## [0.0.7] - DXF input, lead-in by form and speed, passes and laser scale settings
 
 - **Fuzz tests with a fixed seed:** every cut of the example drawing and 500 damaged copies of it, damaged layers and numbers that are huge or not numbers are read without a panic; an entity whose size or place overflows is left out with a note.
