@@ -197,6 +197,19 @@
           }
         },
         {
+          "name": "sim.rs",
+          "desc": {
+            "en": "a simulated laser and link: lost lines, resends, safe stop and resume",
+            "es": "un láser y un enlace simulados: líneas perdidas, reenvíos, parada segura y reanudación",
+            "de": "ein simulierter Laser samt Verbindung: Zeilenverlust, Wiederholung, sicherer Halt, Fortsetzung",
+            "fr": "un laser et une liaison simulés : lignes perdues, renvois, arrêt sûr et reprise",
+            "it": "un laser e un collegamento simulati: righe perse, rinvii, arresto sicuro e ripresa",
+            "ja": "模擬レーザーと回線：行の欠落、再送、安全停止、再開",
+            "zh": "模拟激光器与链路：丢行、重发、安全停止和续传",
+            "pt": "um laser e uma ligação simulados: linhas perdidas, reenvios, paragem segura e retoma"
+          }
+        },
+        {
           "name": "viewport.rs",
           "desc": {
             "en": "zoom and pan of the picture, in plain numbers",

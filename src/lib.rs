@@ -15,5 +15,6 @@ pub mod openings;
 pub mod output;
 pub mod profile;
 pub mod shot;
+pub mod sim;
 pub mod viewport;
 pub mod window;
