@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A simulated laser (`sim`):** a twin of the controller that reads the G-code this program writes (position, laser on or off, feed, cuts with the laser off, rapid moves with the laser on), a link that loses and damages lines by chance from a seed, a sender that resends a line, makes the safe stop when it gives up and resumes the job from the start of the cut that was under way. Eight new tests (185 in all) run the job over a perfect link, over 30 seeded lossy links, and over a link that dies at every line of the job followed by the resume. It has only run on a computer: no controller or laser has read this G-code.
+
 - **The shared validation tools are updated:** the validator also runs the workflow and lessons checks of the suite with their latest rules, including a check to run before every push.
 - **The CI validation checks the workflows and the lessons of past CI failures against a baseline:** `tools/workflow_hygiene.py` and `tools/lessons_lint.py` (copies of the shared tools) run in the validation, and only findings that are not in `tools/workflow_hygiene_baseline.json` and `tools/lessons_lint_baseline.json` fail it, so what exists today stays as it is and a new one is caught. `python tools/workflow_hygiene.py --root . --detail` and `python tools/lessons_lint.py --repo .` list the findings.
 - **The validation of the CI is the reusable one of the documentation hub:** the job `validate` calls `validate.yml` of EH3D-DOCS (pinned by commit) and the check of the CHANGELOG is a job of its own.
