@@ -64,6 +64,34 @@ fn the_unit_of_the_drawing_is_turned_into_millimetres() {
 }
 
 #[test]
+fn the_units_of_pcb_drawings_are_known_and_an_unknown_code_is_a_note() {
+    let circle = "0\nCIRCLE\n8\n0\n10\n1000\n20\n0\n40\n30\n";
+    // mils (9): a pad of 60 mil is 1.524 mm, not 60 mm
+    let (o, notes) = from_dxf(&drawing(Some(9), circle)).unwrap();
+    assert!(notes.is_empty(), "{notes:?}");
+    assert!((o[0].x - 25.4).abs() < 1e-9 && (o[0].w - 1.524).abs() < 1e-9);
+    // microns (13) and decimetres (14)
+    let (o, _) = from_dxf(&drawing(Some(13), circle)).unwrap();
+    assert!((o[0].x - 1.0).abs() < 1e-9);
+    let (o, _) = from_dxf(&drawing(Some(14), circle)).unwrap();
+    assert!((o[0].x - 100_000.0).abs() < 1e-6);
+    // 0 and 4 are millimetres and say nothing
+    for code in [0, 4] {
+        let (o, notes) = from_dxf(&drawing(Some(code), circle)).unwrap();
+        assert!(notes.is_empty() && o[0].x == 1000.0);
+    }
+    // a code that is not in the table is taken as millimetres, and said
+    let (o, notes) = from_dxf(&drawing(Some(99), circle)).unwrap();
+    assert_eq!(o[0].x, 1000.0);
+    assert!(
+        notes
+            .iter()
+            .any(|n| n.contains("dxf units") && n.contains("99")),
+        "{notes:?}"
+    );
+}
+
+#[test]
 fn what_cannot_be_an_opening_is_a_note_once_for_each_kind() {
     let mut entities = String::new();
     entities += "0\nLINE\n8\n0\n10\n0\n20\n0\n11\n5\n21\n0\n";

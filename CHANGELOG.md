@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A drawing in mils, microns or any other unit of the DXF table is read in its true size:** the unit of the drawing was taken as millimetres for every code except inches, feet, centimetres and metres, so a pad of 60 mil became an opening of 60 mm. The whole table (from micro-inches to hectometres) is now known, and a code that is not in it is a note, which stops `convert` unless `--force` is given. Tested with mils, microns, decimetres, the two millimetre codes and an unknown code.
+
 - **A simulated laser (`sim`):** a twin of the controller that reads the G-code this program writes (position, laser on or off, feed, cuts with the laser off, rapid moves with the laser on), a link that loses and damages lines by chance from a seed, a sender that resends a line, makes the safe stop when it gives up and resumes the job from the start of the cut that was under way. Eight new tests (185 in all) run the job over a perfect link, over 30 seeded lossy links, and over a link that dies at every line of the job followed by the resume. It has only run on a computer: no controller or laser has read this G-code.
 
 - **The shared validation tools are updated:** the validator also runs the workflow and lessons checks of the suite with their latest rules, including a check to run before every push.

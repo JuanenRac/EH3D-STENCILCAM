@@ -1,6 +1,6 @@
 //! The openings of a stencil drawn in a DXF file (the text form): a circle (`CIRCLE`) is a round opening and a closed light polyline (`LWPOLYLINE`) of four corners with square corners
 //! and sides along the axes is a rectangular one. Anything else that is drawn (lines, arcs, other polylines, text) cannot become an opening and is a note, once each kind. The drawing's own unit
-//! (`$INSUNITS`: 1 inches, 2 feet, 4 millimetres, 5 centimetres, 6 metres) is turned into millimetres; a drawing that does not say is taken to be in millimetres.
+//! (`$INSUNITS`: from micro-inches to hectometres, among them inches, feet, mils, millimetres, centimetres and metres) is turned into millimetres; a drawing that does not say is taken to be in millimetres, and a code that is not known is a note.
 
 use crate::openings::{Form, Opening};
 
@@ -13,14 +13,27 @@ pub const MAX_ENTITIES: usize = 200_000;
 /// The sides of a rectangle may differ from the axes by this much (mm) and still be one.
 const AXIS_TOLERANCE_MM: f64 = 0.001;
 
-fn unit_mm(code: i64) -> f64 {
-    match code {
+/// The size in millimetres of the unit a `$INSUNITS` code names, or `None` for a code that is not in the table of the format.
+fn unit_mm(code: i64) -> Option<f64> {
+    Some(match code {
+        0 | 4 => 1.0,
         1 => 25.4,
         2 => 304.8,
+        3 => 1_609_344.0,
         5 => 10.0,
         6 => 1000.0,
-        _ => 1.0,
-    }
+        7 => 1_000_000.0,
+        8 => 0.000_025_4,
+        9 => 0.025_4,
+        10 => 914.4,
+        11 => 0.000_000_1,
+        12 => 0.000_001,
+        13 => 0.001,
+        14 => 100.0,
+        15 => 10_000.0,
+        16 => 100_000.0,
+        _ => return None,
+    })
 }
 
 #[derive(Default)]
@@ -62,6 +75,7 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
     let mut in_entities = false;
     let mut current: Option<Entity> = None;
     let mut pending_unit = false;
+    let mut unit_note: Option<String> = None;
     let mut vertex: Option<(f64, f64, f64)> = None;
     for (code, value) in &pairs {
         if *code == 0 {
@@ -101,7 +115,15 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
             continue;
         }
         if pending_unit && *code == 70 {
-            unit = unit_mm(value.parse::<i64>().unwrap_or(4));
+            match value.parse::<i64>().ok().and_then(unit_mm) {
+                Some(u) => unit = u,
+                None => {
+                    unit = 1.0;
+                    unit_note = Some(format!(
+                        "dxf units: the code '{value}' of $INSUNITS is not known, so the drawing was taken to be in millimetres"
+                    ));
+                }
+            }
             pending_unit = false;
             continue;
         }
@@ -141,6 +163,7 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
         entities.push(e);
     }
     let (mut openings, mut notes) = (Vec::new(), Vec::new());
+    notes.extend(unit_note);
     let mut skipped: Vec<String> = Vec::new();
     for e in &entities {
         match e.kind.as_str() {
