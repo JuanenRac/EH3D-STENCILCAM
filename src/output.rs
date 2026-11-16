@@ -316,10 +316,11 @@ fn write_gcode(
             ));
         }
     }
-    let (feed_low, feed_high) = crate::config::FEED_MM_MIN_RANGE;
-    if !(feed_mm_min.is_finite() && (feed_low..=feed_high).contains(&feed_mm_min)) {
+    // the top is the one the settings and the command line share; the generator itself accepts any positive speed below it
+    let feed_high = crate::config::FEED_MM_MIN_RANGE.1;
+    if !(feed_mm_min.is_finite() && feed_mm_min > 0.0 && feed_mm_min <= feed_high) {
         return Err(format!(
-            "the feed is {feed_mm_min}: it must be from {feed_low} to {feed_high} mm/min"
+            "the feed is {feed_mm_min}: it must be from 0 to {feed_high} mm/min"
         ));
     }
     let mut g = format!(
