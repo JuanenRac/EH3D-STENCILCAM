@@ -46,6 +46,33 @@ pub fn paths(openings: &[Opening], p: &Profile) -> Result<Vec<Path>, String> {
         .collect()
 }
 
+/// Moves the paths so that the lower-left corner of the box that holds them lies at `origin` (the program then starts from where the sheet is, not from where the board was drawn).
+pub fn move_to_origin(paths: &mut [Path], origin: (f64, f64)) {
+    let points = paths
+        .iter()
+        .flatten()
+        .filter(|p| p.0.is_finite() && p.1.is_finite());
+    let min_x = points.clone().map(|p| p.0).fold(f64::INFINITY, f64::min);
+    let min_y = points.map(|p| p.1).fold(f64::INFINITY, f64::min);
+    if !min_x.is_finite() || !min_y.is_finite() {
+        return;
+    }
+    let (dx, dy) = (origin.0 - min_x, origin.1 - min_y);
+    for p in paths.iter_mut().flatten() {
+        p.0 += dx;
+        p.1 += dy;
+    }
+}
+
+/// The first point of the paths that lies outside the bed (`0..=width` by `0..=height`), if there is one. The leads are not counted.
+pub fn outside_bed(paths: &[Path], bed: (f64, f64)) -> Option<(f64, f64)> {
+    paths
+        .iter()
+        .flatten()
+        .copied()
+        .find(|p| !(p.0 >= 0.0 && p.0 <= bed.0 && p.1 >= 0.0 && p.1 <= bed.1))
+}
+
 /// The forms of the openings, in the order of [`paths`] (the form of each path, to choose its leads).
 pub fn forms(openings: &[Opening]) -> Vec<Form> {
     openings.iter().map(|o| o.form).collect()

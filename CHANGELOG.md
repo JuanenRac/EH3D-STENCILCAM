@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **`--origin X,Y` and `--bed WIDTH,HEIGHT` place the stencil on the sheet:** `--origin` moves the lower-left corner of the openings to X,Y (a board drawn far from zero or in negative coordinates no longer travels outside the machine) and `--bed` refuses to write when a point of a contour falls outside the bed; the leads are not counted.
 - **A circle whose centre cannot be read is left out, and the speed range is one:** a DXF circle with a centre written with a decimal comma, overflowing or cut short used to be placed at X=0 or Y=0 without a word; it is now left out with a note, like a polyline with an unreadable corner. The speed of the cut accepted by the settings and the command line is now the same range the generator accepts (1 to 30000 mm/min); before, a value above 30000 passed the settings and failed later with another message. Tested with unreadable centres and with 30000 and 30001.
 - **A drawing in mils, microns or any other unit of the DXF table is read in its true size:** the unit of the drawing was taken as millimetres for every code except inches, feet, centimetres and metres, so a pad of 60 mil became an opening of 60 mm. The whole table (from micro-inches to hectometres) is now known, and a code that is not in it is a note, which stops `convert` unless `--force` is given. Tested with mils, microns, decimetres, the two millimetre codes and an unknown code.
 

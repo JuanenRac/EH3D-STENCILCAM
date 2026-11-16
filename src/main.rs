@@ -11,8 +11,8 @@ use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
 use eh3d_stencilcam::output::{
-    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, paths,
-    write_atomic, FormLeads, Lead,
+    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, move_to_origin,
+    outside_bed, paths, write_atomic, FormLeads, Lead,
 };
 use eh3d_stencilcam::profile::{Material, Profile};
 use std::env;
@@ -23,7 +23,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
 
   eh3d-stencilcam convert LAYER.gtp|DRAWING.dxf OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
                   [--kerf MM] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
-                  [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--config FILE] [--mirror] [--force]
+                  [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
   eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
@@ -36,12 +36,22 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
+--origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when a point of a contour falls outside the bed 0..WIDTH by 0..HEIGHT (the leads are not counted).
 --config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes); the options win over the file.
 --feed MM_MIN (1 to 30000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
 A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
+
+/// An option that is two numbers, `X,Y`.
+fn pair_arg(name: &str, text: &str) -> Result<(f64, f64), String> {
+    let parts: Vec<&str> = text.split(',').collect();
+    if parts.len() != 2 {
+        return Err(format!("{name} needs two numbers, X,Y"));
+    }
+    Ok((num(parts[0], name)?, num(parts[1], name)?))
+}
 
 /// A lead of one form: the option when it is given, otherwise what the file says (`None`: the lead of every other opening).
 fn lead_option(
@@ -123,6 +133,15 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         },
     };
     let p = profile(&mut args)?;
+    let origin = flag(&mut args, "--origin")?
+        .map(|v| pair_arg("--origin", &v))
+        .transpose()?;
+    let bed = flag(&mut args, "--bed")?
+        .map(|v| pair_arg("--bed", &v))
+        .transpose()?;
+    if bed.is_some_and(|b| b.0 <= 0.0 || b.1 <= 0.0) {
+        return Err("--bed needs a width and a height above 0".into());
+    }
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
     let feed = match flag(&mut args, "--feed")? {
@@ -258,7 +277,18 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if !problems.is_empty() && !force {
                 return Err(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n")));
             }
-            let once = paths(&openings, &p)?;
+            let mut once = paths(&openings, &p)?;
+            if let Some(o) = origin {
+                move_to_origin(&mut once, o);
+            }
+            if let Some(b) = bed {
+                if let Some(pt) = outside_bed(&once, b) {
+                    return Err(format!(
+                        "the point {:.3},{:.3} falls outside the bed {},{}; move the stencil with --origin",
+                        pt.0, pt.1, b.0, b.1
+                    ));
+                }
+            }
             let once_forms = forms(&openings);
             // every contour is cut `passes` times: all the contours once, then all of them again
             let all: Vec<_> = (0..passes).flat_map(|_| once.iter().cloned()).collect();
