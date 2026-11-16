@@ -37,7 +37,7 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
 --config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes); the options win over the file.
---feed MM_MIN (1 to 100000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
+--feed MM_MIN (1 to 30000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
 A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or

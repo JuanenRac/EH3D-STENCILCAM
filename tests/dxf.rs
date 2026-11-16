@@ -246,3 +246,33 @@ fn a_value_out_of_range_is_refused_with_the_name_of_the_option() {
         assert!(!ok && e.contains(flag), "{flag} {value}: {e}");
     }
 }
+
+#[test]
+fn a_circle_with_a_centre_that_cannot_be_read_is_left_out_with_a_note_and_not_put_at_zero() {
+    // a decimal comma, an overflow and a cut-off value in the centre
+    for centre in [
+        "10\n12,5\n20\n3\n",
+        "10\n1e999\n20\n3\n",
+        "10\n4\n20\nabc\n",
+    ] {
+        let text = drawing(None, &format!("0\nCIRCLE\n8\n0\n{centre}40\n1\n"));
+        let (openings, notes) = from_dxf(&text).unwrap();
+        assert!(openings.is_empty(), "{centre:?}: {openings:?}");
+        assert!(
+            notes
+                .iter()
+                .any(|n| n.contains("centre that is not a number")),
+            "{centre:?}: {notes:?}"
+        );
+    }
+    // a centre that is read is still placed where it says
+    let (openings, notes) =
+        from_dxf(&drawing(None, "0\nCIRCLE\n8\n0\n10\n0\n20\n0\n40\n1\n")).unwrap();
+    assert!(notes.is_empty() && openings.len() == 1, "{notes:?}");
+}
+
+#[test]
+fn the_feed_range_of_the_settings_is_the_one_the_generator_accepts() {
+    assert!(parse_feed("feed", "30000").is_ok());
+    assert!(parse_feed("feed", "30001").is_err());
+}

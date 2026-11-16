@@ -130,8 +130,9 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
         let Some(e) = current.as_mut() else { continue };
         match (e.kind.as_str(), *code) {
             ("CIRCLE", 40) => e.radius = number(value).unwrap_or(0.0),
-            ("CIRCLE", 10) => e.x = number(value).unwrap_or(0.0),
-            ("CIRCLE", 20) => e.y = number(value).unwrap_or(0.0),
+            // a centre that cannot be read stays NaN, so the circle is left out with a note instead of being placed at 0
+            ("CIRCLE", 10) => e.x = number(value).unwrap_or(f64::NAN),
+            ("CIRCLE", 20) => e.y = number(value).unwrap_or(f64::NAN),
             ("LWPOLYLINE", 70) => {
                 e.closed = value.parse::<i64>().map(|f| f & 1 == 1).unwrap_or(false)
             }
@@ -167,6 +168,12 @@ pub fn from_dxf(text: &str) -> Result<(Vec<Opening>, Vec<String>), String> {
     let mut skipped: Vec<String> = Vec::new();
     for e in &entities {
         match e.kind.as_str() {
+            "CIRCLE" if e.radius > 0.0 && (e.x.is_nan() || e.y.is_nan()) => note_once(
+                &mut skipped,
+                &mut notes,
+                "CIRCLE",
+                "a circle with a centre that is not a number was left out",
+            ),
             "CIRCLE" if e.radius > 0.0 => openings.push(Opening {
                 x: e.x * unit,
                 y: e.y * unit,

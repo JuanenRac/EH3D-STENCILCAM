@@ -316,9 +316,10 @@ fn write_gcode(
             ));
         }
     }
-    if !(feed_mm_min.is_finite() && feed_mm_min > 0.0 && feed_mm_min <= 30_000.0) {
+    let (feed_low, feed_high) = crate::config::FEED_MM_MIN_RANGE;
+    if !(feed_mm_min.is_finite() && (feed_low..=feed_high).contains(&feed_mm_min)) {
         return Err(format!(
-            "the feed is {feed_mm_min}: it must be from 0 to 30000 mm/min"
+            "the feed is {feed_mm_min}: it must be from {feed_low} to {feed_high} mm/min"
         ));
     }
     let mut g = format!(
