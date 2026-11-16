@@ -15,7 +15,7 @@ pub const MAX_LASER_WAIT_S: f64 = 60.0;
 pub const RAPID_MM_MIN_RANGE: (f64, f64) = (100.0, 100_000.0);
 /// The default speed of the cut, in mm/min, and the range that may be given.
 pub const DEFAULT_FEED_MM_MIN: f64 = 600.0;
-pub const FEED_MM_MIN_RANGE: (f64, f64) = (1.0, 100_000.0);
+pub const FEED_MM_MIN_RANGE: (f64, f64) = (1.0, 30_000.0);
 /// The default top of the laser power scale (`S` of the G-code) and the range that may be given.
 pub const DEFAULT_SMAX: f64 = 1000.0;
 pub const SMAX_RANGE: (f64, f64) = (1.0, 100_000.0);
@@ -40,7 +40,7 @@ pub struct Settings {
     pub lead_in_rect_mm: Option<f64>,
     /// The lead-out of a rectangular opening, from 0 to 5 mm; `None`: the same as `lead_out_mm`.
     pub lead_out_rect_mm: Option<f64>,
-    /// The speed of the cut, from 1 to 100000 mm/min.
+    /// The speed of the cut, from 1 to 30000 mm/min.
     pub feed_mm_min: f64,
     /// The top of the laser power scale (`S`), from 1 to 100000.
     pub smax: f64,
@@ -118,7 +118,7 @@ pub fn parse_rapid(name: &str, text: &str) -> Result<f64, String> {
         })
 }
 
-/// The speed of the cut as the file or the command line gives it: from 1 to 100000 mm/min.
+/// The speed of the cut as the file or the command line gives it: from 1 to 30000 mm/min.
 pub fn parse_feed(name: &str, text: &str) -> Result<f64, String> {
     let (low, high) = FEED_MM_MIN_RANGE;
     text.trim()
@@ -221,7 +221,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 100000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n",
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n",
         d.lead_in_mm,
         d.lead_out_mm,
         d.laser_wait_s,
