@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.0.8] - Origin and bed options, drawings in any DXF unit and a simulated laser
+
 - **The README says the maturity of the manifest:** the badge and the Maturity row of the eight READMEs read functional, as the manifest does, and the check of the status lights now fails when they differ.
 - **`--origin X,Y` and `--bed WIDTH,HEIGHT` place the stencil on the sheet:** `--origin` moves the lower-left corner of the openings to X,Y (a board drawn far from zero or in negative coordinates no longer travels outside the machine) and `--bed` refuses to write when a point of a contour falls outside the bed; the leads are not counted.
 - **A circle whose centre cannot be read is left out, and the speed range is one:** a DXF circle with a centre written with a decimal comma, overflowing or cut short used to be placed at X=0 or Y=0 without a word; it is now left out with a note, like a polyline with an unreadable corner. The speed of the cut accepted by the settings and the command line is now the same range the generator accepts (1 to 30000 mm/min); before, a value above 30000 passed the settings and failed later with another message. Tested with unreadable centres and with 30000 and 30001.
