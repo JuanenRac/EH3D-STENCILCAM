@@ -4,11 +4,14 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.0.9] - Narrow web warning, repeated apertures and a JSON check
+
 - **A warning for openings whose web is too narrow:** `--min-web MM` (or `min_web_mm` in `stencil.cfg`, from 0 to 5 mm, 0.1 by default, 0 for no warning) warns, in `check` and in `convert`, of two openings whose web (the sheet that stays between them, measured between their circles when both are round and between their enclosing rectangles otherwise) is narrower, and of openings that touch or overlap; the warning never stops `convert`. The pairs are found with a sweep along X and the tests compare it with the comparison of every pair on a pseudo-random board.
 - **An opening that repeats another one is cut once:** two openings of the same form, size and place (to within a thousandth of a millimetre) are one hole, so the second is left out with a note on the standard error instead of burning the edge of the first by cutting it twice; the first of the layer keeps its place and the number of passes is not affected.
 - **`check` tells the paste the openings hold:** it prints how many openings there are of each form and the paste they hold, in microlitres (the area of each opening as it is cut times the thickness of the sheet), to choose how much paste to load.
 - **`check --json` prints the result as one JSON object:** the number of openings by form, the paste, the smallest ratios (`null` with no openings), the openings that will not release the paste, the narrow webs and how many repeated openings were left out, for other programs to read; the exit code is the same as without it and `--json` on `convert` is refused.
 - **The CI and the release build take the shared libraries at their newest releases:** the pins of the sibling repositories in the workflows are raised to the releases the program now needs, so that the build and the binaries of a release use them.
+
 ## [0.0.8] - Origin and bed options, drawings in any DXF unit and a simulated laser
 
 - **The README says the maturity of the manifest:** the badge and the Maturity row of the eight READMEs read functional, as the manifest does, and the check of the status lights now fails when they differ.
