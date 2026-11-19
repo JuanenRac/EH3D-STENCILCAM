@@ -68,7 +68,7 @@ fn openings_of_another_form_or_beyond_the_tolerance_are_not_repeats() {
 fn a_tolerance_that_is_not_a_number_or_is_negative_means_exactly_equal() {
     let a = rect(1.0, 1.0, 1.0, 0.5);
     let near = rect(1.0001, 1.0, 1.0, 0.5);
-    for tol in [f64::NAN, -1.0, f64::INFINITY * 0.0, 0.0] {
+    for tol in [f64::NAN, -1.0, f64::NEG_INFINITY, 0.0] {
         assert_eq!(deduplicated(&[a, near], tol).1, 0, "{tol}");
         assert_eq!(deduplicated(&[a, a], tol).1, 1, "{tol}");
     }
@@ -159,9 +159,9 @@ fn the_sweep_finds_the_same_pairs_as_comparing_every_pair() {
     }
     for limit in [0.05, 0.3, 1.0] {
         let mut brute = Vec::new();
-        for i in 0..o.len() {
-            for j in i + 1..o.len() {
-                let web = gap(&o[i], &o[j]);
+        for (i, a) in o.iter().enumerate() {
+            for (j, b) in o.iter().enumerate().skip(i + 1) {
+                let web = gap(a, b);
                 if web < limit {
                     brute.push(NarrowWeb {
                         first: i + 1,
