@@ -21,6 +21,9 @@ pub const DEFAULT_SMAX: f64 = 1000.0;
 pub const SMAX_RANGE: (f64, f64) = (1.0, 100_000.0);
 /// The most passes over every contour that may be asked for (one is the default).
 pub const MAX_PASSES: u32 = 10;
+/// The default narrowest web (the sheet that stays between two openings) that is not warned about, in mm, and the most that may be asked for (0 gives no warning).
+pub const DEFAULT_MIN_WEB_MM: f64 = 0.1;
+pub const MAX_MIN_WEB_MM: f64 = 5.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Settings {
@@ -46,6 +49,8 @@ pub struct Settings {
     pub smax: f64,
     /// How many times every contour is cut, from 1 to 10 (one by default; more for a thick material).
     pub passes: u32,
+    /// The narrowest web between two openings that is not warned about, from 0 to 5 mm (0: no warning).
+    pub min_web_mm: f64,
 }
 
 impl Settings {
@@ -82,6 +87,7 @@ impl Default for Settings {
             feed_mm_min: DEFAULT_FEED_MM_MIN,
             smax: DEFAULT_SMAX,
             passes: 1,
+            min_web_mm: DEFAULT_MIN_WEB_MM,
         }
     }
 }
@@ -147,6 +153,11 @@ pub fn parse_passes(name: &str, text: &str) -> Result<u32, String> {
         .ok_or_else(|| format!("{name} '{text}' must be a whole number from 1 to {MAX_PASSES}"))
 }
 
+/// The narrowest web as the file or the command line gives it: from 0 (no warning) to 5 mm.
+pub fn parse_min_web(name: &str, text: &str) -> Result<f64, String> {
+    number_in(name, text, MAX_MIN_WEB_MM, "mm")
+}
+
 /// Reads a settings file. A key that is not known, a line with no `=` and a value that is not valid are errors with the number of the line; a key given twice is an error too.
 pub fn parse(text: &str) -> Result<Settings, String> {
     let mut settings = Settings::default();
@@ -173,6 +184,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "feed_mm_min",
             "smax",
             "passes",
+            "min_web_mm",
         ];
         let Some(&name) = known.iter().find(|k| **k == key) else {
             return Err(format!("line {n}: '{key}' is not a setting"));
@@ -189,12 +201,16 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "smax" => {
                 settings.smax = parse_smax(name, value).map_err(|e| format!("line {n}: {e}"))?
             }
+            "min_web_mm" => {
+                settings.min_web_mm =
+                    parse_min_web(name, value).map_err(|e| format!("line {n}: {e}"))?
+            }
             "passes" => {
                 settings.passes = parse_passes(name, value).map_err(|e| format!("line {n}: {e}"))?
             }
             _ => {}
         }
-        if matches!(name, "feed_mm_min" | "smax" | "passes") {
+        if matches!(name, "feed_mm_min" | "smax" | "passes" | "min_web_mm") {
             continue;
         }
         let parsed = match name {
@@ -221,7 +237,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n",
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n# the narrowest web, the sheet that stays between two openings, that is not warned about (0 to {MAX_MIN_WEB_MM} mm, 0 for no warning)\nmin_web_mm = {}\n",
         d.lead_in_mm,
         d.lead_out_mm,
         d.laser_wait_s,
@@ -232,6 +248,7 @@ pub fn default_file() -> String {
         d.lead_out_mm,
         d.feed_mm_min,
         d.smax,
-        d.passes
+        d.passes,
+        d.min_web_mm
     )
 }

@@ -17,7 +17,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 185 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 211 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.0.8` |
 | 成熟度 | 可用 |
-| 测试 | 185 |
+| 测试 | 211 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,7 +46,7 @@
 |---|---|---|
 | 核心 | 🟡 | 把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
 | 命令行 | 🟡 | `eh3d-stencilcam` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
-| 测试 | 🟡 | 185 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
+| 测试 | 🟡 | 211 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🟠 | 已编写（egui，`--features gui`）：打开或拖入锡膏层、选择材料、编辑参数、查看焊盘和切割路径（锡膏无法脱出的开口为红色）、缩放和平移、导出；其逻辑已测试，但尚未构建，也尚未在屏幕上看过。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
@@ -95,6 +95,7 @@ EH3D-STENCILCAM 是 EH3D Fabrication Suite 的一个程序。它以库和命令�
 * **每次切割都有直线引入段和引出段：** G-code 可沿与轮廓第一段相切的直线进入每条轮廓，并沿最后一段的延长线离开（默认各 0.3 mm，`--lead-in MM`、`--lead-out MM`，或 `stencil.cfg` 中的 `lead_in_mm` 和 `lead_out_mm`；0 表示不写，程序与不带引入引出段时写出的相同）。机头前往引入段起点时激光保持关闭，在该处点亮（如有要求则等待），并在引出段末端关闭。轮廓是凸的并按逆时针方向运行，因此两段都位于开口之外、保留下来的薄片上；HP-GL 中不写这两段。
 * **按形状设置引入段和引出段：** 圆形开口和矩形开口可以有各自的引入段和引出段（`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM`，或 `stencil.cfg` 中的 `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`，范围 0 到 5 毫米）；未给出的取通用的 `--lead-in` 或 `--lead-out`，长圆形开口始终使用通用值。时间估算按各形状的值计算。参见 `docs/leads-by-form.md`。
 * **可以用图纸作为输入，并在 `stencil.cfg` 中设置速度、激光功率刻度和遍数：** 以 `.dxf` 结尾的文件按图纸读取（圆成为圆形开口，边沿坐标轴的闭合矩形成为矩形开口；会读取图纸的单位，其他图元只作提示，因此除非给出 `--force`，`convert` 拒绝写出）；`--feed`、`--smax` 和 `--passes`（文件中为 `feed_mm_min`、`smax` 和 `passes`；默认 600 mm/min、1000 和一遍）设置切割速度、激光功率刻度上限和每条轮廓切割的遍数。仅在计算机上测试：尚未在激光器上切割过任何东西。
+* **`check` 中的窄桥、重复开口与锡膏量：** `--min-web MM`（或 `stencil.cfg` 中的 `min_web_mm`，0 至 5 mm，默认 0.1，0 表示不警告）会在 `check` 和 `convert` 中警告桥（两个开口之间保留的片材）更窄、或相互接触或重叠的两个开口，并且绝不会中止 `convert`；形状、尺寸和位置相同的两个开口是同一个孔，因此第二个会连同一条注释被略去，而不是被切割两次；`check` 会输出每种形状的开口数量以及它们容纳的锡膏量（微升），`check --json` 则将这些内容和其余结果作为单个 JSON 对象输出，供其他程序使用。仅在计算机上测试过。
 
 ## 🔒 安全与防护
 
@@ -161,7 +162,7 @@ EH3D-STENCILCAM/
 
 ## ⚙️ 配置
 
-一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。
+一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。 `min_web_mm`（对应 `--min-web`）是两个开口之间不会被警告的最窄桥宽（默认 0.1 mm，范围 0 至 5；0 表示不警告）。
 
 ## 🚀 快速开始
 
@@ -179,7 +180,7 @@ cargo run --release --features gui -- --shot screen.png examples/paste.gtp   # a
 
 ## 🧪 测试
 
-测试套件有 185 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件有 211 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 

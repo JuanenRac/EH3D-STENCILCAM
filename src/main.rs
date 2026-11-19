@@ -9,7 +9,10 @@ use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
-use eh3d_stencilcam::openings::{from_gerber_with, mirrored, ratios, shrunk, weak};
+use eh3d_stencilcam::openings::{
+    check_json, deduplicated, from_gerber_with, mirrored, narrow_webs, ratios, shrunk, summary,
+    weak,
+};
 use eh3d_stencilcam::output::{
     duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, move_to_origin,
     outside_bed, paths, write_atomic, FormLeads, Lead,
@@ -25,7 +28,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
                   [--kerf MM] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
                   [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
-  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT]
+  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--json]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
   eh3d-stencilcam gui [FILE...] --shot OUT.png [--size WxH] [--theme forge|dark|light] [--wait N] [--lang CODE] [--replace]   a picture of the window (a build with --features gui)
 
@@ -37,7 +40,8 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
 --origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when a point of a contour falls outside the bed 0..WIDTH by 0..HEIGHT (the leads are not counted).
---config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes); the options win over the file.
+--config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes, min_web_mm); the options win over the file.
+--min-web MM (0.1 by default, 0 to 5; 0 gives no warning) warns, in check and in convert, of two openings whose web (the sheet that stays between them) is narrower, or that touch or overlap; it never stops convert. Two openings of the same form, size and place are one hole: the second is left out, with a note on the standard error. check prints how many openings there are of each form and the paste they hold; check --json prints that and the rest of the result as one JSON object.
 --feed MM_MIN (1 to 30000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
 A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
@@ -142,6 +146,11 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     if bed.is_some_and(|b| b.0 <= 0.0 || b.1 <= 0.0) {
         return Err("--bed needs a width and a height above 0".into());
     }
+    let min_web = match flag(&mut args, "--min-web")? {
+        Some(v) => config::parse_min_web("--min-web", &v)?,
+        None => settings.min_web_mm,
+    };
+    let json = switch(&mut args, "--json");
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
     let feed = match flag(&mut args, "--feed")? {
@@ -220,6 +229,12 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         let (o, n) = from_gerber_with(&reading.file, arc_tolerance);
         (o, n, reading.shown, reading.errors)
     };
+    // the same hole twice is cut once: the second burns the edge of the first
+    let (unique, duplicates_removed) = deduplicated(&openings, 0.001);
+    if duplicates_removed > 0 {
+        openings = unique;
+        eprintln!("note: {duplicates_removed} opening(s) repeat another one (same form, size and place) and are left out");
+    }
     if mirror {
         openings = mirrored(&openings);
     }
@@ -245,7 +260,45 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         .map(|o| shrunk(o, &p))
         .collect::<Result<_, _>>()?;
     let problems = weak(&shown, p.thickness_mm)?;
+    let webs = narrow_webs(&shown, min_web);
+    if json && cmd != "check" {
+        return Err("--json is an option of check".into());
+    }
+    for w in &webs {
+        if w.web_mm <= 0.0 {
+            eprintln!(
+                "warning: openings {} and {} touch or overlap",
+                w.first, w.second
+            );
+        } else {
+            eprintln!(
+                "warning: openings {} and {} are {:.3} mm apart (less than {min_web} mm): the sheet between them may break",
+                w.first, w.second, w.web_mm
+            );
+        }
+    }
     match cmd.as_str() {
+        "check" if json => {
+            println!(
+                "{}",
+                check_json(
+                    &shown,
+                    p.thickness_mm,
+                    p.shrink_percent,
+                    &problems,
+                    &webs,
+                    duplicates_removed
+                )?
+            );
+            if problems.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} openings will not release the paste",
+                    problems.len()
+                ))
+            }
+        }
         "check" => {
             let all = shown
                 .iter()
@@ -260,6 +313,11 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if let Some(a) = all.iter().map(|r| r.aspect).reduce(f64::min) {
                 println!("smallest aspect ratio {a:.2} (at least 1.5), smallest area ratio {:.2} (at least 0.66)", all.iter().map(|r| r.area).fold(f64::INFINITY, f64::min));
             }
+            let s = summary(&shown, p.thickness_mm);
+            println!(
+                "{} round, {} rectangular, {} obround; the openings hold {:.3} uL of paste",
+                s.round, s.rectangle, s.obround, s.paste_ul
+            );
             for (_, m) in &problems {
                 println!("{m}");
             }

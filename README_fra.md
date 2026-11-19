@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 185 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 211 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.8` |
 | Maturité | Fonctionnel |
-| Tests | 185 |
+| Tests | 211 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 185 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 211 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -95,6 +95,7 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Un tronçon droit d'entrée et de sortie sur chaque coupe :** le G-code peut entrer dans chaque contour par une droite tangente à son premier segment et en sortir par le prolongement du dernier (0,3 mm chacun par défaut, `--lead-in MM`, `--lead-out MM` ou `lead_in_mm` et `lead_out_mm` dans `stencil.cfg` ; 0 n'en écrit aucun et le programme est celui écrit sans tronçons). Le laser reste éteint pendant que la tête se rend au début de l'entrée, s'allume là (et attend, si on le demande) et s'éteint à la fin de la sortie. Les contours sont convexes et tournent dans le sens antihoraire : les deux tronçons sont donc hors de l'ouverture, sur la feuille qui est conservée ; aucun n'est écrit en HP-GL.
 * **Entrée et sortie selon la forme :** une ouverture ronde et une ouverture rectangulaire peuvent avoir leur propre entrée et sortie (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` ou `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` dans `stencil.cfg`, de 0 à 5 mm) ; celle qui n'est pas donnée est la générale `--lead-in` ou `--lead-out`, et une ouverture oblongue utilise toujours les générales. L'estimation du temps compte celles de chaque forme. Voir `docs/leads-by-form.md`.
 * **Un dessin en entrée, et la vitesse, l'échelle du laser et les passes dans `stencil.cfg` :** un fichier se terminant par `.dxf` est lu comme un dessin (les cercles deviennent des ouvertures rondes et les rectangles fermés aux côtés sur les axes des ouvertures rectangulaires ; l'unité du dessin est lue et toute autre entité est une note, si bien que `convert` refuse d'écrire sans `--force`) ; `--feed`, `--smax` et `--passes` (`feed_mm_min`, `smax` et `passes` dans le fichier ; 600 mm/min, 1000 et une passe par défaut) fixent la vitesse de coupe, le haut de l'échelle de puissance du laser et le nombre de fois que chaque contour est coupé. Testé seulement sur ordinateur : rien n'a été coupé sur un laser.
+* **Ponts étroits, ouvertures répétées et la pâte dans `check` :** `--min-web MM` (ou `min_web_mm` dans `stencil.cfg`, de 0 à 5 mm, 0,1 par défaut, 0 pour ne rien signaler) signale, dans `check` et dans `convert`, deux ouvertures dont le pont (la feuille qui reste entre elles) est plus étroit, ou qui se touchent ou se chevauchent, et n'arrête jamais `convert` ; deux ouvertures de même forme, taille et place ne font qu'un trou, la seconde est donc écartée avec une note au lieu d'être découpée deux fois ; `check` affiche combien d'ouvertures il y a de chaque forme et la pâte qu'elles contiennent (en microlitres) et `check --json` affiche cela et le reste du résultat sous la forme d'un seul objet JSON pour d'autres programmes. Testé uniquement sur un ordinateur.
 
 ## 🔒 Sécurité et protection
 
@@ -161,7 +162,7 @@ EH3D-STENCILCAM/
 
 ## ⚙️ Configuration
 
-Un petit fichier de réglages, `stencil.cfg` (`clé = valeur`, un par ligne, `#` commence un commentaire), contient ce qui mérite d'être ajusté : `lead_in_mm` et `lead_out_mm`, la longueur du tronçon droit d'entrée avant chaque contour et de sortie après (0,3 mm par défaut, de 0 à 5 ; 0 n'en écrit aucun), et `laser_wait_s`, l'attente après l'allumage du laser (0 par défaut, jusqu'à 60). `eh3d-stencilcam config` affiche le fichier avec chaque valeur par défaut (`examples/stencil.cfg` est ce fichier) et `--config FICHIER` en lit un ; `--lead-in MM`, `--lead-out MM` et `--laser-wait SECONDES` donnent les mêmes réglages sur la ligne de commande et l'emportent sur le fichier. Une clé inconnue, répétée ou hors de sa plage est une erreur qui indique sa ligne. Le reste est donné en arguments de la ligne de commande (voir Interfaces) et chaque valeur par défaut est écrite dans l'aide de la commande (`eh3d-stencilcam help`). Les limites fixes sont des constantes nommées dans le code, couvertes par des tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (avec les options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` et `--lead-out-rect`) donnent l'entrée et la sortie des ouvertures rondes et des ouvertures rectangulaires ; dans le fichier elles figurent en commentaires et, si elles ne sont pas données, on utilise les générales `lead_in_mm` et `lead_out_mm`.
+Un petit fichier de réglages, `stencil.cfg` (`clé = valeur`, un par ligne, `#` commence un commentaire), contient ce qui mérite d'être ajusté : `lead_in_mm` et `lead_out_mm`, la longueur du tronçon droit d'entrée avant chaque contour et de sortie après (0,3 mm par défaut, de 0 à 5 ; 0 n'en écrit aucun), et `laser_wait_s`, l'attente après l'allumage du laser (0 par défaut, jusqu'à 60). `eh3d-stencilcam config` affiche le fichier avec chaque valeur par défaut (`examples/stencil.cfg` est ce fichier) et `--config FICHIER` en lit un ; `--lead-in MM`, `--lead-out MM` et `--laser-wait SECONDES` donnent les mêmes réglages sur la ligne de commande et l'emportent sur le fichier. Une clé inconnue, répétée ou hors de sa plage est une erreur qui indique sa ligne. Le reste est donné en arguments de la ligne de commande (voir Interfaces) et chaque valeur par défaut est écrite dans l'aide de la commande (`eh3d-stencilcam help`). Les limites fixes sont des constantes nommées dans le code, couvertes par des tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (avec les options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` et `--lead-out-rect`) donnent l'entrée et la sortie des ouvertures rondes et des ouvertures rectangulaires ; dans le fichier elles figurent en commentaires et, si elles ne sont pas données, on utilise les générales `lead_in_mm` et `lead_out_mm`. `min_web_mm` (avec `--min-web`) est le pont le plus étroit entre deux ouvertures qui n'est pas signalé (0,1 mm par défaut, de 0 à 5 ; 0 ne signale rien).
 
 ## 🚀 Démarrage rapide
 
@@ -179,7 +180,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 185 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 211 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 

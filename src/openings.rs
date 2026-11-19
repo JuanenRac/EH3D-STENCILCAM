@@ -155,3 +155,214 @@ pub fn mirrored(openings: &[Opening]) -> Vec<Opening> {
         })
         .collect()
 }
+
+/// The openings with the ones that repeat another left out: two openings of the same form, size and place (to within `tolerance_mm`) are one hole, and cutting it twice would burn the
+/// edge of the stencil. The first of each is kept, in its place; the second value is how many were left out.
+pub fn deduplicated(openings: &[Opening], tolerance_mm: f64) -> (Vec<Opening>, usize) {
+    let tol = if tolerance_mm.is_finite() && tolerance_mm > 0.0 {
+        tolerance_mm
+    } else {
+        0.0
+    };
+    let same = |a: &Opening, b: &Opening| {
+        a.form == b.form
+            && (a.x - b.x).abs() <= tol
+            && (a.y - b.y).abs() <= tol
+            && (a.w - b.w).abs() <= tol
+            && (a.h - b.h).abs() <= tol
+    };
+    // sorted by x, an opening is compared only with the ones whose x lies within the tolerance
+    let mut order: Vec<usize> = (0..openings.len()).collect();
+    order.sort_by(|&a, &b| openings[a].x.total_cmp(&openings[b].x).then(a.cmp(&b)));
+    let mut drop = vec![false; openings.len()];
+    for (k, &i) in order.iter().enumerate() {
+        if drop[i] {
+            continue;
+        }
+        for &j in &order[k + 1..] {
+            if openings[j].x - openings[i].x > tol {
+                break;
+            }
+            if !drop[j] && same(&openings[i], &openings[j]) {
+                // the one that came first in the layer stays
+                if j < i {
+                    drop[i] = true;
+                    break;
+                }
+                drop[j] = true;
+            }
+        }
+    }
+    let kept: Vec<Opening> = openings
+        .iter()
+        .zip(&drop)
+        .filter(|(_, d)| !**d)
+        .map(|(o, _)| *o)
+        .collect();
+    let removed = openings.len() - kept.len();
+    (kept, removed)
+}
+
+/// The least distance, in mm, between the edges of two openings, as their enclosing rectangles see it (two round ones, by their circles); 0 or less when they touch or overlap.
+pub fn gap(a: &Opening, b: &Opening) -> f64 {
+    if a.form == Form::Round && b.form == Form::Round {
+        return (a.x - b.x).hypot(a.y - b.y) - (a.w + b.w) / 2.0;
+    }
+    let dx = (a.x - b.x).abs() - (a.w + b.w) / 2.0;
+    let dy = (a.y - b.y).abs() - (a.h + b.h) / 2.0;
+    if dx <= 0.0 && dy <= 0.0 {
+        dx.max(dy)
+    } else {
+        dx.max(0.0).hypot(dy.max(0.0))
+    }
+}
+
+/// Two openings whose web (the sheet that stays between them) is narrower than the limit, by their numbers (from 1) and the width of the web.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NarrowWeb {
+    pub first: usize,
+    pub second: usize,
+    pub web_mm: f64,
+}
+
+/// The pairs of openings whose web is narrower than `min_web_mm` (a negative web is two openings that overlap). 0 or less finds none, because every web is at least that wide.
+/// The openings are the ones as they are cut. The pairs come in the order of the first opening, then the second.
+pub fn narrow_webs(openings: &[Opening], min_web_mm: f64) -> Vec<NarrowWeb> {
+    if !(min_web_mm.is_finite() && min_web_mm > 0.0) {
+        return Vec::new();
+    }
+    let mut order: Vec<usize> = (0..openings.len()).collect();
+    order.sort_by(|&a, &b| {
+        (openings[a].x - openings[a].w / 2.0)
+            .total_cmp(&(openings[b].x - openings[b].w / 2.0))
+            .then(a.cmp(&b))
+    });
+    let mut out = Vec::new();
+    for (k, &i) in order.iter().enumerate() {
+        let right = openings[i].x + openings[i].w / 2.0 + min_web_mm;
+        for &j in &order[k + 1..] {
+            if openings[j].x - openings[j].w / 2.0 > right {
+                break;
+            }
+            let web = gap(&openings[i], &openings[j]);
+            if web < min_web_mm {
+                let (first, second) = (i.min(j), i.max(j));
+                out.push(NarrowWeb {
+                    first: first + 1,
+                    second: second + 1,
+                    web_mm: web,
+                });
+            }
+        }
+    }
+    out.sort_by(|a, b| a.first.cmp(&b.first).then(a.second.cmp(&b.second)));
+    out
+}
+
+/// The paste an opening holds when the sheet is `thickness_mm` thick, in cubic millimetres (the area of the opening as it is cut, times the thickness).
+pub fn paste_volume_mm3(o: &Opening, thickness_mm: f64) -> f64 {
+    let area = match o.form {
+        Form::Round => std::f64::consts::PI * (o.w / 2.0) * (o.w / 2.0),
+        _ => o.w * o.h,
+    };
+    area * thickness_mm
+}
+
+/// What a stencil needs in a sentence of numbers: how many openings of each form, and the paste (in microlitres, 1 mm3 = 1 uL) all of them hold.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Summary {
+    pub round: usize,
+    pub rectangle: usize,
+    pub obround: usize,
+    pub paste_ul: f64,
+}
+
+pub fn summary(openings: &[Opening], thickness_mm: f64) -> Summary {
+    let count = |f: Form| openings.iter().filter(|o| o.form == f).count();
+    Summary {
+        round: count(Form::Round),
+        rectangle: count(Form::Rectangle),
+        obround: count(Form::Obround),
+        paste_ul: openings
+            .iter()
+            .map(|o| paste_volume_mm3(o, thickness_mm))
+            .sum(),
+    }
+}
+
+/// A text as a JSON string, with its quotes: the quote, the backslash and the control characters are escaped.
+pub fn json_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+fn json_number(v: f64) -> String {
+    if v.is_finite() {
+        format!("{v}")
+    } else {
+        "null".into()
+    }
+}
+
+/// What `check --json` prints: one JSON object with the number of openings by form, the paste they hold, the smallest ratios, the openings that will not release the paste, the
+/// narrow webs and how many duplicate openings were left out. `shown` are the openings as the paste sees them (shrunk); the ratios are not given (`null`) when there are none.
+pub fn check_json(
+    shown: &[Opening],
+    thickness_mm: f64,
+    shrink_percent: f64,
+    weak: &[(usize, String)],
+    webs: &[NarrowWeb],
+    duplicates_removed: usize,
+) -> Result<String, String> {
+    let all = shown
+        .iter()
+        .map(|o| ratios(o, thickness_mm))
+        .collect::<Result<Vec<_>, _>>()?;
+    let min_aspect = all.iter().map(|r| r.aspect).reduce(f64::min);
+    let min_area = all.iter().map(|r| r.area).reduce(f64::min);
+    let s = summary(shown, thickness_mm);
+    let opt = |v: Option<f64>| v.map_or_else(|| "null".to_string(), json_number);
+    let weak_items: Vec<String> = weak
+        .iter()
+        .map(|(i, m)| format!("{{\"opening\":{},\"message\":{}}}", i + 1, json_string(m)))
+        .collect();
+    let web_items: Vec<String> = webs
+        .iter()
+        .map(|w| {
+            format!(
+                "{{\"first\":{},\"second\":{},\"web_mm\":{}}}",
+                w.first,
+                w.second,
+                json_number(w.web_mm)
+            )
+        })
+        .collect();
+    Ok(format!(
+        "{{\"openings\":{},\"round\":{},\"rectangle\":{},\"obround\":{},\"paste_ul\":{},\"thickness_mm\":{},\"shrink_percent\":{},\"min_aspect\":{},\"min_area\":{},\"weak\":[{}],\"narrow_webs\":[{}],\"duplicates_removed\":{}}}",
+        shown.len(),
+        s.round,
+        s.rectangle,
+        s.obround,
+        json_number(s.paste_ul),
+        json_number(thickness_mm),
+        json_number(shrink_percent),
+        opt(min_aspect),
+        opt(min_area),
+        weak_items.join(","),
+        web_items.join(","),
+        duplicates_removed
+    ))
+}
