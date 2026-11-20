@@ -565,6 +565,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "eh3d-serverclient"
+version = "0.0.1"
+
+[[package]]
 name = "eh3d-stencilcam"
 version = "0.0.9"
 dependencies = [
@@ -572,6 +576,7 @@ dependencies = [
  "eh3d-gerberviewer",
  "eh3d-parser-gcode",
  "eh3d-parser-gerber",
+ "eh3d-serverclient",
  "png 0.17.16",
 ]
 

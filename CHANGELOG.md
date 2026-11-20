@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A server mode over the client of the suite:** `stencil.cfg` takes the keys `server_address`, `server_token`, `server_machine`, `server_timeout_s` (1 to 120, 15 by default), `server_retries` (0 to 5, 2 by default), `server_mdns` (`off` by default) and `server_max_answer_mib` (1 to 256, 8 by default), read with their ranges by `eh3d-serverclient` of EH3D-COMMON; a value out of its range, a key given twice or a space in the address is an error that says its line; the mode is off until `server_address` is set and the local work never depends on it.
+- **`eh3d-stencilcam server status`:** shows the link (the token as `***`) and what the server answers at `/health`, with the refusals and the failures of the network told by their code in the language of the system (taken from `LC_ALL`, `LC_MESSAGES` or `LANG`).
+- **`convert --to-server` keeps the stencil on the server:** the G-code or the HP-GL plot that `convert` writes is kept on the EH3D server as an artifact once it is written locally (one request, never repeated by the client); the option is refused before any work when `--config` has no `server_address` or `server_token`, and a refusal of the server is told after the local file was written.
+- **`check --json --to-server` keeps the result of the check:** the JSON object that `check --json` prints is kept as the artifact `LAYER.check.json`; `--to-server` is refused on any other command.
+- **The artifact says what it is and how it was made:** its media type follows the file (G-code, HP-GL plot, DXF drawing, JSON, text) and its parameters carry the command, the thickness of the sheet, the shrink, the speed of the cut, the top of the laser scale, the passes and the number of openings.
+- **The CI and the release build take `EH3D-COMMON` at `v0.2.5`:** the sibling that is checked out is the release that has the client of the server, and the manifest lists `EH3D-COMMON` in `depends_on`.
+
 ## [0.0.9] - Narrow web warning, repeated apertures and a JSON check
 
 - **A warning for openings whose web is too narrow:** `--min-web MM` (or `min_web_mm` in `stencil.cfg`, from 0 to 5 mm, 0.1 by default, 0 for no warning) warns, in `check` and in `convert`, of two openings whose web (the sheet that stays between them, measured between their circles when both are round and between their enclosing rectangles otherwise) is narrower, and of openings that touch or overlap; the warning never stops `convert`. The pairs are found with a sweep along X and the tests compare it with the comparison of every pair on a pseudo-random board.

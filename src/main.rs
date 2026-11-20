@@ -6,6 +6,7 @@ mod cli_args;
 
 use cli_args::{finish, flag, num, switch};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
+use eh3d_serverclient::Settings as LinkSettings;
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
@@ -18,6 +19,7 @@ use eh3d_stencilcam::output::{
     outside_bed, paths, write_atomic, FormLeads, Lead,
 };
 use eh3d_stencilcam::profile::{Material, Profile};
+use eh3d_stencilcam::server;
 use std::env;
 use std::fs;
 use std::process::ExitCode;
@@ -28,6 +30,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
                   [--kerf MM] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
                   [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
+  eh3d-stencilcam server [status] [--config FILE]   the link to the EH3D server (server_address, server_token, server_machine, server_timeout_s, server_retries, server_mdns and server_max_answer_mib of stencil.cfg) and what the server answers
   eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--json]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
   eh3d-stencilcam gui [FILE...] --shot OUT.png [--size WxH] [--theme forge|dark|light] [--wait N] [--lang CODE] [--replace]   a picture of the window (a build with --features gui)
@@ -35,6 +38,7 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
 Both read the layer with a size limit (--max-bytes N, 268435456 by default; the refusal is written in the language of the system) and show what the reader says about the file, each notice with its code; --hide CODE[,CODE] leaves
 out the notices of those codes (for example units-missing). --arc-tolerance MM (0.005 by default) is how closely the arcs of the layer are followed.
 
+--to-server (convert, and check --json) keeps the file that convert writes, or the JSON of check, on the EH3D server as an artifact, with the values it was cut with; it needs --config FILE with server_address and server_token and is refused before any work when they are missing.
 --laser-wait SECONDS writes a G4 wait after each M3 so that the laser reaches its power before the head moves (0 by default: no wait).
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
@@ -47,6 +51,45 @@ A file ending in .dxf is a drawing: its circles are round openings and its close
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
+
+/// The link to the EH3D server for `--to-server`: the keys of the settings file, which must name a server and hold its token.
+fn link_settings(config: Option<&str>) -> Result<LinkSettings, String> {
+    let path =
+        config.ok_or("--to-server needs --config FILE with server_address and server_token")?;
+    let settings = server::settings_from_file(path)?;
+    server::require(&settings)?;
+    Ok(settings)
+}
+
+/// `server [status] [--config FILE]`: the link, with the token as `***`, and what the server answers.
+fn server_command(mut args: Vec<String>) -> Result<(), String> {
+    let config = flag(&mut args, "--config")?;
+    let word = args.first().cloned().unwrap_or_else(|| "status".into());
+    finish(&args, 1)?;
+    if word != "status" {
+        return Err(format!("server {word}: unknown (use: server status)"));
+    }
+    let settings = match config {
+        Some(path) => server::settings_from_file(&path)?,
+        None => LinkSettings::default(),
+    };
+    print!("{}", server::status_report(settings)?);
+    Ok(())
+}
+
+/// Keeps a file on the server and says so; the file was already written, so a refusal is told as such.
+fn keep(
+    link: &LinkSettings,
+    name: &str,
+    format: &str,
+    data: &[u8],
+    params: &[(&str, &str)],
+) -> Result<(), String> {
+    let line = server::keep(link.clone(), name, format, data, params)
+        .map_err(|e| format!("{name}: not kept on the server: {e}"))?;
+    println!("{line}");
+    Ok(())
+}
 
 /// An option that is two numbers, `X,Y`.
 fn pair_arg(name: &str, text: &str) -> Result<(f64, f64), String> {
@@ -105,9 +148,13 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         print!("{}", config::default_file());
         return Ok(());
     }
+    if cmd == "server" {
+        return server_command(args);
+    }
     let mut settings = config::Settings::default();
-    if let Some(path) = flag(&mut args, "--config")? {
-        let text = fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))?;
+    let config_path = flag(&mut args, "--config")?;
+    if let Some(path) = &config_path {
+        let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
         settings = config::parse(&text).map_err(|e| format!("{path}: {e}"))?;
     }
     let lead_in = match flag(&mut args, "--lead-in")? {
@@ -151,6 +198,16 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         None => settings.min_web_mm,
     };
     let json = switch(&mut args, "--json");
+    let to_server = switch(&mut args, "--to-server");
+    if to_server && !(cmd == "convert" || (cmd == "check" && json)) {
+        return Err("--to-server is an option of convert and of check --json".into());
+    }
+    // the link is checked before any work is done
+    let link = if to_server {
+        Some(link_settings(config_path.as_deref())?)
+    } else {
+        None
+    };
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
     let feed = match flag(&mut args, "--feed")? {
@@ -279,17 +336,34 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
     match cmd.as_str() {
         "check" if json => {
-            println!(
-                "{}",
-                check_json(
-                    &shown,
-                    p.thickness_mm,
-                    p.shrink_percent,
-                    &problems,
-                    &webs,
-                    duplicates_removed
-                )?
-            );
+            let report = check_json(
+                &shown,
+                p.thickness_mm,
+                p.shrink_percent,
+                &problems,
+                &webs,
+                duplicates_removed,
+            )?;
+            println!("{report}");
+            if let Some(link) = &link {
+                let stem = std::path::Path::new(&layer)
+                    .file_stem()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("layer");
+                let (thickness, shrink) =
+                    (p.thickness_mm.to_string(), p.shrink_percent.to_string());
+                keep(
+                    link,
+                    &format!("{stem}.check.json"),
+                    "application/json",
+                    report.as_bytes(),
+                    &[
+                        ("command", "check"),
+                        ("thickness_mm", thickness.as_str()),
+                        ("shrink_percent", shrink.as_str()),
+                    ],
+                )?;
+            }
             if problems.is_empty() {
                 Ok(())
             } else {
@@ -394,6 +468,31 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                     duration_text(t.waiting_s),
                     duration_text(t.rapid_s)
                 );
+            }
+            if let Some(link) = &link {
+                let (thickness, shrink) =
+                    (p.thickness_mm.to_string(), p.shrink_percent.to_string());
+                let (feed_text, smax_text, passes_text, count) = (
+                    feed.to_string(),
+                    smax.to_string(),
+                    passes.to_string(),
+                    once.len().to_string(),
+                );
+                keep(
+                    link,
+                    out,
+                    server::media_type(out),
+                    text.as_bytes(),
+                    &[
+                        ("command", "convert"),
+                        ("thickness_mm", thickness.as_str()),
+                        ("shrink_percent", shrink.as_str()),
+                        ("feed_mm_min", feed_text.as_str()),
+                        ("smax", smax_text.as_str()),
+                        ("passes", passes_text.as_str()),
+                        ("openings", count.as_str()),
+                    ],
+                )?;
             }
             Ok(())
         }

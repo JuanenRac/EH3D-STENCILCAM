@@ -322,3 +322,290 @@ fn the_wait_of_the_laser_is_an_option_of_convert_and_its_range_is_checked() {
     assert!(e.contains("--laser-wait"), "{e}");
     let _ = fs::remove_dir_all(&dir);
 }
+// ---- the server mode ----
+
+/// A server of the computer that answers `n` requests with `status` and `body` and gives back the requests it got.
+fn local_server(
+    n: usize,
+    status: &str,
+    body: &str,
+) -> (String, std::thread::JoinHandle<Vec<String>>) {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap().to_string();
+    let reply = format!(
+        "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let handle = std::thread::spawn(move || {
+        let mut heads = Vec::new();
+        for _ in 0..n {
+            let Ok((mut s, _)) = listener.accept() else {
+                break;
+            };
+            let mut buf = vec![0u8; 262_144];
+            let mut got = 0;
+            loop {
+                let k = s.read(&mut buf[got..]).unwrap_or(0);
+                if k == 0 {
+                    break;
+                }
+                got += k;
+                let text = String::from_utf8_lossy(&buf[..got]).to_string();
+                if let Some(split) = text.find("\r\n\r\n") {
+                    let want = text[..split]
+                        .lines()
+                        .find_map(|l| {
+                            l.to_ascii_lowercase()
+                                .strip_prefix("content-length:")
+                                .and_then(|v| v.trim().parse::<usize>().ok())
+                        })
+                        .unwrap_or(0);
+                    if got >= split + 4 + want {
+                        break;
+                    }
+                }
+            }
+            heads.push(String::from_utf8_lossy(&buf[..got]).to_string());
+            let _ = s.write_all(reply.as_bytes());
+        }
+        heads
+    });
+    (address, handle)
+}
+
+const CREATED: &str = "{\"artifact_id\":\"a-7\",\"blob_sha256\":\"ab\",\"size\":9}";
+
+fn link_file(dir: &std::path::Path, address: &str) -> String {
+    let cfg = dir.join("link.cfg");
+    fs::write(
+        &cfg,
+        format!("server_address = {address}\nserver_token = program-token\nserver_retries = 0\nserver_timeout_s = 5\n"),
+    )
+    .unwrap();
+    cfg.to_str().unwrap().to_string()
+}
+
+#[test]
+fn the_gcode_of_convert_is_kept_on_the_server_with_the_values_it_was_cut_with() {
+    let dir = scratch("to_server");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let out = dir.join("paste.nc");
+    let (address, handle) = local_server(1, "201 Created", CREATED);
+    let cfg = link_file(&dir, &address);
+    let (c, o, e) = run_full(&[
+        "convert",
+        layer.to_str().unwrap(),
+        out.to_str().unwrap(),
+        "--thickness",
+        "0.1",
+        "--config",
+        &cfg,
+        "--to-server",
+    ]);
+    assert_eq!(c, Some(0), "{e}");
+    assert!(o.contains("2 openings written"), "{o}");
+    assert!(o.contains("kept on the server: paste.nc as a-7"), "{o}");
+    let heads = handle.join().unwrap();
+    assert!(
+        heads[0].starts_with("POST /api/v1/artifacts HTTP/1.1"),
+        "{}",
+        heads[0]
+    );
+    assert!(heads[0].contains("Bearer program-token"));
+    assert!(heads[0].contains("\"name\":\"paste.nc\""), "{}", heads[0]);
+    assert!(
+        heads[0].contains("\"format\":\"text/x-gcode\""),
+        "{}",
+        heads[0]
+    );
+    assert!(heads[0].contains("\"command\":\"convert\""), "{}", heads[0]);
+    assert!(
+        heads[0].contains("\"thickness_mm\":\"0.1\""),
+        "{}",
+        heads[0]
+    );
+    assert!(heads[0].contains("\"openings\":\"2\""), "{}", heads[0]);
+    assert!(heads[0].contains("eh3d-stencilcam"), "{}", heads[0]);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_plot_is_kept_as_hpgl_and_the_check_as_json() {
+    let dir = scratch("plot_and_check");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let out = dir.join("paste.plt");
+    let (address, handle) = local_server(2, "201 Created", CREATED);
+    let cfg = link_file(&dir, &address);
+    let (c, o, e) = run_full(&[
+        "convert",
+        layer.to_str().unwrap(),
+        out.to_str().unwrap(),
+        "--thickness",
+        "0.1",
+        "--config",
+        &cfg,
+        "--to-server",
+    ]);
+    assert_eq!(c, Some(0), "{e}");
+    assert!(o.contains("kept on the server: paste.plt"), "{o}");
+    let (c, o, e) = run_full(&[
+        "check",
+        layer.to_str().unwrap(),
+        "--thickness",
+        "0.1",
+        "--json",
+        "--config",
+        &cfg,
+        "--to-server",
+    ]);
+    assert_eq!(c, Some(0), "{e}");
+    assert!(
+        o.contains("kept on the server: paste.check.json as a-7"),
+        "{o}"
+    );
+    let heads = handle.join().unwrap();
+    assert!(
+        heads[0].contains("\"format\":\"application/vnd.hp-hpgl\""),
+        "{}",
+        heads[0]
+    );
+    assert!(
+        heads[1].contains("\"name\":\"paste.check.json\""),
+        "{}",
+        heads[1]
+    );
+    assert!(
+        heads[1].contains("\"format\":\"application/json\""),
+        "{}",
+        heads[1]
+    );
+    assert!(heads[1].contains("\"command\":\"check\""), "{}", heads[1]);
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn to_server_is_refused_before_any_work_without_a_server_and_outside_convert_and_check_json() {
+    let dir = scratch("no_server");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let l = layer.to_str().unwrap();
+    let out = dir.join("paste.nc");
+    let o = out.to_str().unwrap();
+    let (c, _, e) = run_full(&["convert", l, o, "--thickness", "0.1", "--to-server"]);
+    assert_eq!(c, Some(1));
+    assert!(e.contains("--config"), "{e}");
+    assert!(!out.exists(), "nothing was written");
+    // a settings file with no server is not a server either
+    let cfg = dir.join("none.cfg");
+    fs::write(&cfg, "feed_mm_min = 600\n").unwrap();
+    let (c, _, e) = run_full(&[
+        "convert",
+        l,
+        o,
+        "--thickness",
+        "0.1",
+        "--config",
+        cfg.to_str().unwrap(),
+        "--to-server",
+    ]);
+    assert_eq!(c, Some(1));
+    assert!(e.contains("server mode is off"), "{e}");
+    assert!(!out.exists());
+    // the plain check has nothing to keep
+    let (c, _, e) = run_full(&["check", l, "--thickness", "0.1", "--to-server"]);
+    assert_eq!(c, Some(1));
+    assert!(e.contains("convert and of check --json"), "{e}");
+    // and the local mode is as it was
+    let (c, o2, e) = run_full(&["convert", l, o, "--thickness", "0.1"]);
+    assert_eq!(c, Some(0), "{e}");
+    assert!(!o2.contains("kept on the server"));
+    assert!(out.exists());
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_refusal_of_the_server_is_told_after_the_file_was_written() {
+    let dir = scratch("refused");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let out = dir.join("paste.nc");
+    let (address, handle) = local_server(
+        1,
+        "422 Unprocessable Entity",
+        "{\"error\":\"bad_artifact\",\"detail\":\"name too long\"}",
+    );
+    let cfg = link_file(&dir, &address);
+    let (c, _, e) = run_full(&[
+        "convert",
+        layer.to_str().unwrap(),
+        out.to_str().unwrap(),
+        "--thickness",
+        "0.1",
+        "--config",
+        &cfg,
+        "--to-server",
+    ]);
+    handle.join().unwrap();
+    assert_eq!(c, Some(1));
+    assert!(
+        e.contains("not kept on the server") && e.contains("name too long"),
+        "{e}"
+    );
+    assert!(out.exists(), "the local file stays");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_server_command_shows_the_link_without_the_token_and_what_the_server_answers() {
+    let dir = scratch("status");
+    let (address, handle) = local_server(
+        1,
+        "200 OK",
+        "{\"name\":\"eh3d-server\",\"version\":\"0.1.8\",\"api_revision\":1,\"status\":\"ok\"}",
+    );
+    let cfg = link_file(&dir, &address);
+    let (c, o, e) = run_full(&["server", "status", "--config", &cfg]);
+    handle.join().unwrap();
+    assert_eq!(c, Some(0), "{e}");
+    assert!(
+        o.contains("server_token = ***") && !o.contains("program-token"),
+        "{o}"
+    );
+    assert!(o.contains("eh3d-server 0.1.8 (ok, api 1)"), "{o}");
+    let (c, o, _) = run_full(&["server"]);
+    assert_eq!(c, Some(0));
+    assert!(o.contains("server mode is off"), "{o}");
+    let (c, _, e) = run_full(&["server", "restart"]);
+    assert_eq!(c, Some(1));
+    assert!(e.contains("unknown"), "{e}");
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_keys_of_the_link_are_read_from_stencil_cfg_with_their_ranges_and_given_once() {
+    let dir = scratch("keys");
+    let layer = dir.join("paste.gtp");
+    fs::write(&layer, TWO_PADS).unwrap();
+    let l = layer.to_str().unwrap();
+    let cfg = dir.join("stencil.cfg");
+    fs::write(&cfg, "server_address = 10.0.0.5:18200\nserver_token = abc\nserver_machine = bench\nserver_timeout_s = 120\nserver_retries = 5\nserver_mdns = off\nserver_max_answer_mib = 8\nfeed_mm_min = 500\n").unwrap();
+    let c = cfg.to_str().unwrap();
+    let (code, _, e) = run_full(&["check", l, "--thickness", "0.1", "--config", c]);
+    assert_eq!(code, Some(0), "{e}");
+    for (text, word) in [
+        ("server_timeout_s = 0\n", "server_timeout_s"),
+        ("server_retries = 6\n", "server_retries"),
+        ("server_mdns = maybe\n", "server_mdns"),
+        ("server_address = a b\n", "server_address"),
+        ("server_retries = 1\nserver_retries = 2\n", "twice"),
+    ] {
+        fs::write(&cfg, text).unwrap();
+        let (code, _, e) = run_full(&["check", l, "--thickness", "0.1", "--config", c]);
+        assert_eq!(code, Some(1), "{text}");
+        assert!(e.contains(word) && e.contains("line"), "{text}: {e}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}

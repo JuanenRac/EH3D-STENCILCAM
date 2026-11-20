@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 211 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 229 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.9` |
 | Maturity | Functional |
-| Tests | 211 |
+| Tests | 229 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 211 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 229 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -164,6 +164,8 @@ EH3D-STENCILCAM/
 
 A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (with the options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` and `--lead-out-rect`) give the leads of the round and of the rectangular openings; they are written as comments in the file and, when they are not given, the general `lead_in_mm` and `lead_out_mm` are used. `min_web_mm` (with `--min-web`) is the narrowest web between two openings that is not warned about (0.1 mm by default, from 0 to 5; 0 gives no warning).
 
+**Server mode.** `convert --to-server` keeps the G-code (or the HP-GL plot) it has just written on the EH3D server as an artifact, with the values it was cut with, and `check --json --to-server` keeps the result of the check, so the other programs of the suite find them there. The link is the one client of the suite (`eh3d-serverclient` of EH3D-COMMON) and its keys go in the settings file: `server_address` (`host:port`; empty means off), `server_token` (write-only, never shown), `server_machine`, `server_timeout_s` (1 to 120, 15 by default), `server_retries` (0 to 5, 2 by default), `server_mdns` (`off` by default) and `server_max_answer_mib` (1 to 256, 8 by default). The refusals of the server are told by their code in the language of the system. `eh3d-stencilcam server status --config FILE` shows the settings (the token as `***`) and what the server answers. Nothing is sent without an address and the local work never depends on the server.
+
 ## 🚀 Quick start
 
 You need a stable Rust toolchain (1.75 or newer).
@@ -180,7 +182,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 211 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 229 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

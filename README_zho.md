@@ -17,7 +17,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 211 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 229 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.0.9` |
 | 成熟度 | 可用 |
-| 测试 | 211 |
+| 测试 | 229 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,7 +46,7 @@
 |---|---|---|
 | 核心 | 🟡 | 把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
 | 命令行 | 🟡 | `eh3d-stencilcam` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
-| 测试 | 🟡 | 211 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
+| 测试 | 🟡 | 229 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🟠 | 已编写（egui，`--features gui`）：打开或拖入锡膏层、选择材料、编辑参数、查看焊盘和切割路径（锡膏无法脱出的开口为红色）、缩放和平移、导出；其逻辑已测试，但尚未构建，也尚未在屏幕上看过。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
@@ -164,6 +164,8 @@ EH3D-STENCILCAM/
 
 一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。 `min_web_mm`（对应 `--min-web`）是两个开口之间不会被警告的最窄桥宽（默认 0.1 mm，范围 0 至 5；0 表示不警告）。
 
+**服务器模式。** `convert --to-server` 会把刚写出的 G 代码（或 HP-GL 绘图）连同切割所用的数值作为工件保存到 EH3D 服务器，`check --json --to-server` 则保存检查结果，供套件中的其他程序在那里找到。 连接使用套件统一的客户端（EH3D-COMMON 的 `eh3d-serverclient`），其键写在设置文件中：`server_address`（`host:port`，为空表示关闭）、`server_token`（只写，从不显示）、`server_machine`、`server_timeout_s`（1 到 120，默认 15）、`server_retries`（0 到 5，默认 2）、`server_mdns`（默认 `off`）和 `server_max_answer_mib`（1 到 256，默认 8）。服务器的拒绝会按其代码以系统语言说明。`eh3d-stencilcam server status --config FILE` 显示设置（令牌显示为 `***`）和服务器的回答。没有地址就不会发送任何内容，本地工作也从不依赖服务器。
+
 ## 🚀 快速开始
 
 需要稳定版 Rust 工具链（1.75 或更新）。
@@ -180,7 +182,7 @@ cargo run --release --features gui -- --shot screen.png examples/paste.gtp   # a
 
 ## 🧪 测试
 
-测试套件有 211 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件有 229 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 

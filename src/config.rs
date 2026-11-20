@@ -3,7 +3,8 @@
 //! `--laser-wait`, `--rapid`), which win over the file. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm` and `lead_out_rect_mm` (`--lead-in-round`, `--lead-out-round`, `--lead-in-rect`, `--lead-out-rect`) give the
 //! leads of the round and of the rectangular openings; one that is not given is the lead-in or the lead-out of every other opening. `feed_mm_min` (`--feed`, the speed of the cut), `smax`
 //! (`--smax`, the top of the laser power scale) and `passes` (`--passes`, how many times every contour is cut, for a thick material) complete the cut; their defaults are the conservative ones
-//! (600 mm/min, 1000 and one pass). A line that makes no sense is an error that says its number.
+//! (600 mm/min, 1000 and one pass). The keys `server_address`, `server_token`, `server_machine`, `server_timeout_s`, `server_retries`, `server_mdns` and `server_max_answer_mib` set the link to the EH3D server (see `server`).
+//! A line that makes no sense is an error that says its number.
 
 use crate::output::{FormLeads, Lead, MAX_LEAD_MM};
 
@@ -172,6 +173,15 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             .split_once('=')
             .ok_or_else(|| format!("line {n}: '{line}' is not 'key = value'"))?;
         let (key, value) = (key.trim(), value.trim());
+        // the keys of the link to the EH3D server are read by `server::settings_from_file`; here they are only checked
+        if crate::server::is_server_key(key) {
+            crate::server::check_key(key, value).map_err(|e| format!("line {n}: {e}"))?;
+            if seen.contains(&key) {
+                return Err(format!("line {n}: {key} is given twice"));
+            }
+            seen.push(key);
+            continue;
+        }
         let known = [
             "lead_in_mm",
             "lead_out_mm",

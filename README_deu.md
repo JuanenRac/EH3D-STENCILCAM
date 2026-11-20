@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 211 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 229 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.0.9` |
 | Reifegrad | Funktionsfähig |
-| Tests | 211 |
+| Tests | 229 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 211 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
+| Tests | 🟡 | 229 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -164,6 +164,8 @@ EH3D-STENCILCAM/
 
 Eine kleine Einstellungsdatei, `stencil.cfg` (`Schlüssel = Wert`, eine pro Zeile, `#` beginnt einen Kommentar), enthält, was sich einzustellen lohnt: `lead_in_mm` und `lead_out_mm`, die Länge des geraden Einlaufs vor jeder Kontur und des Auslaufs danach (standardmäßig 0,3 mm, von 0 bis 5; 0 schreibt keinen), und `laser_wait_s`, die Wartezeit nach dem Einschalten des Lasers (standardmäßig 0, bis 60). `eh3d-stencilcam config` gibt die Datei mit allen Standardwerten aus (`examples/stencil.cfg` ist diese Datei), und `--config DATEI` liest eine; `--lead-in MM`, `--lead-out MM` und `--laser-wait SEKUNDEN` geben dieselben Einstellungen auf der Kommandozeile an und gehen der Datei vor. Ein unbekannter, doppelter oder außerhalb seines Bereichs liegender Schlüssel ist ein Fehler, der seine Zeile nennt. Der Rest wird als Argumente der Kommandozeile angegeben (siehe Schnittstellen), und jeder Standardwert steht in der Hilfe des Befehls (`eh3d-stencilcam help`). Die festen Grenzen stehen als benannte Konstanten im Code und sind durch Tests abgedeckt. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (mit den Optionen `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` und `--lead-out-rect`) geben Ein- und Auslauf der runden und der rechteckigen Öffnungen an; in der Datei stehen sie als Kommentare, und wenn sie nicht angegeben sind, gelten die allgemeinen `lead_in_mm` und `lead_out_mm`. `min_web_mm` (mit `--min-web`) ist der schmalste Steg zwischen zwei Öffnungen, vor dem nicht gewarnt wird (standardmäßig 0,1 mm, von 0 bis 5; 0 gibt keine Warnung).
 
+**Servermodus.** `convert --to-server` legt den soeben geschriebenen G-Code (oder den HP-GL-Plot) als Artefakt auf dem EH3D-Server ab, mit den Werten, mit denen geschnitten wurde, und `check --json --to-server` legt das Ergebnis der Prüfung ab, damit die anderen Programme der Suite sie dort finden. Die Verbindung ist der eine Client der Suite (`eh3d-serverclient` aus EH3D-COMMON); ihre Schlüssel stehen in der Einstellungsdatei: `server_address` (`host:port`; leer bedeutet aus), `server_token` (nur schreibbar, wird nie angezeigt), `server_machine`, `server_timeout_s` (1 bis 120, Standard 15), `server_retries` (0 bis 5, Standard 2), `server_mdns` (Standard `off`) und `server_max_answer_mib` (1 bis 256, Standard 8). Die Ablehnungen des Servers werden anhand ihres Codes in der Sprache des Systems erklärt. `eh3d-stencilcam server status --config FILE` zeigt die Einstellungen (das Token als `***`) und die Antwort des Servers. Ohne Adresse wird nichts gesendet, und die lokale Arbeit hängt nie vom Server ab.
+
 ## 🚀 Schnellstart
 
 Sie brauchen eine stabile Rust-Toolchain (1.75 oder neuer).
@@ -180,7 +182,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 211 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 229 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
