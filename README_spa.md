@@ -17,7 +17,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 229 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Tiene una ventana (se compila con `--features gui`) que abre una capa de pasta y dibuja los pads y las trayectorias de corte, pero esa ventana todavía no se ha visto en una pantalla; no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 238 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Tiene una ventana (se compila con `--features gui`) que abre una capa de pasta y dibuja los pads y las trayectorias de corte, pero esa ventana todavía no se ha visto en una pantalla; no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versión | `0.1.0` |
 | Madurez | Funcional |
-| Pruebas | 229 |
+| Pruebas | 238 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -46,7 +46,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `eh3d-stencilcam` ejecuta las mismas funciones que la biblioteca e imprime el resultado; cada error vuelve como mensaje y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 229 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas, y un láser simulado con un enlace que pierde y daña líneas al azar (con semilla), reenvíos, parada segura y reanudación. |
+| Pruebas | 🟡 | 238 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas, y un láser simulado con un enlace que pierde y daña líneas al azar (con semilla), reenvíos, parada segura y reanudación. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
 | Ventana | 🟠 | Escrita (egui, `--features gui`): abrir o soltar una capa de pasta, elegir el material, editar los parámetros, ver los pads y las trayectorias de corte (en rojo las aperturas que no soltarán la pasta), zoom y desplazamiento, exportar; su lógica está probada, pero todavía no se ha compilado ni visto en una pantalla. |
 | Hardware real | 🔴 | No probado: nada de esto se ha ejecutado en una máquina. |
@@ -182,7 +182,7 @@ Para sacar una captura de la ventana sin abrirla a mano, ejecútelo con `--shot 
 
 ## 🧪 Pruebas
 
-El conjunto tiene 229 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+El conjunto tiene 238 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -207,6 +207,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                la lista de ficheros de la ventana que abre un fichero
 │   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
 │   ├── config.rs                                el fichero de ajustes: la entrada y la salida de los cortes y la espera del láser
+│   ├── dxf_in.rs                                lee un dibujo (DXF): círculos y rectángulos pasan a ser aberturas, lo demás es un aviso
 │   ├── gui.rs                                   la ventana (egui, con la característica gui): dibuja el estado y transmite lo que hace la persona
 │   ├── lang.rs                                  las palabras de la ventana en los ocho idiomas
 │   ├── layer.rs                                 lee una capa desde bytes y muestra lo que dice el lector por su código
@@ -220,16 +221,27 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom y desplazamiento de la imagen, en números simples
 │   └── window.rs                                el estado de la ventana sin pantalla: capa, material, parámetros, cortes, exportación y estado
 ├── tests/
+│   ├── fuzz.rs                                  pruebas con semilla fija: ficheros dañados, cortes y números raros
+│   ├── dxf.rs                                   pruebas del dibujo DXF, la velocidad, la escala del láser y las pasadas del corte
 │   ├── estimate.rs                              pruebas del tiempo estimado de un trabajo y de la velocidad rápida de los ajustes
+│   ├── lead_forms.rs                            pruebas de la entrada y salida por forma de la apertura y de sus ajustes
 │   ├── leads.rs                                 pruebas de la entrada y la salida rectas de los cortes y del fichero de ajustes
 │   ├── reading.rs                               pruebas de lectura de ficheros: el límite de tamaño, texto que no es UTF-8, avisos por código
 │   ├── readme.rs                                pruebas que ejecutan lo que prometen el README y los scripts run
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
 │   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
-│   └── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
+│   ├── atomic_write.rs                          pruebas de la escritura por un fichero temporal que se renombra
+│   ├── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
+│   └── reqs.rs                                  pruebas del registro de requisitos
 ├── examples/
-│   └── paste.gtp                                una muestra para probar el programa
+│   ├── paste.gtp                                una muestra para probar el programa
+│   └── paste.dxf                                las mismas almohadillas como dibujo (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               buenas ideas fuera de esta versión, con el porqué y el cuándo
+│   ├── REQUIREMENTS.md                          el registro de requisitos: estado, evidencia y la prueba de cada uno
+│   ├── SCOPE.md                                 para qué sirve, qué no hará y qué no decide nunca
+│   ├── STATUS.md                                qué existe, qué falta y qué sigue abierto
+│   ├── leads-by-form.md                         entrada y salida por forma de apertura, con valores calculados
 │   ├── architecture.json                        datos de la imagen de Arquitectura
 │   └── structure.json                           datos de la imagen de Estructura
 ├── tools/                                       comprobación del CI y del README y herramientas de imágenes
@@ -239,6 +251,7 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        el workspace y sus dependencias fijadas
 ├── rust-toolchain.toml                          la toolchain de Rust fijada
 ├── CHANGELOG.md                                 qué cambió en cada versión
+├── AGENTS.md                                    las reglas para quien cambie el repositorio
 ├── SECURITY.md SUPPORT.md                       cómo informar de una vulnerabilidad y dónde preguntar
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   cómo contribuir, el código de conducta y la licencia
 ```
@@ -274,6 +287,11 @@ El README y los textos existen en inglés, español, francés, italiano, alemán
 ## 📚 Documentación
 
 * [Registro de cambios](CHANGELOG.md)
+* [Alcance](docs/SCOPE.md): para qué sirve el programa, qué no hará y qué no decide nunca.
+* [Requisitos](docs/REQUIREMENTS.md): el registro de capacidades, el estado de cada una y la prueba que la muestra.
+* [Estado](docs/STATUS.md): qué existe, qué falta y qué sigue abierto.
+* [Todavía no](docs/NOT_YET.md): buenas ideas que quedan fuera de esta versión.
+* [Reglas para cambiar el repositorio](AGENTS.md): las reglas para quien cambie el repositorio.
 * [Datos de arquitectura y estructura](docs/architecture.json): los datos con los que se dibujan las dos imágenes.
 
 ## 🤝 Contribuir y comunidad

@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 229 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 238 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.0` |
 | Maturità | Funzionale |
-| Test | 229 |
+| Test | 238 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 229 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 238 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -182,7 +182,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 229 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 238 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -207,6 +207,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                l'elenco dei file della finestra che apre un file
 │   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
 │   ├── config.rs                                il file delle impostazioni: ingresso e uscita dei tagli e l'attesa del laser
+│   ├── dxf_in.rs                                legge un disegno (DXF): cerchi e rettangoli diventano aperture, il resto è un avviso
 │   ├── gui.rs                                   la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona
 │   ├── lang.rs                                  le parole della finestra nelle otto lingue
 │   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
@@ -220,16 +221,27 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom e spostamento dell'immagine, in semplici numeri
 │   └── window.rs                                lo stato della finestra senza schermo: livello, materiale, parametri, tagli, esportazione e stato
 ├── tests/
+│   ├── fuzz.rs                                  test con seme fisso: file danneggiati, tagli e numeri strani
+│   ├── dxf.rs                                   test del disegno DXF, della velocità, della scala del laser e delle passate del taglio
 │   ├── estimate.rs                              test del tempo stimato di un lavoro e della velocità rapida delle impostazioni
+│   ├── lead_forms.rs                            test di ingresso e uscita per forma dell'apertura e delle loro impostazioni
 │   ├── leads.rs                                 test dell'ingresso e dell'uscita retti dei tagli e del file delle impostazioni
 │   ├── reading.rs                               test di lettura dei file: il limite di dimensione, testo non UTF-8, avvisi per codice
 │   ├── readme.rs                                test che eseguono ciò che promettono il README e gli script run
 │   ├── stencil.rs                               test della libreria e della riga di comando
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
-│   └── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
+│   ├── atomic_write.rs                          test della scrittura tramite un file temporaneo rinominato
+│   ├── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
+│   └── reqs.rs                                  test del registro dei requisiti
 ├── examples/
-│   └── paste.gtp                                un esempio per provare il programma
+│   ├── paste.gtp                                un esempio per provare il programma
+│   └── paste.dxf                                gli stessi pad come disegno (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               buone idee fuori da questa versione, con il perché e il quando
+│   ├── REQUIREMENTS.md                          il registro dei requisiti: stato, evidenza e test di ciascuno
+│   ├── SCOPE.md                                 a cosa serve, cosa non farà e cosa non decide mai
+│   ├── STATUS.md                                cosa esiste, cosa manca e cosa è ancora aperto
+│   ├── leads-by-form.md                         ingresso e uscita per forma, con valori calcolati
 │   ├── architecture.json                        dati dell'immagine di Architettura
 │   └── structure.json                           dati dell'immagine di Struttura
 ├── tools/                                       controllo della CI e del README e strumenti per le immagini
@@ -239,6 +251,7 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        il workspace e le sue dipendenze bloccate
 ├── rust-toolchain.toml                          la toolchain Rust fissata
 ├── CHANGELOG.md                                 cosa è cambiato in ogni versione
+├── AGENTS.md                                    le regole per chi modifica il repository
 ├── SECURITY.md SUPPORT.md                       come segnalare una vulnerabilità e dove chiedere
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   come contribuire, codice di condotta e licenza
 ```
@@ -274,6 +287,11 @@ Il README e i testi esistono in inglese, spagnolo, francese, italiano, tedesco, 
 ## 📚 Documentazione
 
 * [Changelog](CHANGELOG.md)
+* [Ambito](docs/SCOPE.md): a cosa serve il programma, cosa non farà e cosa non decide mai.
+* [Requisiti](docs/REQUIREMENTS.md): il registro delle capacità, lo stato di ciascuna e il test che la mostra.
+* [Stato](docs/STATUS.md): cosa esiste, cosa manca e cosa è ancora aperto.
+* [Non ancora](docs/NOT_YET.md): buone idee lasciate fuori da questa versione.
+* [Regole per modificare il repository](AGENTS.md): le regole per chi modifica il repository.
 * [Dati di architettura e struttura](docs/architecture.json): i dati da cui si disegnano le due immagini.
 
 ## 🤝 Contribuire e comunità

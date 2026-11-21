@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 229 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 238 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.0` |
 | Maturité | Fonctionnel |
-| Tests | 229 |
+| Tests | 238 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 229 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 238 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -182,7 +182,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 229 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 238 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -207,6 +207,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                la liste des fichiers de la fenêtre d'ouverture d'un fichier
 │   ├── cli_args.rs                              les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire
 │   ├── config.rs                                le fichier de réglages : l'entrée et la sortie des coupes et l'attente du laser
+│   ├── dxf_in.rs                                lit un dessin (DXF) : les cercles et les rectangles deviennent des ouvertures, le reste est une note
 │   ├── gui.rs                                   la fenêtre (egui, avec la fonctionnalité gui) : dessine l'état et transmet ce que fait la personne
 │   ├── lang.rs                                  les mots de la fenêtre dans les huit langues
 │   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
@@ -220,16 +221,27 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom et déplacement de l'image, en simples nombres
 │   └── window.rs                                l'état de la fenêtre sans écran : couche, matériau, paramètres, coupes, export et état
 ├── tests/
+│   ├── fuzz.rs                                  tests à graine fixe : fichiers abîmés, coupures et nombres étranges
+│   ├── dxf.rs                                   tests du dessin DXF, de la vitesse, de l'échelle du laser et des passes de la coupe
 │   ├── estimate.rs                              tests du temps estimé d'un travail et de la vitesse rapide des réglages
+│   ├── lead_forms.rs                            tests de l'entrée et de la sortie selon la forme de l'ouverture et de leurs réglages
 │   ├── leads.rs                                 tests de l'entrée et de la sortie droites des coupes et du fichier de réglages
 │   ├── reading.rs                               tests de lecture des fichiers : la limite de taille, le texte non UTF-8, les avis par code
 │   ├── readme.rs                                tests qui exécutent ce que promettent le README et les scripts run
 │   ├── stencil.rs                               tests de la bibliothèque et de la ligne de commande
 │   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
-│   └── window_cli.rs                            tests qu'une compilation sans la fonctionnalité gui reste une ligne de commande
+│   ├── atomic_write.rs                          tests de l'écriture par un fichier temporaire renommé
+│   ├── window_cli.rs                            tests qu'une compilation sans la fonctionnalité gui reste une ligne de commande
+│   └── reqs.rs                                  tests du registre des exigences
 ├── examples/
-│   └── paste.gtp                                un exemple pour essayer le programme
+│   ├── paste.gtp                                un exemple pour essayer le programme
+│   └── paste.dxf                                les mêmes pastilles en dessin (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               de bonnes idées hors de cette version, avec pourquoi et quand
+│   ├── REQUIREMENTS.md                          le registre des exigences : état, preuve et test de chacune
+│   ├── SCOPE.md                                 à quoi il sert, ce qu'il ne fera pas et ce qu'il ne décide jamais
+│   ├── STATUS.md                                ce qui existe, ce qui manque et ce qui reste ouvert
+│   ├── leads-by-form.md                         entrée et sortie selon la forme, avec des valeurs calculées
 │   ├── architecture.json                        données de l'image d'Architecture
 │   └── structure.json                           données de l'image de Structure
 ├── tools/                                       contrôle de la CI et du README et outils d'images
@@ -239,6 +251,7 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        le workspace et ses dépendances verrouillées
 ├── rust-toolchain.toml                          la toolchain Rust épinglée
 ├── CHANGELOG.md                                 ce qui a changé dans chaque version
+├── AGENTS.md                                    les règles pour qui modifie le dépôt
 ├── SECURITY.md SUPPORT.md                       signaler une vulnérabilité et poser des questions
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   contribuer, code de conduite et licence
 ```
@@ -274,6 +287,11 @@ Le README et les textes existent en anglais, espagnol, français, italien, allem
 ## 📚 Documentation
 
 * [Journal des modifications](CHANGELOG.md)
+* [Périmètre](docs/SCOPE.md): à quoi sert le programme, ce qu'il ne fera pas et ce qu'il ne décide jamais.
+* [Exigences](docs/REQUIREMENTS.md): le registre des capacités, l'état de chacune et le test qui la montre.
+* [État](docs/STATUS.md): ce qui existe, ce qui manque et ce qui reste ouvert.
+* [Pas encore](docs/NOT_YET.md): de bonnes idées laissées de côté dans cette version.
+* [Règles pour modifier le dépôt](AGENTS.md): les règles pour qui modifie le dépôt.
 * [Données d'architecture et de structure](docs/architecture.json) : les données qui servent à dessiner les deux images.
 
 ## 🤝 Contribuer et communauté

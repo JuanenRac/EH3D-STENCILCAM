@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 229 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 238 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.0` |
 | Maturity | Functional |
-| Tests | 229 |
+| Tests | 238 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 229 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 238 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -182,7 +182,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 229 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 238 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -207,6 +207,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
 │   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
+│   ├── dxf_in.rs                                reads a drawing (DXF): circles and rectangles become openings, the rest is a note
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
 │   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
@@ -220,16 +221,27 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              zoom and pan of the picture, in plain numbers
 │   └── window.rs                                the state of the window without a screen: layer, material, parameters, cuts, export and status
 ├── tests/
+│   ├── fuzz.rs                                  fuzz tests with a fixed seed: damaged files, cuts and odd numbers
+│   ├── dxf.rs                                   tests of the DXF drawing, the speed, the laser scale and the passes of the cut
 │   ├── estimate.rs                              tests of the estimated time of a job and of the rapid speed of the settings
+│   ├── lead_forms.rs                            tests of the leads by form of the opening, their keys and options
 │   ├── leads.rs                                 tests of the straight lead-in and lead-out of the cuts and of the settings file
 │   ├── reading.rs                               tests of reading files: the size limit, text that is not UTF-8, notices by code
 │   ├── readme.rs                                tests that run what the README and the run scripts promise
 │   ├── stencil.rs                               tests of the library and the command line
 │   ├── strict.rs                                tests of the command line: options and words it does not know
-│   └── window_cli.rs                            tests that a build without the gui feature stays a command line
+│   ├── atomic_write.rs                          tests of the write through a temporary file that is renamed
+│   ├── window_cli.rs                            tests that a build without the gui feature stays a command line
+│   └── reqs.rs                                  tests of the register of requirements
 ├── examples/
-│   └── paste.gtp                                a sample to try the program with
+│   ├── paste.gtp                                a sample to try the program with
+│   └── paste.dxf                                the same pads as a drawing (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               good ideas that are left out of this version, with why and when
+│   ├── REQUIREMENTS.md                          the register of requirements: state, evidence and the test of each
+│   ├── SCOPE.md                                 what the program is for, what it will not do and what it never decides
+│   ├── STATUS.md                                what exists, what is missing and what is still open
+│   ├── leads-by-form.md                         leads by form of the opening, with worked values
 │   ├── architecture.json                        data of the Architecture picture
 │   └── structure.json                           data of the Repository Structure picture
 ├── tools/                                       CI check, README check and the picture tools
@@ -239,6 +251,7 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        the workspace and its locked dependencies
 ├── rust-toolchain.toml                          the pinned Rust toolchain
 ├── CHANGELOG.md                                 what changed in each version
+├── AGENTS.md                                    the rules for anyone who changes the repository
 ├── SECURITY.md SUPPORT.md                       how to report a vulnerability and where to ask
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   how to contribute, the code of conduct and the licence
 ```
@@ -274,6 +287,11 @@ README and texts exist in English, Spanish, French, Italian, German, Chinese, Ja
 ## 📚 Documentation
 
 * [Changelog](CHANGELOG.md)
+* [Scope](docs/SCOPE.md): what the program is for, what it will not do and what it never decides.
+* [Requirements](docs/REQUIREMENTS.md): the register of capabilities, the state of each and the test that shows it.
+* [Status](docs/STATUS.md): what exists, what is missing and what is still open.
+* [Not yet](docs/NOT_YET.md): good ideas that are left out of this version.
+* [Rules for changing the repository](AGENTS.md): the rules for anyone who changes the repository.
 * [Architecture and structure data](docs/architecture.json): the data the two pictures are drawn from.
 
 ## 🤝 Contributing & Community

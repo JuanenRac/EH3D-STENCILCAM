@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 229 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 238 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.0` |
 | Reifegrad | Funktionsfähig |
-| Tests | 229 |
+| Tests | 238 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 229 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
+| Tests | 🟡 | 238 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -182,7 +182,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 229 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 238 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -207,6 +207,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                die Dateiliste des Fensters zum Öffnen einer Datei
 │   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
 │   ├── config.rs                                die Einstellungsdatei: Ein- und Auslauf der Schnitte und die Laser-Wartezeit
+│   ├── dxf_in.rs                                liest eine Zeichnung (DXF): Kreise und Rechtecke werden zu Öffnungen, der Rest ist ein Hinweis
 │   ├── gui.rs                                   das Fenster (egui, mit dem Feature gui): zeichnet den Zustand und gibt weiter, was die Person tut
 │   ├── lang.rs                                  die Wörter des Fensters in den acht Sprachen
 │   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
@@ -220,16 +221,27 @@ EH3D-STENCILCAM/
 │   ├── viewport.rs                              Zoom und Verschiebung des Bildes, in einfachen Zahlen
 │   └── window.rs                                der Zustand des Fensters ohne Bildschirm: Ebene, Material, Parameter, Schnitte, Export und Status
 ├── tests/
+│   ├── fuzz.rs                                  Tests mit festem Startwert: beschädigte Dateien, Abschnitte und seltsame Zahlen
+│   ├── dxf.rs                                   Tests der DXF-Zeichnung, der Geschwindigkeit, der Laserskala und der Durchgänge des Schnitts
 │   ├── estimate.rs                              Tests der geschätzten Dauer eines Auftrags und der Eilgangsgeschwindigkeit der Einstellungen
+│   ├── lead_forms.rs                            Tests von Ein- und Auslauf je nach Form der Öffnung und ihrer Einstellungen
 │   ├── leads.rs                                 Tests des geraden Ein- und Auslaufs der Schnitte und der Einstellungsdatei
 │   ├── reading.rs                               Tests zum Lesen von Dateien: Größenlimit, Text ohne UTF-8, Meldungen nach Code
 │   ├── readme.rs                                Tests, die ausführen, was README und run-Skripte versprechen
 │   ├── stencil.rs                               Tests von Bibliothek und Kommandozeile
 │   ├── strict.rs                                Tests der Kommandozeile: Optionen und Wörter, die sie nicht kennt
-│   └── window_cli.rs                            Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt
+│   ├── atomic_write.rs                          Tests des Schreibens über eine temporäre Datei, die umbenannt wird
+│   ├── window_cli.rs                            Tests, dass ein Build ohne das Feature gui eine reine Kommandozeile bleibt
+│   └── reqs.rs                                  Tests des Anforderungsregisters
 ├── examples/
-│   └── paste.gtp                                ein Beispiel zum Ausprobieren
+│   ├── paste.gtp                                ein Beispiel zum Ausprobieren
+│   └── paste.dxf                                dieselben Pads als Zeichnung (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               gute Ideen außerhalb dieser Version, mit Grund und Zeitpunkt
+│   ├── REQUIREMENTS.md                          das Register der Anforderungen: Stand, Nachweis und Test jeder einzelnen
+│   ├── SCOPE.md                                 wofür es da ist, was es nicht tut und was es nie entscheidet
+│   ├── STATUS.md                                was es gibt, was fehlt und was offen ist
+│   ├── leads-by-form.md                         Ein- und Auslauf je nach Form, mit berechneten Werten
 │   ├── architecture.json                        Daten des Architektur-Bildes
 │   └── structure.json                           Daten des Struktur-Bildes
 ├── tools/                                       CI-Prüfung, README-Prüfung und die Bildwerkzeuge
@@ -239,6 +251,7 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        der Workspace und seine festgelegten Abhängigkeiten
 ├── rust-toolchain.toml                          die festgelegte Rust-Toolchain
 ├── CHANGELOG.md                                 was sich in jeder Version geändert hat
+├── AGENTS.md                                    die Regeln für alle, die das Repository ändern
 ├── SECURITY.md SUPPORT.md                       Schwachstellen melden und Fragen stellen
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   Mitwirken, Verhaltenskodex und Lizenz
 ```
@@ -274,6 +287,11 @@ README und Texte gibt es auf Englisch, Spanisch, Französisch, Italienisch, Deut
 ## 📚 Dokumentation
 
 * [Changelog](CHANGELOG.md)
+* [Umfang](docs/SCOPE.md): wofür das Programm da ist, was es nicht tut und was es nie entscheidet.
+* [Anforderungen](docs/REQUIREMENTS.md): das Register der Fähigkeiten, der Stand jeder einzelnen und der Test, der sie zeigt.
+* [Stand](docs/STATUS.md): was es gibt, was fehlt und was noch offen ist.
+* [Noch nicht](docs/NOT_YET.md): gute Ideen, die in dieser Version fehlen.
+* [Regeln für Änderungen am Repository](AGENTS.md): die Regeln für alle, die das Repository ändern.
 * [Architektur- und Strukturdaten](docs/architecture.json): die Daten, aus denen die beiden Bilder gezeichnet werden.
 
 ## 🤝 Mitwirken und Community
