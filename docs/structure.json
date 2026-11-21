@@ -69,14 +69,14 @@
         {
           "name": "crib.rs",
           "desc": {
-            "en": "the kerf of the laser from the CSV that the tool crib exports",
-            "es": "el kerf del láser desde el CSV que exporta el pañol de herramientas",
-            "de": "die Schnittfuge des Lasers aus dem CSV der Werkzeugverwaltung",
-            "fr": "la largeur de coupe du laser depuis le CSV du gestionnaire d'outils",
-            "it": "il kerf del laser dal CSV esportato dal magazzino utensili",
-            "ja": "工具管理が書き出す CSV からレーザーのカーフを取る",
-            "zh": "从工具库导出的 CSV 中读取激光切缝宽度",
-            "pt": "o kerf do laser a partir do CSV que o gestor de ferramentas exporta"
+            "en": "the kerf of the laser and the sheets, from the CSV tables of the crib",
+            "es": "el kerf del láser y las láminas, desde las tablas CSV del pañol",
+            "de": "die Schnittfuge des Lasers und die Folien aus den CSV-Tabellen",
+            "fr": "la largeur de coupe et les feuilles, depuis les tables CSV du gestionnaire",
+            "it": "il kerf del laser e i fogli, dalle tabelle CSV del magazzino",
+            "ja": "工具庫の CSV 表からレーザーのカーフとシートを取る",
+            "zh": "从工具库的 CSV 表读取激光切缝宽度和板材",
+            "pt": "o kerf do laser e as folhas, a partir das tabelas CSV do gestor"
           }
         },
         {
@@ -90,6 +90,19 @@
             "ja": "図面（DXF）を読む：円と長方形が開口になり、それ以外は注記になる",
             "zh": "读取图纸（DXF）：圆和矩形成为开口，其余只作提示",
             "pt": "lê um desenho (DXF): círculos e retângulos passam a ser aberturas, o resto é um aviso"
+          }
+        },
+        {
+          "name": "dxf_out.rs",
+          "desc": {
+            "en": "writes the openings as a drawing (DXF) of circles and rectangles",
+            "es": "escribe las aberturas como un dibujo (DXF) de círculos y rectángulos",
+            "de": "schreibt die Öffnungen als Zeichnung (DXF) aus Kreisen und Rechtecken",
+            "fr": "écrit les ouvertures en dessin (DXF) de cercles et de rectangles",
+            "it": "scrive le aperture come disegno (DXF) di cerchi e rettangoli",
+            "ja": "開口を円と長方形の図面（DXF）として書き出す",
+            "zh": "把开口写成由圆和矩形组成的图纸（DXF）",
+            "pt": "escreve as aberturas como um desenho (DXF) de círculos e retângulos"
           }
         },
         {
@@ -448,6 +461,32 @@
             "ja": "工具 CSV からのカーフ、その上限、壊れた表のテスト",
             "zh": "从工具库 CSV 读取切缝宽度、其限制和损坏表格的测试",
             "pt": "testes do kerf a partir do CSV do gestor, dos seus limites e de tabelas danificadas"
+          }
+        },
+        {
+          "name": "sheets.rs",
+          "desc": {
+            "en": "tests of the sheets from the crib: reader, options, settings, window",
+            "es": "pruebas de las láminas del pañol: lector, opciones, ajustes y ventana",
+            "de": "Tests der Folien aus der Werkzeugverwaltung: Leser, Optionen, Einstellungen, Fenster",
+            "fr": "tests des feuilles du gestionnaire : lecteur, options, réglages et fenêtre",
+            "it": "test dei fogli del magazzino: lettore, opzioni, impostazioni e finestra",
+            "ja": "工具庫のシートのテスト：読み取り、オプション、設定、ウィンドウ",
+            "zh": "工具库板材的测试：读取、选项、设置和窗口",
+            "pt": "testes das folhas do gestor: leitor, opções, definições e janela"
+          }
+        },
+        {
+          "name": "dxf_out.rs",
+          "desc": {
+            "en": "tests of the drawing of the openings: read back, never over a file",
+            "es": "pruebas del dibujo de las aberturas: lectura de vuelta, nunca sobre un fichero",
+            "de": "Tests der Zeichnung der Öffnungen: Rücklesen, nie über eine Datei",
+            "fr": "tests du dessin des ouvertures : relecture, jamais sur un fichier existant",
+            "it": "test del disegno delle aperture: rilettura, mai sopra un file",
+            "ja": "開口の図面のテスト：読み戻し、既存ファイルは上書きしない",
+            "zh": "开口图纸的测试：回读，绝不覆盖已有文件",
+            "pt": "testes do desenho das aberturas: leitura de volta, nunca sobre um ficheiro"
           }
         }
       ]

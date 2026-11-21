@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 263 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 281 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.1` |
 | Maturità | Funzionale |
-| Test | 263 |
+| Test | 281 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 263 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 281 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -96,6 +96,8 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 * **Ingresso e uscita per forma:** un'apertura rotonda e una rettangolare possono avere il proprio ingresso e la propria uscita (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` oppure `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, da 0 a 5 mm); quella non indicata è la generale `--lead-in` o `--lead-out`, e un'apertura oblunga usa sempre le generali. La stima del tempo conta quelle di ciascuna forma. Vedi `docs/leads-by-form.md`.
 * **Un disegno come ingresso, e velocità, scala del laser e passate in `stencil.cfg`:** un file che termina con `.dxf` viene letto come disegno (i cerchi diventano aperture rotonde e i rettangoli chiusi con i lati sugli assi aperture rettangolari; si legge l'unità del disegno e ogni altra entità è un avviso, per cui `convert` rifiuta di scrivere senza `--force`); `--feed`, `--smax` e `--passes` (`feed_mm_min`, `smax` e `passes` nel file; di default 600 mm/min, 1000 e una passata) fissano la velocità del taglio, il fondo scala della potenza del laser e quante volte si taglia ogni contorno. Provato solo sul computer: nulla è stato tagliato con un laser.
 * **Ponti stretti, aperture ripetute e la pasta in `check`:** `--min-web MM` (o `min_web_mm` in `stencil.cfg`, da 0 a 5 mm, 0,1 per impostazione predefinita, 0 per non avvisare) segnala, in `check` e in `convert`, due aperture il cui ponte (il foglio che resta tra loro) è più stretto, o che si toccano o si sovrappongono, e non ferma mai `convert`; due aperture della stessa forma, dimensione e posizione sono un solo foro, quindi la seconda viene lasciata fuori con una nota invece di essere tagliata due volte; `check` stampa quante aperture ci sono di ogni forma e la pasta che contengono (in microlitri) e `check --json` stampa questo e il resto del risultato come un unico oggetto JSON per altri programmi. Provato solo su un computer.
+* **Il foglio del magazzino utensili:** `--sheet-file FOGLI.csv --sheet NOME` (o `sheet_file` e `sheet_name` in `stencil.cfg`) prende un foglio dalla tabella dei fogli che esporta il magazzino utensili (`export-sheets-csv`): il suo spessore, la sua riduzione di ogni apertura per lato, il suo kerf (un kerf di 0 prende la larghezza del fascio del laser di `--crib`) e i suoi limiti di rapporto sostituiscono quelli del materiale. Le colonne si trovano dal nome, il file si legge con un limite di dimensione (1 MiB) e di righe, ogni errore nomina la sua riga, e la riga di comando prevale sul foglio e il foglio sul file delle impostazioni. Nessun numero è un valore predefinito di questo programma: un limite di 0 non ne dà nessuno. La finestra mostra il foglio scelto.
+* **Un disegno in uscita:** `convert LIVELLO USCITA.dxf` scrive le aperture come le ha lo stencil, cerchi e rettangoli in millimetri, così lo stesso programma le rilegge; un'apertura oblunga è rifiutata a meno che `--force` la lasci fuori, e un file che esiste non viene mai sostituito se non con `--overwrite` (`--create`, il predefinito, lo rifiuta).
 
 ## 🔒 Sicurezza e protezione
 
@@ -117,8 +119,9 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                l'elenco dei file della finestra che apre un file
 │   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
 │   ├── config.rs                                il file delle impostazioni: ingresso e uscita dei tagli e l'attesa del laser
-│   ├── crib.rs                                  il kerf del laser dal CSV esportato dal magazzino utensili
+│   ├── crib.rs                                  il kerf del laser e i fogli, dalle tabelle CSV del magazzino
 │   ├── dxf_in.rs                                legge un disegno (DXF): cerchi e rettangoli diventano aperture, il resto è un avviso
+│   ├── dxf_out.rs                               scrive le aperture come disegno (DXF) di cerchi e rettangoli
 │   ├── gui.rs                                   la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona
 │   ├── lang.rs                                  le parole della finestra nelle otto lingue
 │   ├── layer.rs                                 legge un livello dai byte e mostra ciò che dice il lettore tramite il suo codice
@@ -146,7 +149,9 @@ EH3D-STENCILCAM/
 │   ├── reqs.rs                                  test del registro dei requisiti
 │   ├── shape_open.rs                            test delle aperture da pad macro, regioni e piste lungo un asse
 │   ├── ratio_limits.rs                          test dei limiti di rapporto, dei loro motivi e del codice di uscita 2
-│   └── crib_kerf.rs                             test del kerf dal CSV del magazzino, dei suoi limiti e delle tabelle danneggiate
+│   ├── crib_kerf.rs                             test del kerf dal CSV del magazzino, dei suoi limiti e delle tabelle danneggiate
+│   ├── sheets.rs                                test dei fogli del magazzino: lettore, opzioni, impostazioni e finestra
+│   └── dxf_out.rs                               test del disegno delle aperture: rilettura, mai sopra un file
 ├── examples/
 │   ├── paste.gtp                                un esempio per provare il programma
 │   └── paste.dxf                                gli stessi pad come disegno (DXF)
@@ -192,7 +197,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 263 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 281 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -278,8 +283,8 @@ EH3D-STENCILCAM/
 
 **Prossimi passi**
 
-* Provarlo con un vero livello di pasta e un laser e leggere i profili dal magazzino utensili.
-* Vedere la finestra su uno schermo e completarla: i profili del magazzino utensili e una vista dei rapporti di pasta di ogni apertura.
+* Provarlo con un vero livello di pasta e un laser.
+* Vedere la finestra su uno schermo e completarla: un controllo per scegliere il foglio del magazzino utensili e una vista dei rapporti di pasta di ogni apertura.
 * Provarlo con file reali e con gli altri programmi della suite.
 
 ## 🌍 Lingue

@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 263 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 281 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.1` |
 | Reifegrad | Funktionsfähig |
-| Tests | 263 |
+| Tests | 281 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 263 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
+| Tests | 🟡 | 281 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -96,6 +96,8 @@ Wie die Teile dieses Repositorys zusammenpassen: wer es nutzt, was es enthält u
 * **Ein- und Auslauf je nach Form:** Eine runde und eine rechteckige Öffnung können ihren eigenen Ein- und Auslauf haben (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` oder `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, von 0 bis 5 mm); ein nicht angegebener ist der allgemeine `--lead-in` bzw. `--lead-out`, und eine Langlochöffnung (Obround) verwendet immer die allgemeinen. Die Zeitschätzung zählt die Längen jeder Form. Siehe `docs/leads-by-form.md`.
 * **Eine Zeichnung als Eingabe sowie Geschwindigkeit, Laserskala und Durchgänge in `stencil.cfg`:** Eine Datei mit der Endung `.dxf` wird als Zeichnung gelesen (Kreise werden zu runden Öffnungen, geschlossene Rechtecke mit Seiten entlang der Achsen zu rechteckigen; die Einheit der Zeichnung wird gelesen, und jedes andere Element ist ein Hinweis, sodass `convert` nur mit `--force` schreibt); `--feed`, `--smax` und `--passes` (`feed_mm_min`, `smax` und `passes` in der Datei; Standard 600 mm/min, 1000 und ein Durchgang) legen die Schnittgeschwindigkeit, das Ende der Laserleistungsskala und die Zahl der Durchgänge über jede Kontur fest. Nur am Rechner getestet: auf einem Laser wurde nichts geschnitten.
 * **Schmale Stege, doppelte Öffnungen und die Paste in `check`:** `--min-web MM` (oder `min_web_mm` in `stencil.cfg`, von 0 bis 5 mm, standardmäßig 0,1, 0 für keine Warnung) warnt in `check` und in `convert` vor zwei Öffnungen, deren Steg (die Folie, die zwischen ihnen bleibt) schmaler ist oder die sich berühren oder überlappen, und hält `convert` nie an; zwei Öffnungen gleicher Form, Größe und Lage sind ein einziges Loch, die zweite wird deshalb mit einem Hinweis weggelassen, statt zweimal geschnitten zu werden; `check` gibt aus, wie viele Öffnungen es je Form gibt und wie viel Paste sie fassen (in Mikrolitern), und `check --json` gibt dies und den Rest des Ergebnisses als ein einziges JSON-Objekt für andere Programme aus. Nur auf einem Computer getestet.
+* **Die Folie aus dem Werkzeuglager:** `--sheet-file FOLIEN.csv --sheet NAME` (oder `sheet_file` und `sheet_name` in `stencil.cfg`) nimmt eine Folie aus der Folientabelle, die das Werkzeuglager exportiert (`export-sheets-csv`): ihre Dicke, ihre Verkleinerung jeder Öffnung je Seite, ihre Schnittfuge (eine Schnittfuge von 0 nimmt die Strahlbreite des Lasers von `--crib`) und ihre Verhältnisgrenzen ersetzen die des Materials. Die Spalten werden an ihren Namen gefunden, die Datei wird mit einer Größen- (1 MiB) und einer Zeilengrenze gelesen, jeder Fehler nennt seine Zeile, und die Kommandozeile geht vor der Folie, die Folie vor der Einstellungsdatei. Keine Zahl ist ein Standardwert dieses Programms: eine Grenze von 0 gibt keine. Das Fenster zeigt die gewählte Folie.
+* **Eine Zeichnung als Ausgabe:** `convert EBENE AUS.dxf` schreibt die Öffnungen, wie die Schablone sie hat, Kreise und Rechtecke in Millimetern, sodass dasselbe Programm sie wieder einliest; ein Langloch wird abgelehnt, außer `--force` lässt es weg, und eine vorhandene Datei wird nie ersetzt, außer mit `--overwrite` (`--create`, der Standard, lehnt sie ab).
 
 ## 🔒 Sicherheit und Schutz
 
@@ -117,8 +119,9 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                die Dateiliste des Fensters zum Öffnen einer Datei
 │   ├── cli_args.rs                              die Argumente der Kommandozeile, dieselbe Datei in jedem kleinen Werkzeug
 │   ├── config.rs                                die Einstellungsdatei: Ein- und Auslauf der Schnitte und die Laser-Wartezeit
-│   ├── crib.rs                                  die Schnittfuge des Lasers aus dem CSV der Werkzeugverwaltung
+│   ├── crib.rs                                  die Schnittfuge des Lasers und die Folien aus den CSV-Tabellen
 │   ├── dxf_in.rs                                liest eine Zeichnung (DXF): Kreise und Rechtecke werden zu Öffnungen, der Rest ist ein Hinweis
+│   ├── dxf_out.rs                               schreibt die Öffnungen als Zeichnung (DXF) aus Kreisen und Rechtecken
 │   ├── gui.rs                                   das Fenster (egui, mit dem Feature gui): zeichnet den Zustand und gibt weiter, was die Person tut
 │   ├── lang.rs                                  die Wörter des Fensters in den acht Sprachen
 │   ├── layer.rs                                 liest eine Ebene aus Bytes und zeigt die Meldungen des Lesers nach ihrem Code
@@ -146,7 +149,9 @@ EH3D-STENCILCAM/
 │   ├── reqs.rs                                  Tests des Anforderungsregisters
 │   ├── shape_open.rs                            Tests der Öffnungen aus Makro-Pads, Regionen und Bahnen entlang einer Achse
 │   ├── ratio_limits.rs                          Tests der Verhältnisgrenzen, ihrer Begründungen und des Exit-Codes 2
-│   └── crib_kerf.rs                             Tests der Schnittfuge aus dem Werkzeug-CSV, seiner Grenzen und beschädigter Tabellen
+│   ├── crib_kerf.rs                             Tests der Schnittfuge aus dem Werkzeug-CSV, seiner Grenzen und beschädigter Tabellen
+│   ├── sheets.rs                                Tests der Folien aus der Werkzeugverwaltung: Leser, Optionen, Einstellungen, Fenster
+│   └── dxf_out.rs                               Tests der Zeichnung der Öffnungen: Rücklesen, nie über eine Datei
 ├── examples/
 │   ├── paste.gtp                                ein Beispiel zum Ausprobieren
 │   └── paste.dxf                                dieselben Pads als Zeichnung (DXF)
@@ -192,7 +197,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 263 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 281 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 
@@ -278,8 +283,8 @@ EH3D-STENCILCAM/
 
 **Als Nächstes**
 
-* Mit einer echten Pastenlage und einem Laser ausprobieren und die Profile aus dem Werkzeuglager lesen.
-* Das Fenster auf einem Bildschirm ansehen und vervollständigen: die Profile aus dem Werkzeuglager und eine Ansicht der Pastenverhältnisse jeder Öffnung.
+* Mit einer echten Pastenlage und einem Laser ausprobieren.
+* Das Fenster auf einem Bildschirm ansehen und vervollständigen: ein Bedienelement zur Wahl der Folie aus dem Werkzeuglager und eine Ansicht der Pastenverhältnisse jeder Öffnung.
 * Mit echten Dateien und den anderen Programmen der Suite ausprobieren.
 
 ## 🌍 Sprachen

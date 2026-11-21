@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 263 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 281 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.1` |
 | Maturité | Fonctionnel |
-| Tests | 263 |
+| Tests | 281 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 263 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 281 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -96,6 +96,8 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Entrée et sortie selon la forme :** une ouverture ronde et une ouverture rectangulaire peuvent avoir leur propre entrée et sortie (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` ou `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` dans `stencil.cfg`, de 0 à 5 mm) ; celle qui n'est pas donnée est la générale `--lead-in` ou `--lead-out`, et une ouverture oblongue utilise toujours les générales. L'estimation du temps compte celles de chaque forme. Voir `docs/leads-by-form.md`.
 * **Un dessin en entrée, et la vitesse, l'échelle du laser et les passes dans `stencil.cfg` :** un fichier se terminant par `.dxf` est lu comme un dessin (les cercles deviennent des ouvertures rondes et les rectangles fermés aux côtés sur les axes des ouvertures rectangulaires ; l'unité du dessin est lue et toute autre entité est une note, si bien que `convert` refuse d'écrire sans `--force`) ; `--feed`, `--smax` et `--passes` (`feed_mm_min`, `smax` et `passes` dans le fichier ; 600 mm/min, 1000 et une passe par défaut) fixent la vitesse de coupe, le haut de l'échelle de puissance du laser et le nombre de fois que chaque contour est coupé. Testé seulement sur ordinateur : rien n'a été coupé sur un laser.
 * **Ponts étroits, ouvertures répétées et la pâte dans `check` :** `--min-web MM` (ou `min_web_mm` dans `stencil.cfg`, de 0 à 5 mm, 0,1 par défaut, 0 pour ne rien signaler) signale, dans `check` et dans `convert`, deux ouvertures dont le pont (la feuille qui reste entre elles) est plus étroit, ou qui se touchent ou se chevauchent, et n'arrête jamais `convert` ; deux ouvertures de même forme, taille et place ne font qu'un trou, la seconde est donc écartée avec une note au lieu d'être découpée deux fois ; `check` affiche combien d'ouvertures il y a de chaque forme et la pâte qu'elles contiennent (en microlitres) et `check --json` affiche cela et le reste du résultat sous la forme d'un seul objet JSON pour d'autres programmes. Testé uniquement sur un ordinateur.
+* **La feuille du magasin d'outils :** `--sheet-file FEUILLES.csv --sheet NOM` (ou `sheet_file` et `sheet_name` dans `stencil.cfg`) prend une feuille de la table des feuilles qu'exporte le magasin d'outils (`export-sheets-csv`) : son épaisseur, sa réduction de chaque ouverture par côté, sa largeur de coupe (une largeur de 0 prend la largeur du faisceau du laser de `--crib`) et ses limites de rapport remplacent celles du matériau. Les colonnes sont trouvées par leur nom, le fichier est lu avec une limite de taille (1 Mio) et de lignes, chaque défaut nomme sa ligne, et la ligne de commande l'emporte sur la feuille, la feuille sur le fichier de réglages. Aucun chiffre n'est une valeur par défaut de ce programme : une limite de 0 n'en donne aucune. La fenêtre montre la feuille choisie.
+* **Un dessin en sortie :** `convert COUCHE SORTIE.dxf` écrit les ouvertures telles que le pochoir les a, cercles et rectangles en millimètres, de sorte que ce même programme les relit ; une ouverture oblongue est refusée sauf si `--force` la laisse de côté, et un fichier existant n'est jamais remplacé sauf avec `--overwrite` (`--create`, la valeur par défaut, le refuse).
 
 ## 🔒 Sécurité et protection
 
@@ -117,8 +119,9 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                la liste des fichiers de la fenêtre d'ouverture d'un fichier
 │   ├── cli_args.rs                              les arguments de la ligne de commande, le même fichier dans chaque petit utilitaire
 │   ├── config.rs                                le fichier de réglages : l'entrée et la sortie des coupes et l'attente du laser
-│   ├── crib.rs                                  la largeur de coupe du laser depuis le CSV du gestionnaire d'outils
+│   ├── crib.rs                                  la largeur de coupe et les feuilles, depuis les tables CSV du gestionnaire
 │   ├── dxf_in.rs                                lit un dessin (DXF) : les cercles et les rectangles deviennent des ouvertures, le reste est une note
+│   ├── dxf_out.rs                               écrit les ouvertures en dessin (DXF) de cercles et de rectangles
 │   ├── gui.rs                                   la fenêtre (egui, avec la fonctionnalité gui) : dessine l'état et transmet ce que fait la personne
 │   ├── lang.rs                                  les mots de la fenêtre dans les huit langues
 │   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
@@ -146,7 +149,9 @@ EH3D-STENCILCAM/
 │   ├── reqs.rs                                  tests du registre des exigences
 │   ├── shape_open.rs                            tests des ouvertures depuis les pastilles macro, régions et pistes sur un axe
 │   ├── ratio_limits.rs                          tests des limites de rapport, de leurs raisons et du code de sortie 2
-│   └── crib_kerf.rs                             tests de la largeur de coupe depuis le CSV, ses limites et les tables abîmées
+│   ├── crib_kerf.rs                             tests de la largeur de coupe depuis le CSV, ses limites et les tables abîmées
+│   ├── sheets.rs                                tests des feuilles du gestionnaire : lecteur, options, réglages et fenêtre
+│   └── dxf_out.rs                               tests du dessin des ouvertures : relecture, jamais sur un fichier existant
 ├── examples/
 │   ├── paste.gtp                                un exemple pour essayer le programme
 │   └── paste.dxf                                les mêmes pastilles en dessin (DXF)
@@ -192,7 +197,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 263 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 281 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
@@ -278,8 +283,8 @@ EH3D-STENCILCAM/
 
 **Ensuite**
 
-* L'essayer avec une vraie couche de pâte et un laser et lire les profils dans le magasin d'outils.
-* Voir la fenêtre sur un écran et la compléter : les profils du magasin d'outils et une vue des rapports de pâte de chaque ouverture.
+* L'essayer avec une vraie couche de pâte et un laser.
+* Voir la fenêtre sur un écran et la compléter : une commande pour choisir la feuille du magasin d'outils et une vue des rapports de pâte de chaque ouverture.
 * L'essayer avec des fichiers réels et avec les autres programmes de la suite.
 
 ## 🌍 Langues

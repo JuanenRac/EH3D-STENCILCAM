@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 263 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 281 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.1` |
 | Maturity | Functional |
-| Tests | 263 |
+| Tests | 281 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 263 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 281 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -96,6 +96,8 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **Leads by form:** a round opening and a rectangular one can have their own lead-in and lead-out (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` or `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, from 0 to 5 mm); one that is not given is the general `--lead-in` or `--lead-out`, and an obround opening always uses the general ones. The estimate of the time counts the leads of each form. See `docs/leads-by-form.md`.
 * **A drawing as input, and the speed, the laser scale and the passes in `stencil.cfg`:** a file ending in `.dxf` is read as a drawing (the circles become round openings and the closed rectangles with their sides along the axes rectangular ones; the unit of the drawing is read and any other entity is a note, so `convert` refuses to write unless `--force` is given); `--feed`, `--smax` and `--passes` (`feed_mm_min`, `smax` and `passes` in the file; 600 mm/min, 1000 and one pass by default) set the speed of the cut, the top of the laser power scale and how many times every contour is cut. Tested on a computer only: nothing has been cut on a laser.
 * **Narrow webs, repeated openings and the paste in `check`:** `--min-web MM` (or `min_web_mm` in `stencil.cfg`, from 0 to 5 mm, 0.1 by default, 0 for no warning) warns, in `check` and in `convert`, of two openings whose web (the sheet that stays between them) is narrower, or that touch or overlap, and never stops `convert`; two openings of the same form, size and place are one hole, so the second is left out with a note instead of being cut twice; `check` prints how many openings there are of each form and the paste they hold (in microlitres) and `check --json` prints that and the rest of the result as one JSON object for other programs. Tested on a computer only.
+* **The sheet from the tool crib:** `--sheet-file SHEETS.csv --sheet NAME` (or `sheet_file` and `sheet_name` in `stencil.cfg`) takes a sheet from the table of sheets that the tool crib exports (`export-sheets-csv`): its thickness, its reduction of every opening on each side, its kerf (a kerf of 0 takes the beam width of the laser of `--crib`) and its ratio limits replace those of the material. The columns are found by their names, the file is read with a size limit (1 MiB) and a row limit, every fault names its row, and the command line wins over the sheet and the sheet over the settings file. No figure is a default of this program: a limit of 0 gives none. The window shows the sheet that was chosen.
+* **A drawing as output:** `convert LAYER OUT.dxf` writes the openings as the stencil has them, circles and rectangles in millimetres, so that the same program reads them back; an obround opening is refused unless `--force` leaves it out, and a file that exists is never replaced unless `--overwrite` is given (`--create`, the default, refuses it).
 
 ## 🔒 Security & Safety
 
@@ -117,8 +119,9 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
 │   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
-│   ├── crib.rs                                  the kerf of the laser from the CSV that the tool crib exports
+│   ├── crib.rs                                  the kerf of the laser and the sheets, from the CSV tables of the crib
 │   ├── dxf_in.rs                                reads a drawing (DXF): circles and rectangles become openings, the rest is a note
+│   ├── dxf_out.rs                               writes the openings as a drawing (DXF) of circles and rectangles
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
 │   ├── layer.rs                                 reads a layer from bytes and shows what the reader says by its code
@@ -146,7 +149,9 @@ EH3D-STENCILCAM/
 │   ├── reqs.rs                                  tests of the register of requirements
 │   ├── shape_open.rs                            tests of the openings from macro pads, regions and tracks along an axis
 │   ├── ratio_limits.rs                          tests of the ratio limits, their reasons and the exit code 2
-│   └── crib_kerf.rs                             tests of the kerf from the crib CSV, its limits and damaged tables
+│   ├── crib_kerf.rs                             tests of the kerf from the crib CSV, its limits and damaged tables
+│   ├── sheets.rs                                tests of the sheets from the crib: reader, options, settings, window
+│   └── dxf_out.rs                               tests of the drawing of the openings: read back, never over a file
 ├── examples/
 │   ├── paste.gtp                                a sample to try the program with
 │   └── paste.dxf                                the same pads as a drawing (DXF)
@@ -192,7 +197,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 263 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 281 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -278,8 +283,8 @@ EH3D-STENCILCAM/
 
 **Next**
 
-* Try it with a real paste layer and a laser and read the profiles from the tool crib.
-* Look at the window on a screen and finish it: the profiles of the tool crib and a view of the paste ratios of each opening.
+* Try it with a real paste layer and a laser.
+* Look at the window on a screen and finish it: a control to pick the sheet of the tool crib and a view of the paste ratios of each opening.
 * Try it with real files and with the other programs of the suite.
 
 ## 🌍 Languages

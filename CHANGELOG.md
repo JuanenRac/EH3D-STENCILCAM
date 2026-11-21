@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A sheet of the tool crib sets the stencil:** `--sheet-file SHEETS.csv --sheet NAME` takes a sheet from the table of sheets that the tool crib exports (`export-sheets-csv`): its thickness, its reduction of every opening on each side, its kerf and its two ratio limits replace those of the material. A kerf of 0 in the sheet takes the beam width of the laser given with `--crib` and `--crib-laser` (or `--kerf`), and a ratio limit of 0 gives none. The thickness and the reduction are not given twice (`--thickness` and `--shrink` are refused with a sheet), nor is the kerf when the sheet has one; `--min-aspect` and `--min-area` win over the sheet, and the sheet over the settings file. No figure of a sheet is a default of this program.
+- **The table of sheets is read with the same care as the kerf:** the columns are found by their names, in any order; a file over 1 MiB or a table of more than 10,000 rows is refused; a missing column, a repeated name (in any case), a kind that is not `sheet`, a figure that is not a number or is out of its range is an error that names its row; the protection against formulas that the crib adds is taken off; and a fuzz with a fixed seed shows that a damaged table never panics.
+- **The settings file can choose the sheet:** `sheet_file` and `sheet_name` in `stencil.cfg` do the same as the two options, which win over the file; `eh3d-stencilcam config` lists them as comments.
+- **A reduction of every opening, in millimetres on each side:** besides the percent of the material, the profile has a reduction in millimetres that the sheet gives; an opening that it would leave with no size is an error.
+- **The window shows the sheet that was chosen:** the side panel says its name, thickness, reduction and kerf in the eight languages, and the window takes the ratio limits of the sheet to say which openings will not release the paste.
+- **The openings can be written as a drawing:** `convert LAYER OUT.dxf` writes the openings as the stencil has them (after the reduction, before the kerf), circles and rectangles in millimetres, in a text that is the same each time and that the reader of drawings of this program reads back as the same openings. An obround opening is refused unless `--force` leaves it out, and a file that exists is never replaced unless `--overwrite` is given (`--create`, the default, refuses it).
+
 ## [0.1.1] - Openings from straight tracks, rectangle regions and macro pads, the limits of the ratios as settings, the kerf read from the tool crib and the code 2 for a check that does not pass
 
 - **The pictures of the README are new:** they were written again by the picture mode (`--shot`) of the published program.
