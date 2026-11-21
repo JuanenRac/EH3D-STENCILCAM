@@ -90,12 +90,14 @@ pub fn ordered(paths: &[Path]) -> Vec<Path> {
 
 /// The indices of `paths` in the order of [`ordered`], so that what belongs to each path (its form, for example) can follow it.
 pub fn ordered_indices(paths: &[Path]) -> Vec<usize> {
-    let n = paths.len();
-    let mut out = Vec::with_capacity(n);
+    let mut out = Vec::with_capacity(paths.len());
+    // a path with no point has no start and nothing to cut: it is left out of the order (every writer goes through this list)
+    let live: Vec<usize> = (0..paths.len()).filter(|&k| !paths[k].is_empty()).collect();
+    let n = live.len();
     if n == 0 {
         return out;
     }
-    let starts: Vec<(f64, f64)> = paths.iter().map(|p| p[0]).collect();
+    let starts: Vec<(f64, f64)> = live.iter().map(|&k| paths[k][0]).collect();
     let (mut x0, mut y0) = (f64::INFINITY, f64::INFINITY);
     let (mut x1, mut y1) = (f64::NEG_INFINITY, f64::NEG_INFINITY);
     for s in &starts {
@@ -158,7 +160,7 @@ pub fn ordered_indices(paths: &[Path]) -> Vec<usize> {
             bucket.swap_remove(pos);
         }
         at = starts[k];
-        out.push(k);
+        out.push(live[k]);
     }
     out
 }
