@@ -8,7 +8,9 @@ use cli_args::{finish, flag, num, switch};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_serverclient::Settings as LinkSettings;
 use eh3d_stencilcam::config;
+use eh3d_stencilcam::crib::SheetSpec;
 use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
+use eh3d_stencilcam::dxf_out;
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings;
 use eh3d_stencilcam::openings::{
@@ -28,11 +30,11 @@ use std::process::ExitCode;
 const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer of a board
 
   eh3d-stencilcam convert LAYER.gtp|DRAWING.dxf OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
-                  [--kerf MM | --crib FILE.csv --crib-laser NAME] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
-                  [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force]
+                  [--kerf MM | --crib FILE.csv --crib-laser NAME] [--sheet-file SHEETS.csv --sheet NAME] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
+                  [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force] [--create | --overwrite]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
   eh3d-stencilcam server [status] [--config FILE]   the link to the EH3D server (server_address, server_token, server_machine, server_timeout_s, server_retries, server_mdns and server_max_answer_mib of stencil.cfg) and what the server answers
-  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--min-aspect N] [--min-area N] [--region-fit PERCENT] [--json]
+  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--sheet-file SHEETS.csv --sheet NAME] [--min-aspect N] [--min-area N] [--region-fit PERCENT] [--json]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
   eh3d-stencilcam gui [FILE...] --shot OUT.png [--size WxH] [--theme forge|dark|light] [--wait N] [--lang CODE] [--replace]   a picture of the window (a build with --features gui)
 
@@ -44,6 +46,7 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
 --crib FILE.csv --crib-laser NAME takes the kerf from the beam width of a laser tool in the CSV that the tool crib of the suite exports (a file over 1 MiB is refused); it replaces --kerf.
+--sheet-file SHEETS.csv --sheet NAME (or sheet_file and sheet_name of the settings file) takes a sheet of the table of sheets that the tool crib exports (export-sheets-csv; a file over 1 MiB is refused): its thickness, its reduction of every opening on each side (replacing the percent of --shrink, which is then refused), its kerf (a kerf of 0 takes the beam width of the laser of --crib and --crib-laser, or --kerf) and the ratio limits it gives (a limit of 0 gives none, and --min-aspect and --min-area win over the sheet, which wins over the settings file). --thickness is refused with a sheet; --kerf and --crib are refused when the sheet has a kerf of its own.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
 --origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when a point of a contour falls outside the bed 0..WIDTH by 0..HEIGHT (the leads are not counted).
 --config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes, min_web_mm, min_aspect, min_area, region_fit_percent); the options win over the file.
@@ -52,7 +55,7 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --feed MM_MIN (1 to 30000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
 A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
-OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
+OUT ending in .plt is HP-GL for a plotter, OUT ending in .dxf is the drawing of the openings as the stencil has them (circles and rectangles in mm, the counterpart of the drawing that convert reads; an obround opening is refused unless --force leaves it out; --create, the default, refuses a file that exists and --overwrite replaces it; --origin and --bed do not apply); anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
 area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.
 
 Exit codes: 0 done; 1 a mistake in what was asked or a file that cannot be read or written; 2 a check that did not pass (an opening that will not release the paste in check or convert, or a layer that cannot all become openings).";
@@ -124,15 +127,47 @@ fn lead_option(
     }
 }
 
-fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
+/// The profile of the material and of the sheet, and the sheet when one was chosen (`--sheet-file` and `--sheet`, or `sheet_file` and `sheet_name` of the settings file).
+fn profile(
+    args: &mut Vec<String>,
+    cfg_sheet: (Option<String>, Option<String>),
+) -> Result<(Profile, Option<SheetSpec>), String> {
     let mut p = Profile::of(match flag(args, "--material")? {
         Some(m) => Material::parse(&m)?,
         None => Material::Mylar,
     });
-    if let Some(v) = flag(args, "--thickness")? {
+    let thickness = flag(args, "--thickness")?;
+    let shrink = flag(args, "--shrink")?;
+    let sheet_file = flag(args, "--sheet-file")?.or(cfg_sheet.0);
+    let sheet_name = flag(args, "--sheet")?.or(cfg_sheet.1);
+    let sheet = match (&sheet_file, &sheet_name) {
+        (Some(file), Some(name)) => Some(eh3d_stencilcam::crib::sheet_from_file(file, name)?),
+        (None, None) => None,
+        _ => {
+            return Err(
+                "the sheet file and the sheet name go together (--sheet-file and --sheet, or sheet_file and sheet_name)"
+                    .into(),
+            )
+        }
+    };
+    if let Some(s) = &sheet {
+        if thickness.is_some() || shrink.is_some() {
+            return Err(format!(
+                "the sheet '{}' gives the thickness and the reduction: do not give {} too",
+                s.name,
+                if thickness.is_some() {
+                    "--thickness"
+                } else {
+                    "--shrink"
+                }
+            ));
+        }
+        s.apply(&mut p);
+    }
+    if let Some(v) = thickness {
         p.thickness_mm = num(&v, "--thickness")?;
     }
-    if let Some(v) = flag(args, "--shrink")? {
+    if let Some(v) = shrink {
         p.shrink_percent = num(&v, "--shrink")?;
     }
     if let Some(v) = flag(args, "--radius")? {
@@ -141,21 +176,46 @@ fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
     let crib = flag(args, "--crib")?;
     let laser = flag(args, "--crib-laser")?;
     let kerf = flag(args, "--kerf")?;
-    match (&crib, &laser) {
+    let crib_kerf = match (&crib, &laser) {
         (Some(file), Some(name)) => {
             if kerf.is_some() {
                 return Err("--kerf and --crib give the kerf twice: use one".into());
             }
-            p.kerf_mm = eh3d_stencilcam::crib::kerf_from_file(file, name)?;
+            Some(eh3d_stencilcam::crib::kerf_from_file(file, name)?)
         }
-        (None, None) => {}
+        (None, None) => None,
         _ => return Err("--crib FILE and --crib-laser NAME go together".into()),
+    };
+    let kerf = kerf.map(|v| num(&v, "--kerf")).transpose()?;
+    match &sheet {
+        Some(s) if s.kerf_mm > 0.0 => {
+            if crib_kerf.is_some() || kerf.is_some() {
+                return Err(format!(
+                    "the sheet '{}' has a kerf of its own ({} mm): do not give --kerf or --crib too",
+                    s.name, s.kerf_mm
+                ));
+            }
+            p.kerf_mm = s.kerf_mm;
+        }
+        Some(s) => {
+            p.kerf_mm = crib_kerf.or(kerf).ok_or_else(|| {
+                format!(
+                    "the sheet '{}' takes its kerf from a laser of the crib: give --crib FILE and --crib-laser NAME (or --kerf MM)",
+                    s.name
+                )
+            })?;
+        }
+        None => {
+            if let Some(k) = crib_kerf.or(kerf) {
+                p.kerf_mm = k;
+            }
+        }
     }
-    if let Some(v) = kerf {
-        p.kerf_mm = num(&v, "--kerf")?;
-    }
-    p.validate()?;
-    Ok(p)
+    p.validate().map_err(|e| match &sheet {
+        Some(s) => format!("sheet '{}': {e}", s.name),
+        None => e,
+    })?;
+    Ok((p, sheet))
 }
 
 fn run(mut args: Vec<String>) -> Result<(), String> {
@@ -177,10 +237,12 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         return server_command(args);
     }
     let mut settings = config::Settings::default();
+    let mut cfg_sheet = (None, None);
     let config_path = flag(&mut args, "--config")?;
     if let Some(path) = &config_path {
         let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
         settings = config::parse(&text).map_err(|e| format!("{path}: {e}"))?;
+        cfg_sheet = config::sheet_choice(&text);
     }
     let lead_in = match flag(&mut args, "--lead-in")? {
         Some(v) => config::parse_lead("--lead-in", &v)?,
@@ -208,7 +270,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             out_mm: rect_out.unwrap_or(lead_out),
         },
     };
-    let p = profile(&mut args)?;
+    let (p, sheet) = profile(&mut args, cfg_sheet)?;
     let origin = flag(&mut args, "--origin")?
         .map(|v| pair_arg("--origin", &v))
         .transpose()?;
@@ -222,14 +284,23 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         Some(v) => config::parse_min_web("--min-web", &v)?,
         None => settings.min_web_mm,
     };
+    // the command line wins over the sheet, and the sheet over the settings file
+    let base = openings::Limits {
+        min_aspect: settings.min_aspect,
+        min_area: settings.min_area,
+    };
+    let base = match &sheet {
+        Some(s) => s.limits(base)?,
+        None => base,
+    };
     let limits = openings::Limits {
         min_aspect: match flag(&mut args, "--min-aspect")? {
             Some(v) => config::parse_min_aspect("--min-aspect", &v)?,
-            None => settings.min_aspect,
+            None => base.min_aspect,
         },
         min_area: match flag(&mut args, "--min-area")? {
             Some(v) => config::parse_min_area("--min-area", &v)?,
-            None => settings.min_area,
+            None => base.min_area,
         },
     };
     let rules = openings::ShapeRules {
@@ -251,6 +322,14 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     };
     let mirror = switch(&mut args, "--mirror");
     let force = switch(&mut args, "--force");
+    let create = switch(&mut args, "--create");
+    let overwrite = switch(&mut args, "--overwrite");
+    if create && overwrite {
+        return Err("--create and --overwrite say opposite things: use one".into());
+    }
+    if (create || overwrite) && cmd != "convert" {
+        return Err("--create and --overwrite are options of convert".into());
+    }
     let feed = match flag(&mut args, "--feed")? {
         Some(v) => config::parse_feed("--feed", &v)?,
         None => settings.feed_mm_min,
@@ -364,6 +443,14 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     if json && cmd != "check" {
         return Err("--json is an option of check".into());
     }
+    if let Some(s) = &sheet {
+        // the JSON of check is the whole of the standard output
+        if json {
+            eprintln!("note: {}", s.summary());
+        } else {
+            println!("{}", s.summary());
+        }
+    }
     for w in &webs {
         if w.web_mm <= 0.0 {
             eprintln!(
@@ -451,6 +538,29 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             let out = args.get(1).ok_or("convert needs an output file")?;
             if !problems.is_empty() && !force {
                 return Err(not_passed(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n"))));
+            }
+            if is_drawing(out) {
+                if origin.is_some() || bed.is_some() {
+                    return Err("--origin and --bed are options of the G-code and HP-GL outputs, not of a drawing".into());
+                }
+                let (text, left_out) = dxf_out::to_dxf(&shown, force)?;
+                if left_out > 0 {
+                    eprintln!("note: {left_out} obround opening(s) are not in the drawing");
+                }
+                let path = std::path::Path::new(out);
+                if overwrite {
+                    write_atomic(path, &text)?;
+                } else {
+                    dxf_out::write_new(path, &text)?;
+                }
+                println!(
+                    "{} openings drawn in {out} (millimetres, after the reduction)",
+                    shown.len() - left_out
+                );
+                return Ok(());
+            }
+            if create || overwrite {
+                return Err("--create and --overwrite are options of a DXF output".into());
             }
             let mut once = paths(&openings, &p)?;
             if let Some(o) = origin {

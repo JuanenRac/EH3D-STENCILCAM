@@ -26,6 +26,8 @@ pub struct Profile {
     pub thickness_mm: f64,
     /// How much the openings are made smaller than the pads, in percent of each side.
     pub shrink_percent: f64,
+    /// How much smaller each opening is made, on each side, in mm, after the percent (a sheet of the crib gives it; 0 for none).
+    pub reduction_mm: f64,
     /// The radius of the corners of the openings.
     pub corner_radius_mm: f64,
     /// The width of what the laser removes: the cut line is moved inwards by half of it so that the opening comes out the size that was asked.
@@ -38,18 +40,21 @@ impl Profile {
             Material::Mylar => Profile {
                 thickness_mm: 0.12,
                 shrink_percent: 10.0,
+                reduction_mm: 0.0,
                 corner_radius_mm: 0.05,
                 kerf_mm: 0.10,
             },
             Material::Kapton => Profile {
                 thickness_mm: 0.075,
                 shrink_percent: 8.0,
+                reduction_mm: 0.0,
                 corner_radius_mm: 0.04,
                 kerf_mm: 0.08,
             },
             Material::Steel => Profile {
                 thickness_mm: 0.12,
                 shrink_percent: 5.0,
+                reduction_mm: 0.0,
                 corner_radius_mm: 0.05,
                 kerf_mm: 0.04,
             },
@@ -66,6 +71,7 @@ impl Profile {
         };
         range("thickness_mm", self.thickness_mm, 0.02, 1.0)?;
         range("shrink_percent", self.shrink_percent, 0.0, 50.0)?;
+        range("reduction_mm", self.reduction_mm, 0.0, 0.5)?;
         range("corner_radius_mm", self.corner_radius_mm, 0.0, 2.0)?;
         range("kerf_mm", self.kerf_mm, 0.0, 1.0)
     }

@@ -20,6 +20,7 @@ fn profile() -> Profile {
     Profile {
         thickness_mm: 0.1,
         shrink_percent: 10.0,
+        reduction_mm: 0.0,
         corner_radius_mm: 0.05,
         kerf_mm: 0.06,
     }
@@ -84,6 +85,7 @@ fn an_opening_that_disappears_is_an_error_and_a_bad_profile_too() {
         },
         Profile {
             shrink_percent: 60.0,
+            reduction_mm: 0.0,
             ..profile()
         },
         Profile {
@@ -244,6 +246,7 @@ fn the_hpgl_has_forty_units_to_the_millimetre() {
         &Profile {
             kerf_mm: 0.0,
             shrink_percent: 0.0,
+            reduction_mm: 0.0,
             ..profile()
         },
     )
@@ -346,18 +349,22 @@ fn a_profile_is_valid_exactly_inside_its_ranges() {
     assert!(
         ok(Profile {
             shrink_percent: 0.0,
+            reduction_mm: 0.0,
             ..profile()
         }) && ok(Profile {
             shrink_percent: 50.0,
+            reduction_mm: 0.0,
             ..profile()
         })
     );
     assert!(
         !ok(Profile {
             shrink_percent: -0.1,
+            reduction_mm: 0.0,
             ..profile()
         }) && !ok(Profile {
             shrink_percent: f64::INFINITY,
+            reduction_mm: 0.0,
             ..profile()
         })
     );
@@ -398,6 +405,7 @@ fn a_shrink_of_nothing_keeps_the_size_and_half_halves_it_and_the_centre_never_mo
         &o,
         &Profile {
             shrink_percent: 0.0,
+            reduction_mm: 0.0,
             ..profile()
         },
     )
@@ -407,6 +415,7 @@ fn a_shrink_of_nothing_keeps_the_size_and_half_halves_it_and_the_centre_never_mo
         &o,
         &Profile {
             shrink_percent: 50.0,
+            reduction_mm: 0.0,
             ..profile()
         },
     )
@@ -422,6 +431,7 @@ fn a_shrink_of_nothing_keeps_the_size_and_half_halves_it_and_the_centre_never_mo
 fn the_kerf_that_eats_the_whole_opening_is_the_error_and_the_one_just_under_is_not() {
     let p = Profile {
         shrink_percent: 0.0,
+        reduction_mm: 0.0,
         ..profile()
     };
     let o = rect(0.0, 0.0, 0.5, 0.5);

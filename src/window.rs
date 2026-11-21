@@ -2,9 +2,12 @@
 //! last said to the person and the zoom of the picture. The screen (`gui`, built with the `gui` feature) only draws this and passes on what the person does, so everything here is
 //! tested as plain code.
 
+use crate::crib::{sheet_from_file, SheetSpec};
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
-use crate::openings::{from_gerber_with, mirrored, ratios, shrunk, weak, Opening, Ratios};
+use crate::openings::{
+    from_gerber_with, mirrored, ratios, shrunk, weak_with, Limits, Opening, Ratios,
+};
 use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
@@ -122,6 +125,8 @@ pub struct Window {
     /// Write although an opening will not release the paste or part of the layer could not become an opening.
     pub force: bool,
     pub layer: Option<Layer>,
+    /// The sheet of the crib that was chosen: its thickness, reduction, kerf and ratio limits replace those of the material.
+    pub sheet: Option<SheetSpec>,
     /// The pads as drawn (mirrored when asked), before the shrink.
     pub openings: Vec<Opening>,
     /// The closed paths to cut, one for each opening, in the same order.
@@ -144,6 +149,7 @@ impl Window {
             mirror: false,
             force: false,
             layer: None,
+            sheet: None,
             openings: Vec::new(),
             cuts: Vec::new(),
             weak: Vec::new(),
@@ -177,6 +183,9 @@ impl Window {
                 _ => smax = v,
             }
         }
+        if let Some(s) = &self.sheet {
+            p.reduction_mm = s.reduction_mm;
+        }
         p.validate().map_err(Status::Failed)?;
         if !(1.0..=100_000.0).contains(&smax) {
             return Err(Status::BadValue {
@@ -204,7 +213,88 @@ impl Window {
         for (f, n) in self.fields.iter_mut().zip(fresh).take(4) {
             f.text = n.text;
         }
+        // a sheet that was chosen keeps its figures over those of the material
+        if let Some(s) = self.sheet.clone() {
+            self.put_sheet_in_fields(&s);
+        }
         self.update();
+    }
+
+    /// The ratio limits in force: those of the sheet when one was chosen (a limit of 0 leaves the default), the defaults otherwise.
+    pub fn limits(&self) -> Limits {
+        match &self.sheet {
+            Some(s) => s.limits(Limits::default()).unwrap_or_default(),
+            None => Limits::default(),
+        }
+    }
+
+    fn put_sheet_in_fields(&mut self, s: &SheetSpec) {
+        for f in &mut self.fields {
+            match f.key {
+                "thickness_mm" => f.text = s.thickness_mm.to_string(),
+                "shrink_percent" => f.text = "0".to_string(),
+                // a sheet that takes its kerf from a laser of the crib leaves the kerf of the material
+                "kerf_mm" if s.kerf_mm > 0.0 => f.text = s.kerf_mm.to_string(),
+                _ => {}
+            }
+        }
+    }
+
+    /// Chooses a sheet of the crib (or none): its thickness, kerf and reduction replace the values of the material, and the limits of its ratios replace the defaults. A sheet whose
+    /// limits this program cannot take is refused and the old one stays.
+    pub fn set_sheet(&mut self, sheet: Option<SheetSpec>) -> bool {
+        if let Some(s) = &sheet {
+            if let Err(why) = s.limits(Limits::default()) {
+                self.status = Status::Failed(why);
+                return false;
+            }
+        }
+        match sheet {
+            Some(s) => {
+                self.put_sheet_in_fields(&s);
+                self.sheet = Some(s);
+            }
+            None => {
+                self.sheet = None;
+                let fresh = default_fields(self.material);
+                for (f, n) in self.fields.iter_mut().zip(fresh).take(4) {
+                    f.text = n.text;
+                }
+            }
+        }
+        self.update();
+        true
+    }
+
+    /// Reads the table of sheets in `file` (with the limits of the crib reader) and chooses the sheet called `name`; the status says what went wrong.
+    pub fn load_sheet(&mut self, file: &str, name: &str) -> bool {
+        match sheet_from_file(file, name) {
+            Ok(s) => self.set_sheet(Some(s)),
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// The sentence that says which sheet is chosen and its figures, in the language of the person; `None` when no sheet is chosen.
+    pub fn sheet_text(&self) -> Option<String> {
+        let s = self.sheet.as_ref()?;
+        let kerf = self
+            .fields
+            .iter()
+            .find(|f| f.key == "kerf_mm")
+            .map(|f| f.text.trim().to_string())
+            .unwrap_or_default();
+        Some(fill(
+            Msg::SheetLine.tr(self.lang),
+            &[
+                s.name.as_str(),
+                s.thickness_mm.to_string().as_str(),
+                s.reduction_mm.to_string().as_str(),
+                kerf.as_str(),
+            ],
+        ))
     }
 
     /// Mirrors the stencil (the bottom side) or not.
@@ -286,6 +376,7 @@ impl Window {
         self.cuts.clear();
         self.weak.clear();
         self.ratios.clear();
+        let limits = self.limits();
         let shown: Result<Vec<Opening>, String> =
             self.openings.iter().map(|o| shrunk(o, &p)).collect();
         let found = shown.and_then(|s| {
@@ -293,7 +384,7 @@ impl Window {
                 .iter()
                 .map(|o| ratios(o, p.thickness_mm))
                 .collect::<Result<Vec<_>, _>>()?;
-            weak(&s, p.thickness_mm).map(|w| (w, all))
+            weak_with(&s, p.thickness_mm, &limits).map(|w| (w, all))
         });
         match found {
             Ok((list, all)) => {

@@ -3,7 +3,7 @@
 //! `--laser-wait`, `--rapid`), which win over the file. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm` and `lead_out_rect_mm` (`--lead-in-round`, `--lead-out-round`, `--lead-in-rect`, `--lead-out-rect`) give the
 //! leads of the round and of the rectangular openings; one that is not given is the lead-in or the lead-out of every other opening. `feed_mm_min` (`--feed`, the speed of the cut), `smax`
 //! (`--smax`, the top of the laser power scale) and `passes` (`--passes`, how many times every contour is cut, for a thick material) complete the cut; their defaults are the conservative ones
-//! (600 mm/min, 1000 and one pass). `min_aspect` and `min_area` (`--min-aspect`, `--min-area`) are the ratio limits under which an opening is said not to release the paste and `region_fit_percent` (`--region-fit`) lets a region that nearly fills its enclosing rectangle be opened as that rectangle. The keys `server_address`, `server_token`, `server_machine`, `server_timeout_s`, `server_retries`, `server_mdns` and `server_max_answer_mib` set the link to the EH3D server (see `server`).
+//! (600 mm/min, 1000 and one pass). `min_aspect` and `min_area` (`--min-aspect`, `--min-area`) are the ratio limits under which an opening is said not to release the paste and `region_fit_percent` (`--region-fit`) lets a region that nearly fills its enclosing rectangle be opened as that rectangle. `sheet_file` and `sheet_name` (`--sheet-file`, `--sheet`) choose a sheet of the table of sheets that the tool crib exports. The keys `server_address`, `server_token`, `server_machine`, `server_timeout_s`, `server_retries`, `server_mdns` and `server_max_answer_mib` set the link to the EH3D server (see `server`).
 //! A line that makes no sense is an error that says its number.
 
 use crate::output::{FormLeads, Lead, MAX_LEAD_MM};
@@ -249,6 +249,8 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "min_aspect",
             "min_area",
             "region_fit_percent",
+            "sheet_file",
+            "sheet_name",
         ];
         let Some(&name) = known.iter().find(|k| **k == key) else {
             return Err(format!("line {n}: '{key}' is not a setting"));
@@ -257,6 +259,13 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             return Err(format!("line {n}: {name} is given twice"));
         }
         seen.push(name);
+        // the sheet of the crib is chosen by two texts; `sheet_choice` gives them, here they are only checked
+        if matches!(name, "sheet_file" | "sheet_name") {
+            if value.is_empty() {
+                return Err(format!("line {n}: {name} has no value"));
+            }
+            continue;
+        }
         match name {
             "feed_mm_min" => {
                 settings.feed_mm_min =
@@ -318,11 +327,25 @@ pub fn parse(text: &str) -> Result<Settings, String> {
     Ok(settings)
 }
 
+/// The sheet the settings file chooses: `(sheet_file, sheet_name)`, each `None` when the file does not give it. Call it on a text that [`parse`] accepted.
+pub fn sheet_choice(text: &str) -> (Option<String>, Option<String>) {
+    let (mut file, mut name) = (None, None);
+    for raw in text.lines() {
+        let line = raw.split('#').next().unwrap_or("").trim();
+        match line.split_once('=') {
+            Some((k, v)) if k.trim() == "sheet_file" => file = Some(v.trim().to_string()),
+            Some((k, v)) if k.trim() == "sheet_name" => name = Some(v.trim().to_string()),
+            _ => {}
+        }
+    }
+    (file, name)
+}
+
 /// Every setting with its default, as a file that [`parse`] reads back.
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n# the narrowest web, the sheet that stays between two openings, that is not warned about (0 to {MAX_MIN_WEB_MM} mm, 0 for no warning)\nmin_web_mm = {}\n# the smallest aspect ratio, the smaller side of an opening over the thickness of the sheet, that releases the paste ({} to {}; 1.5 by the IPC guideline)\nmin_aspect = {}\n# the smallest area ratio, the area of an opening over the area of its walls, that releases the paste ({} to {}; 0.66 by the IPC guideline)\nmin_area = {}\n# a region (a pad drawn as an outline) that fills at least 100 minus this percent of its enclosing rectangle is opened as that rectangle (0 to {MAX_REGION_FIT_PERCENT}; 0 opens only an exact rectangle)\nregion_fit_percent = {}\n",
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n# the narrowest web, the sheet that stays between two openings, that is not warned about (0 to {MAX_MIN_WEB_MM} mm, 0 for no warning)\nmin_web_mm = {}\n# the smallest aspect ratio, the smaller side of an opening over the thickness of the sheet, that releases the paste ({} to {}; 1.5 by the IPC guideline)\nmin_aspect = {}\n# the smallest area ratio, the area of an opening over the area of its walls, that releases the paste ({} to {}; 0.66 by the IPC guideline)\nmin_area = {}\n# a region (a pad drawn as an outline) that fills at least 100 minus this percent of its enclosing rectangle is opened as that rectangle (0 to {MAX_REGION_FIT_PERCENT}; 0 opens only an exact rectangle)\nregion_fit_percent = {}\n# the sheet of the stencil material in the table of sheets that the tool crib exports (export-sheets-csv): its thickness, reduction of the openings, kerf and ratio limits replace those of the material; take the # off to use it\n# sheet_file = sheets.csv\n# sheet_name = Mylar 0.12\n",
         d.lead_in_mm,
         d.lead_out_mm,
         d.laser_wait_s,

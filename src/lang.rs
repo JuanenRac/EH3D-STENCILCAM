@@ -130,10 +130,11 @@ pub enum Msg {
     RatiosTitle,
     RatiosSmallest,
     RatiosLine,
+    SheetLine,
 }
 
 impl Msg {
-    pub const ALL: [Msg; 42] = [
+    pub const ALL: [Msg; 43] = [
         Msg::Open,
         Msg::Export,
         Msg::Language,
@@ -176,6 +177,7 @@ impl Msg {
         Msg::RatiosTitle,
         Msg::RatiosSmallest,
         Msg::RatiosLine,
+        Msg::SheetLine,
     ];
 
     /// The words in the order English, Spanish, German, French, Italian, Japanese, Chinese, Portuguese.
@@ -600,6 +602,16 @@ impl Msg {
                 "開口 {0}：アスペクト {1}、面積 {2}",
                 "开口 {0}：纵横 {1}，面积 {2}",
                 "Abertura {0}: aspeto {1}, área {2}",
+            ],
+            Msg::SheetLine => [
+                "Sheet {0}: thickness {1} mm, reduction {2} mm per side, kerf {3} mm",
+                "Lámina {0}: espesor {1} mm, reducción {2} mm por lado, anchura de corte {3} mm",
+                "Folie {0}: Dicke {1} mm, Verkleinerung {2} mm je Seite, Schnittbreite {3} mm",
+                "Feuille {0} : épaisseur {1} mm, réduction {2} mm par côté, largeur de coupe {3} mm",
+                "Foglio {0}: spessore {1} mm, riduzione {2} mm per lato, larghezza di taglio {3} mm",
+                "シート {0}：厚さ {1} mm、片側の縮小 {2} mm、切り幅 {3} mm",
+                "薄片 {0}：厚度 {1} mm，每边缩小 {2} mm，切缝宽度 {3} mm",
+                "Folha {0}: espessura {1} mm, redução {2} mm por lado, largura de corte {3} mm",
             ],
         }
     }

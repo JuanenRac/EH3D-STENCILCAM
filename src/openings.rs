@@ -245,15 +245,18 @@ pub fn from_gerber_rules(file: &GerberFile, arc_tolerance_mm: f64, rules: &Shape
     }
 }
 
-/// The opening that the paste will see: the pad made smaller by `shrink_percent` of each side.
+/// The opening that the paste will see: the pad made smaller by `shrink_percent` of each side and then by `reduction_mm` on each side.
 pub fn shrunk(o: &Opening, p: &Profile) -> Result<Opening, String> {
     p.validate()?;
     let f = 1.0 - p.shrink_percent / 100.0;
-    Ok(Opening {
-        w: o.w * f,
-        h: o.h * f,
-        ..*o
-    })
+    let (w, h) = (
+        o.w * f - 2.0 * p.reduction_mm,
+        o.h * f - 2.0 * p.reduction_mm,
+    );
+    if w <= 0.0 || h <= 0.0 {
+        return Err(format!("the opening of {:.3} x {:.3} mm at ({:.3}, {:.3}) is gone after the reduction of {} mm on each side", o.w, o.h, o.x, o.y, p.reduction_mm));
+    }
+    Ok(Opening { w, h, ..*o })
 }
 
 /// The line the laser has to follow: the shrunk opening reduced by the kerf (the beam removes half a kerf on each side of the line, so the hole comes out the size that was asked).
