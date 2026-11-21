@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.2] - Sheets from the tool crib and DXF output
+
 - **A sheet of the tool crib sets the stencil:** `--sheet-file SHEETS.csv --sheet NAME` takes a sheet from the table of sheets that the tool crib exports (`export-sheets-csv`): its thickness, its reduction of every opening on each side, its kerf and its two ratio limits replace those of the material. A kerf of 0 in the sheet takes the beam width of the laser given with `--crib` and `--crib-laser` (or `--kerf`), and a ratio limit of 0 gives none. The thickness and the reduction are not given twice (`--thickness` and `--shrink` are refused with a sheet), nor is the kerf when the sheet has one; `--min-aspect` and `--min-area` win over the sheet, and the sheet over the settings file. No figure of a sheet is a default of this program.
 - **The table of sheets is read with the same care as the kerf:** the columns are found by their names, in any order; a file over 1 MiB or a table of more than 10,000 rows is refused; a missing column, a repeated name (in any case), a kind that is not `sheet`, a figure that is not a number or is out of its range is an error that names its row; the protection against formulas that the crib adds is taken off; and a fuzz with a fixed seed shows that a damaged table never panics.
 - **The settings file can choose the sheet:** `sheet_file` and `sheet_name` in `stencil.cfg` do the same as the two options, which win over the file; `eh3d-stencilcam config` lists them as comments.
