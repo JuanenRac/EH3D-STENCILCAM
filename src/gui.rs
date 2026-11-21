@@ -172,6 +172,18 @@ impl App {
                 if ui.checkbox(&mut force, Msg::Force.tr(lang)).changed() {
                     self.win.set_force(force);
                 }
+                let lines = self.win.ratio_texts(5);
+                if !lines.is_empty() {
+                    ui.add_space(8.0);
+                    ui.label(
+                        egui::RichText::new(Msg::RatiosTitle.tr(lang))
+                            .strong()
+                            .color(ACCENT),
+                    );
+                    for line in lines {
+                        ui.label(line);
+                    }
+                }
             });
     }
 

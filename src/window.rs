@@ -4,7 +4,7 @@
 
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
-use crate::openings::{from_gerber_with, mirrored, shrunk, weak, Opening};
+use crate::openings::{from_gerber_with, mirrored, ratios, shrunk, weak, Opening, Ratios};
 use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
@@ -128,6 +128,8 @@ pub struct Window {
     pub cuts: Vec<CutPath>,
     /// The places in `openings` of those that will not release the paste.
     pub weak: Vec<usize>,
+    /// The ratios of each opening as the paste sees it (shrunk), in the same order as `openings`.
+    pub ratios: Vec<Ratios>,
     pub status: Status,
     pub viewport: Viewport,
 }
@@ -145,6 +147,7 @@ impl Window {
             openings: Vec::new(),
             cuts: Vec::new(),
             weak: Vec::new(),
+            ratios: Vec::new(),
             status: Status::Ready,
             viewport: Viewport::default(),
         }
@@ -282,11 +285,21 @@ impl Window {
         self.openings = if self.mirror { mirrored(&raw) } else { raw };
         self.cuts.clear();
         self.weak.clear();
+        self.ratios.clear();
         let shown: Result<Vec<Opening>, String> =
             self.openings.iter().map(|o| shrunk(o, &p)).collect();
-        let found = shown.and_then(|s| weak(&s, p.thickness_mm));
+        let found = shown.and_then(|s| {
+            let all = s
+                .iter()
+                .map(|o| ratios(o, p.thickness_mm))
+                .collect::<Result<Vec<_>, _>>()?;
+            weak(&s, p.thickness_mm).map(|w| (w, all))
+        });
         match found {
-            Ok(list) => self.weak = list.into_iter().map(|(i, _)| i).collect(),
+            Ok((list, all)) => {
+                self.weak = list.into_iter().map(|(i, _)| i).collect();
+                self.ratios = all;
+            }
             Err(why) => {
                 self.status = Status::Failed(why);
                 return false;
@@ -304,6 +317,51 @@ impl Window {
             weak: self.weak.len(),
         });
         true
+    }
+
+    /// The smallest aspect ratio and the smallest area ratio of the openings as the paste sees them; `None` when there are none.
+    pub fn smallest_ratios(&self) -> Option<(f64, f64)> {
+        let aspect = self.ratios.iter().map(|r| r.aspect).reduce(f64::min)?;
+        let area = self.ratios.iter().map(|r| r.area).reduce(f64::min)?;
+        Some((aspect, area))
+    }
+
+    /// The `count` openings with the lowest aspect ratio (then the lowest area ratio), by their places in `openings`, worst first.
+    pub fn weakest(&self, count: usize) -> Vec<(usize, Ratios)> {
+        let mut all: Vec<(usize, Ratios)> = self.ratios.iter().copied().enumerate().collect();
+        all.sort_by(|a, b| {
+            a.1.aspect
+                .total_cmp(&b.1.aspect)
+                .then(a.1.area.total_cmp(&b.1.area))
+                .then(a.0.cmp(&b.0))
+        });
+        all.truncate(count);
+        all
+    }
+
+    /// The sentences the window shows for the ratios, in the language chosen: the smallest ones, then the `count` weakest openings by their numbers (from 1). Empty when there are no openings.
+    pub fn ratio_texts(&self, count: usize) -> Vec<String> {
+        let Some((aspect, area)) = self.smallest_ratios() else {
+            return Vec::new();
+        };
+        let mut out = vec![fill(
+            Msg::RatiosSmallest.tr(self.lang),
+            &[
+                format!("{aspect:.2}").as_str(),
+                format!("{area:.2}").as_str(),
+            ],
+        )];
+        for (i, r) in self.weakest(count) {
+            out.push(fill(
+                Msg::RatiosLine.tr(self.lang),
+                &[
+                    (i + 1).to_string().as_str(),
+                    format!("{:.2}", r.aspect).as_str(),
+                    format!("{:.2}", r.area).as_str(),
+                ],
+            ));
+        }
+        out
     }
 
     /// The name suggested for the file of the stencil: the name of the layer with `.nc`, next to it.
@@ -657,6 +715,49 @@ mod tests {
         assert!(!w.export(Path::new("nothing.nc")));
         assert_eq!(w.status, Status::NoLayer);
         assert!(!w.update());
+    }
+
+    #[test]
+    fn the_window_shows_the_ratios_of_each_opening() {
+        let dir = scratch("ratios");
+        let layer = layer_in(&dir, "paste.gtp", TWO_PADS);
+        let mut w = Window::new(Lang::En);
+        assert!(
+            w.ratio_texts(5).is_empty(),
+            "nothing before a layer is open"
+        );
+        assert_eq!(w.smallest_ratios(), None);
+        w.set_field(0, "0.1".into());
+        assert!(w.open(&layer));
+        assert_eq!(w.ratios.len(), 2);
+        // the pads shrunk by 10 % on a sheet of 0.1 mm: both have aspect ratio 4.5, the first has the smaller area ratio
+        let (aspect, area) = w.smallest_ratios().unwrap();
+        assert!(
+            (aspect - 4.5).abs() < 1e-9 && (area - 1.5).abs() < 1e-9,
+            "{aspect} {area}"
+        );
+        let texts = w.ratio_texts(5);
+        assert_eq!(texts.len(), 3, "{texts:?}");
+        assert_eq!(
+            texts[0],
+            "Smallest aspect ratio 4.50, smallest area ratio 1.50"
+        );
+        assert_eq!(texts[1], "Opening 1: aspect 4.50, area 1.50");
+        assert_eq!(texts[2], "Opening 2: aspect 4.50, area 1.80");
+        assert_eq!(w.ratio_texts(1).len(), 2, "only the weakest one is listed");
+        assert!(w.ratio_texts(0).len() == 1, "the summary alone");
+        assert_eq!(w.weakest(9).len(), 2);
+        // a thicker sheet moves the numbers and the language moves the words
+        w.set_field(0, "0.3".into());
+        let (aspect, _) = w.smallest_ratios().unwrap();
+        assert!((aspect - 1.5).abs() < 1e-9, "{aspect}");
+        w.lang = Lang::Pt;
+        assert!(
+            w.ratio_texts(1)[0].starts_with("Rácio de aspeto mínimo 1.50"),
+            "{:?}",
+            w.ratio_texts(1)
+        );
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

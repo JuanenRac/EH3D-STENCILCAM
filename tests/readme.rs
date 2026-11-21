@@ -80,7 +80,7 @@ fn run(args: &[String], tag: &str) -> (bool, String, String) {
         .expect("the program runs");
     let _ = std::fs::remove_dir_all(&dir);
     (
-        matches!(out.status.code(), Some(0) | Some(1)),
+        matches!(out.status.code(), Some(0) | Some(1) | Some(2)),
         String::from_utf8_lossy(&out.stdout).into_owned(),
         String::from_utf8_lossy(&out.stderr).into_owned(),
     )
@@ -120,7 +120,7 @@ fn the_sample_shows_the_opening_that_will_not_release_the_paste() {
         .current_dir(root())
         .output()
         .expect("the program runs");
-    // the sample has a very small opening on purpose: check says so and the exit code 1 stops a flow
-    assert_eq!(out.status.code(), Some(1));
+    // the sample has a very small opening on purpose: check says so and the exit code 2 (a check that did not pass) stops a flow
+    assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stdout).contains("aspect ratio"));
 }

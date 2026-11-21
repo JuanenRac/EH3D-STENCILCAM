@@ -436,7 +436,7 @@ fn check_json_prints_one_object_and_only_check_takes_it() {
     assert!(!nc.exists());
     // a thick sheet makes the openings weak: the exit code says it and the object lists them
     let (code, out, _) = run(&["check", &l, "--shrink", "0", "--thickness", "0.5", "--json"]);
-    assert_eq!(code, Some(1));
+    assert_eq!(code, Some(2));
     assert!(out.contains("\"weak\":[{\"opening\":1"), "{out}");
     let _ = fs::remove_dir_all(&dir);
 }

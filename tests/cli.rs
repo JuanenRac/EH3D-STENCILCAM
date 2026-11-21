@@ -139,14 +139,14 @@ fn convert_writes_nothing_when_an_opening_will_not_release_the_paste_unless_forc
     let out = dir.join("out.nc");
     let (l, o) = (layer.to_str().unwrap(), out.to_str().unwrap());
     let (c, _, e) = run_full(&["convert", l, o, "--thickness", "0.2", "--kerf", "0"]);
-    assert_eq!(c, Some(1));
+    assert_eq!(c, Some(2), "a check that did not pass is the code 2");
     assert!(
         e.contains("will not release the paste") && e.contains("opening 1"),
         "{e}"
     );
     assert!(!out.exists());
     let (c, _, e) = run_full(&["check", l, "--thickness", "0.2"]);
-    assert_eq!(c, Some(1));
+    assert_eq!(c, Some(2));
     assert!(e.contains("1 openings will not release"), "{e}");
     assert_eq!(
         run_full(&[

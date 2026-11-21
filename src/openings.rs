@@ -22,16 +22,169 @@ pub struct Opening {
 }
 
 /// The openings of a paste layer and what could not be turned into one (with the reason, once each). The shapes come from the same conversion of apertures that the Gerber viewer
-/// of the suite uses: a circle, a rectangle or an obround pad is an opening; tracks and regions are not, and anything the conversion could not draw is a note.
+/// of the suite uses: a circle, a rectangle or an obround pad is an opening, a track along an axis and a region that is a rectangle are too (see [`from_gerber_rules`]), and anything that could not become one is a note with its reason.
 pub fn from_gerber(file: &GerberFile) -> (Vec<Opening>, Vec<String>) {
     from_gerber_with(file, scene::DEFAULT_ARC_TOLERANCE_MM)
 }
 
 /// The same, with the largest distance, in mm, between an arc and the polygon drawn for it.
 pub fn from_gerber_with(file: &GerberFile, arc_tolerance_mm: f64) -> (Vec<Opening>, Vec<String>) {
+    let shaped = from_gerber_rules(file, arc_tolerance_mm, &ShapeRules::default());
+    (shaped.openings, shaped.notes)
+}
+
+/// How the shapes that are not flashed pads become openings.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ShapeRules {
+    /// A region (a pad drawn as an outline, such as a macro pad with rounded corners) that fills its enclosing rectangle by at least 100 minus this percent is opened as that
+    /// rectangle. 0 opens only a region that is exactly a rectangle.
+    pub region_fit_percent: f64,
+}
+
+/// The most that `region_fit_percent` may be.
+pub const MAX_REGION_FIT_PERCENT: f64 = 20.0;
+
+impl Default for ShapeRules {
+    fn default() -> Self {
+        ShapeRules {
+            region_fit_percent: 0.0,
+        }
+    }
+}
+
+impl ShapeRules {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.region_fit_percent.is_finite()
+            && (0.0..=MAX_REGION_FIT_PERCENT).contains(&self.region_fit_percent)
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "region_fit_percent is {}: it must be from 0 to {MAX_REGION_FIT_PERCENT}",
+                self.region_fit_percent
+            ))
+        }
+    }
+}
+
+/// What a paste layer gives: the openings, what could not become one (each with its reason, and the stencil would be incomplete) and what was approximated on purpose (the stencil is
+/// complete, but a shape was changed, and the person is told).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Shaped {
+    pub openings: Vec<Opening>,
+    pub notes: Vec<String>,
+    pub approximated: Vec<String>,
+}
+
+/// The distance, in mm, under which two coordinates are the same line.
+const AXIS_EPS_MM: f64 = 1e-6;
+/// How many reasons are written one by one before the rest are counted.
+const MAX_REASONS: usize = 5;
+
+fn stroke_opening(x0: f64, y0: f64, x1: f64, y1: f64, w: f64) -> Result<Opening, String> {
+    if ![x0, y0, x1, y1, w].iter().all(|v| v.is_finite()) || w <= 0.0 {
+        return Err("a track with no usable width or place".into());
+    }
+    let (dx, dy) = ((x1 - x0).abs(), (y1 - y0).abs());
+    let (cx, cy) = ((x0 + x1) / 2.0, (y0 + y1) / 2.0);
+    if dx <= AXIS_EPS_MM && dy <= AXIS_EPS_MM {
+        Ok(Opening {
+            x: cx,
+            y: cy,
+            w,
+            h: w,
+            form: Form::Round,
+        })
+    } else if dy <= AXIS_EPS_MM {
+        Ok(Opening {
+            x: cx,
+            y: cy,
+            w: dx + w,
+            h: w,
+            form: Form::Obround,
+        })
+    } else if dx <= AXIS_EPS_MM {
+        Ok(Opening {
+            x: cx,
+            y: cy,
+            w,
+            h: dy + w,
+            form: Form::Obround,
+        })
+    } else {
+        Err(format!("a track at an angle, from ({x0:.3}, {y0:.3}) to ({x1:.3}, {y1:.3}), cannot be an opening: only tracks along the axes can"))
+    }
+}
+
+/// A region as an opening: the rectangle it is, or (when the rules allow it) the enclosing rectangle of a region that nearly fills it; the second value says that it was approximated.
+fn region_opening(pts: &[(f64, f64)], rules: &ShapeRules) -> Result<(Opening, bool), String> {
+    if pts.iter().any(|p| !(p.0.is_finite() && p.1.is_finite())) {
+        return Err("a region with a corner that is not a number".into());
+    }
+    let mut v: Vec<(f64, f64)> = pts.to_vec();
+    if v.len() > 1 && v[0] == v[v.len() - 1] {
+        v.pop();
+    }
+    if v.len() < 3 {
+        return Err("a region with fewer than three corners".into());
+    }
+    let (mut x_min, mut x_max, mut y_min, mut y_max) = (
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+        f64::INFINITY,
+        f64::NEG_INFINITY,
+    );
+    for p in &v {
+        x_min = x_min.min(p.0);
+        x_max = x_max.max(p.0);
+        y_min = y_min.min(p.1);
+        y_max = y_max.max(p.1);
+    }
+    let (bw, bh) = (x_max - x_min, y_max - y_min);
+    if bw <= AXIS_EPS_MM || bh <= AXIS_EPS_MM {
+        return Err("a region with no area".into());
+    }
+    let area = (0..v.len())
+        .map(|i| {
+            let (a, b) = (v[i], v[(i + 1) % v.len()]);
+            a.0 * b.1 - b.0 * a.1
+        })
+        .sum::<f64>()
+        .abs()
+        / 2.0;
+    let rect = Opening {
+        x: (x_min + x_max) / 2.0,
+        y: (y_min + y_max) / 2.0,
+        w: bw,
+        h: bh,
+        form: Form::Rectangle,
+    };
+    let axis_aligned = (0..v.len()).all(|i| {
+        let (a, b) = (v[i], v[(i + 1) % v.len()]);
+        (a.0 - b.0).abs() <= AXIS_EPS_MM || (a.1 - b.1).abs() <= AXIS_EPS_MM
+    });
+    let fill = area / (bw * bh) * 100.0;
+    if v.len() == 4 && axis_aligned && fill >= 100.0 - 1e-6 {
+        return Ok((rect, false));
+    }
+    if rules.region_fit_percent > 0.0 && fill >= 100.0 - rules.region_fit_percent {
+        return Ok((rect, true));
+    }
+    Err(format!(
+        "a region of {} corners at ({:.3}, {:.3}) is not a rectangle (it fills {:.1} % of its enclosing rectangle); region_fit_percent opens one that fills nearly all of it",
+        v.len(),
+        rect.x,
+        rect.y,
+        fill
+    ))
+}
+
+/// The same as [`from_gerber_with`] with the rules for the shapes that are not flashed pads: a track along an axis is an obround opening (a round one when it is a point), a region that
+/// is a rectangle is a rectangular one, and a region that nearly fills its enclosing rectangle may be one when `rules` say so. Every other track or region is a note with its reason.
+pub fn from_gerber_rules(file: &GerberFile, arc_tolerance_mm: f64, rules: &ShapeRules) -> Shaped {
     let scene = scene::from_gerber_with(file, &scene::SceneOptions { arc_tolerance_mm });
     let (mut out, mut notes) = (Vec::new(), scene.notes.clone());
-    let mut skipped = false;
+    let (mut reasons, mut approximated) = (Vec::new(), 0usize);
     for shape in &scene.shapes {
         match *shape {
             Shape::Disc { x, y, r } => out.push(Opening {
@@ -55,14 +208,41 @@ pub fn from_gerber_with(file: &GerberFile, arc_tolerance_mm: f64) -> (Vec<Openin
                 h,
                 form: Form::Obround,
             }),
-            Shape::Stroke { .. } | Shape::Region { .. } => skipped = true,
+            Shape::Stroke { x0, y0, x1, y1, w } => match stroke_opening(x0, y0, x1, y1, w) {
+                Ok(o) => out.push(o),
+                Err(why) => reasons.push(why),
+            },
+            Shape::Region { ref pts } => match region_opening(pts, rules) {
+                Ok((o, approx)) => {
+                    approximated += usize::from(approx);
+                    out.push(o);
+                }
+                Err(why) => reasons.push(why),
+            },
         }
     }
-    if skipped {
-        notes.push("tracks and regions of a paste layer are not turned into openings".into());
+    let total = reasons.len();
+    notes.extend(reasons.into_iter().take(MAX_REASONS));
+    if total > MAX_REASONS {
+        notes.push(format!(
+            "{} more tracks or regions of the paste layer cannot become openings",
+            total - MAX_REASONS
+        ));
     }
+    let approximated = if approximated > 0 {
+        vec![format!(
+            "{approximated} region(s) were opened as their enclosing rectangle (region_fit_percent {})",
+            rules.region_fit_percent
+        )]
+    } else {
+        Vec::new()
+    };
     out.retain(|o| o.w > 0.0 && o.h > 0.0);
-    (out, notes)
+    Shaped {
+        openings: out,
+        notes,
+        approximated,
+    }
 }
 
 /// The opening that the paste will see: the pad made smaller by `shrink_percent` of each side.
@@ -96,6 +276,53 @@ pub struct Ratios {
 
 pub const MIN_ASPECT: f64 = 1.5;
 pub const MIN_AREA: f64 = 0.66;
+/// The range of the aspect ratio limit and of the area ratio limit that may be asked for.
+pub const ASPECT_LIMIT_RANGE: (f64, f64) = (0.5, 10.0);
+pub const AREA_LIMIT_RANGE: (f64, f64) = (0.1, 2.0);
+
+/// The two limits under which an opening does not release the paste.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Limits {
+    pub min_aspect: f64,
+    pub min_area: f64,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Limits {
+            min_aspect: MIN_ASPECT,
+            min_area: MIN_AREA,
+        }
+    }
+}
+
+impl Limits {
+    pub fn validate(&self) -> Result<(), String> {
+        let range = |name: &str, v: f64, (lo, hi): (f64, f64)| {
+            if v.is_finite() && v >= lo && v <= hi {
+                Ok(())
+            } else {
+                Err(format!("{name} is {v}: it must be from {lo} to {hi}"))
+            }
+        };
+        range("min_aspect", self.min_aspect, ASPECT_LIMIT_RANGE)?;
+        range("min_area", self.min_area, AREA_LIMIT_RANGE)
+    }
+}
+
+/// The thickest sheet, in mm, for which the opening still meets both limits: its smaller side over the aspect limit, and the area ratio of the form over the area limit.
+pub fn max_thickness_mm(o: &Opening, limits: &Limits) -> f64 {
+    let by_aspect = o.w.min(o.h) / limits.min_aspect;
+    // area ratio = opening area / (perimeter x thickness)
+    let (area, perimeter) = match o.form {
+        Form::Round => (
+            std::f64::consts::PI * (o.w / 2.0) * (o.w / 2.0),
+            std::f64::consts::PI * o.w,
+        ),
+        _ => (o.w * o.h, 2.0 * (o.w + o.h)),
+    };
+    by_aspect.min(area / (perimeter * limits.min_area))
+}
 
 /// The two ratios of an opening for a sheet of `thickness_mm`, computed on the size that the paste will see (the opening as it is cut).
 pub fn ratios(o: &Opening, thickness_mm: f64) -> Result<Ratios, String> {
@@ -122,14 +349,27 @@ pub fn ratios(o: &Opening, thickness_mm: f64) -> Result<Ratios, String> {
 
 /// The openings whose ratios are below the limits, with the reason.
 pub fn weak(openings: &[Opening], thickness_mm: f64) -> Result<Vec<(usize, String)>, String> {
+    weak_with(openings, thickness_mm, &Limits::default())
+}
+
+/// The same with the limits given: each reason names the ratio, its limit and the thickest sheet for which the opening would do.
+pub fn weak_with(
+    openings: &[Opening],
+    thickness_mm: f64,
+    limits: &Limits,
+) -> Result<Vec<(usize, String)>, String> {
+    limits.validate()?;
     let mut out = Vec::new();
     for (i, o) in openings.iter().enumerate() {
         let r = ratios(o, thickness_mm)?;
-        if r.aspect < MIN_ASPECT {
-            out.push((i, format!("opening {} ({:.3} x {:.3} mm at ({:.3}, {:.3})): aspect ratio {:.2} is below {MIN_ASPECT}; the paste will stay in it", i + 1, o.w, o.h, o.x, o.y, r.aspect)));
-        } else if r.area < MIN_AREA {
-            out.push((i, format!("opening {} ({:.3} x {:.3} mm at ({:.3}, {:.3})): area ratio {:.2} is below {MIN_AREA}; the paste will stay in it", i + 1, o.w, o.h, o.x, o.y, r.area)));
-        }
+        let (name, value, limit) = if r.aspect < limits.min_aspect {
+            ("aspect", r.aspect, limits.min_aspect)
+        } else if r.area < limits.min_area {
+            ("area", r.area, limits.min_area)
+        } else {
+            continue;
+        };
+        out.push((i, format!("opening {} ({:.3} x {:.3} mm at ({:.3}, {:.3})): {name} ratio {value:.2} is below {limit}; the paste will stay in it (a sheet up to {:.3} mm thick would do)", i + 1, o.w, o.h, o.x, o.y, max_thickness_mm(o, limits))));
     }
     Ok(out)
 }

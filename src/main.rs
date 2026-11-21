@@ -10,9 +10,10 @@ use eh3d_serverclient::Settings as LinkSettings;
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
+use eh3d_stencilcam::openings;
 use eh3d_stencilcam::openings::{
-    check_json, deduplicated, from_gerber_with, mirrored, narrow_webs, ratios, shrunk, summary,
-    weak,
+    check_json, deduplicated, from_gerber_rules, mirrored, narrow_webs, ratios, shrunk, summary,
+    weak_with,
 };
 use eh3d_stencilcam::output::{
     duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, move_to_origin,
@@ -27,11 +28,11 @@ use std::process::ExitCode;
 const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer of a board
 
   eh3d-stencilcam convert LAYER.gtp|DRAWING.dxf OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
-                  [--kerf MM] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
+                  [--kerf MM | --crib FILE.csv --crib-laser NAME] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
                   [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force]
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
   eh3d-stencilcam server [status] [--config FILE]   the link to the EH3D server (server_address, server_token, server_machine, server_timeout_s, server_retries, server_mdns and server_max_answer_mib of stencil.cfg) and what the server answers
-  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--json]
+  eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--min-aspect N] [--min-area N] [--region-fit PERCENT] [--json]
   eh3d-stencilcam [gui] [LAYER.gtp]  the window (a build with --features gui): with no arguments, or with a single layer, it opens; the commands above never open it
   eh3d-stencilcam gui [FILE...] --shot OUT.png [--size WxH] [--theme forge|dark|light] [--wait N] [--lang CODE] [--replace]   a picture of the window (a build with --features gui)
 
@@ -42,15 +43,26 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --laser-wait SECONDS writes a G4 wait after each M3 so that the laser reaches its power before the head moves (0 by default: no wait).
 --lead-in MM and --lead-out MM (0.3 by default, 0 to 5) add a straight lead-in before each contour and a lead-out after it, tangent to the contour and outside the opening, with the laser off until the start of the lead-in; 0 writes none. G-code only.
 --lead-in-round MM, --lead-out-round MM, --lead-in-rect MM and --lead-out-rect MM give the leads of the round openings and of the rectangular ones (0 to 5); one that is not given is the --lead-in or --lead-out value. The obround openings use --lead-in and --lead-out.
+--crib FILE.csv --crib-laser NAME takes the kerf from the beam width of a laser tool in the CSV that the tool crib of the suite exports (a file over 1 MiB is refused); it replaces --kerf.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
 --origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when a point of a contour falls outside the bed 0..WIDTH by 0..HEIGHT (the leads are not counted).
---config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes, min_web_mm); the options win over the file.
+--config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes, min_web_mm, min_aspect, min_area, region_fit_percent); the options win over the file.
+--min-aspect N (0.5 to 10, 1.5 by default) and --min-area N (0.1 to 2, 0.66 by default) are the limits under which an opening does not release the paste; each reason in check and in convert names the ratio, its limit and the thickest sheet for which the opening would do. A track along an axis and a region that is a rectangle become openings; --region-fit PERCENT (0 to 20, 0 by default) also opens a region that fills at least 100 minus PERCENT of its enclosing rectangle (a pad with rounded corners) as that rectangle, with a note.
 --min-web MM (0.1 by default, 0 to 5; 0 gives no warning) warns, in check and in convert, of two openings whose web (the sheet that stays between them) is narrower, or that touch or overlap; it never stops convert. Two openings of the same form, size and place are one hole: the second is left out, with a note on the standard error. check prints how many openings there are of each form and the paste they hold; check --json prints that and the rest of the result as one JSON object.
 --feed MM_MIN (1 to 30000, 600 by default) is the speed of the cut, --smax N (1 to 100000, 1000 by default) the top of the laser power scale and --passes N (1 to 10, 1 by default) how many times every contour is cut, all the contours once before the next pass.
 A file ending in .dxf is a drawing: its circles are round openings and its closed rectangles with the sides along the axes are rectangular ones (the unit of the drawing is read); any other entity is a note and, as for a layer, convert refuses to write unless --force is given.
 
 OUT ending in .plt is HP-GL for a plotter; anything else is G-code for a laser. convert refuses to write when an opening cannot release the paste (aspect ratio under 1.5 or
-area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.";
+area ratio under 0.66), or when the layer has pads, tracks or regions that cannot become openings, unless --force is given. --mirror is for the stencil of the bottom side.
+
+Exit codes: 0 done; 1 a mistake in what was asked or a file that cannot be read or written; 2 a check that did not pass (an opening that will not release the paste in check or convert, or a layer that cannot all become openings).";
+
+/// The mark in front of an error that is a check that did not pass (the exit code is 2) and not a mistake in what was asked (the exit code is 1).
+const NOT_PASSED: char = '\u{1}';
+
+fn not_passed(text: String) -> String {
+    format!("{NOT_PASSED}{text}")
+}
 
 /// The link to the EH3D server for `--to-server`: the keys of the settings file, which must name a server and hold its token.
 fn link_settings(config: Option<&str>) -> Result<LinkSettings, String> {
@@ -126,7 +138,20 @@ fn profile(args: &mut Vec<String>) -> Result<Profile, String> {
     if let Some(v) = flag(args, "--radius")? {
         p.corner_radius_mm = num(&v, "--radius")?;
     }
-    if let Some(v) = flag(args, "--kerf")? {
+    let crib = flag(args, "--crib")?;
+    let laser = flag(args, "--crib-laser")?;
+    let kerf = flag(args, "--kerf")?;
+    match (&crib, &laser) {
+        (Some(file), Some(name)) => {
+            if kerf.is_some() {
+                return Err("--kerf and --crib give the kerf twice: use one".into());
+            }
+            p.kerf_mm = eh3d_stencilcam::crib::kerf_from_file(file, name)?;
+        }
+        (None, None) => {}
+        _ => return Err("--crib FILE and --crib-laser NAME go together".into()),
+    }
+    if let Some(v) = kerf {
         p.kerf_mm = num(&v, "--kerf")?;
     }
     p.validate()?;
@@ -196,6 +221,22 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     let min_web = match flag(&mut args, "--min-web")? {
         Some(v) => config::parse_min_web("--min-web", &v)?,
         None => settings.min_web_mm,
+    };
+    let limits = openings::Limits {
+        min_aspect: match flag(&mut args, "--min-aspect")? {
+            Some(v) => config::parse_min_aspect("--min-aspect", &v)?,
+            None => settings.min_aspect,
+        },
+        min_area: match flag(&mut args, "--min-area")? {
+            Some(v) => config::parse_min_area("--min-area", &v)?,
+            None => settings.min_area,
+        },
+    };
+    let rules = openings::ShapeRules {
+        region_fit_percent: match flag(&mut args, "--region-fit")? {
+            Some(v) => config::parse_region_fit("--region-fit", &v)?,
+            None => settings.region_fit_percent,
+        },
     };
     let json = switch(&mut args, "--json");
     let to_server = switch(&mut args, "--to-server");
@@ -283,8 +324,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         (o, n, Vec::new(), 0)
     } else {
         let reading = read_layer(&bytes, max_bytes, &hide).map_err(|e| format!("{layer}: {e}"))?;
-        let (o, n) = from_gerber_with(&reading.file, arc_tolerance);
-        (o, n, reading.shown, reading.errors)
+        let shaped = from_gerber_rules(&reading.file, arc_tolerance, &rules);
+        let mut shown = reading.shown;
+        shown.extend(shaped.approximated);
+        (shaped.openings, shaped.notes, shown, reading.errors)
     };
     // the same hole twice is cut once: the second burns the edge of the first
     let (unique, duplicates_removed) = deduplicated(&openings, 0.001);
@@ -307,16 +350,16 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
     // a stencil that leaves out pads is not the stencil of the board: it is written only when it is asked for
     if cmd == "convert" && !notes.is_empty() && !force {
-        return Err(format!(
+        return Err(not_passed(format!(
             "{} part(s) of the layer cannot become openings (see the notes above): the stencil would be incomplete; use --force to write it anyway",
             notes.len()
-        ));
+        )));
     }
     let shown: Vec<_> = openings
         .iter()
         .map(|o| shrunk(o, &p))
         .collect::<Result<_, _>>()?;
-    let problems = weak(&shown, p.thickness_mm)?;
+    let problems = weak_with(&shown, p.thickness_mm, &limits)?;
     let webs = narrow_webs(&shown, min_web);
     if json && cmd != "check" {
         return Err("--json is an option of check".into());
@@ -367,10 +410,10 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if problems.is_empty() {
                 Ok(())
             } else {
-                Err(format!(
+                Err(not_passed(format!(
                     "{} openings will not release the paste",
                     problems.len()
-                ))
+                )))
             }
         }
         "check" => {
@@ -385,7 +428,7 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
                 p.shrink_percent
             );
             if let Some(a) = all.iter().map(|r| r.aspect).reduce(f64::min) {
-                println!("smallest aspect ratio {a:.2} (at least 1.5), smallest area ratio {:.2} (at least 0.66)", all.iter().map(|r| r.area).fold(f64::INFINITY, f64::min));
+                println!("smallest aspect ratio {a:.2} (at least {}), smallest area ratio {:.2} (at least {})", limits.min_aspect, all.iter().map(|r| r.area).fold(f64::INFINITY, f64::min), limits.min_area);
             }
             let s = summary(&shown, p.thickness_mm);
             println!(
@@ -398,16 +441,16 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if problems.is_empty() {
                 Ok(())
             } else {
-                Err(format!(
+                Err(not_passed(format!(
                     "{} openings will not release the paste",
                     problems.len()
-                ))
+                )))
             }
         }
         "convert" => {
             let out = args.get(1).ok_or("convert needs an output file")?;
             if !problems.is_empty() && !force {
-                return Err(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n")));
+                return Err(not_passed(format!("{} openings will not release the paste (run check to see them, or --force):\n{}", problems.len(), problems.iter().map(|(_, m)| m.as_str()).collect::<Vec<_>>().join("\n"))));
             }
             let mut once = paths(&openings, &p)?;
             if let Some(o) = origin {
@@ -574,9 +617,15 @@ fn main() -> ExitCode {
     }
     match run(args) {
         Ok(()) => ExitCode::SUCCESS,
-        Err(e) => {
-            eprintln!("error: {e}");
-            ExitCode::from(1)
-        }
+        Err(e) => match e.strip_prefix(NOT_PASSED) {
+            Some(text) => {
+                eprintln!("error: {text}");
+                ExitCode::from(2)
+            }
+            None => {
+                eprintln!("error: {e}");
+                ExitCode::from(1)
+            }
+        },
     }
 }

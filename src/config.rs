@@ -3,7 +3,7 @@
 //! `--laser-wait`, `--rapid`), which win over the file. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm` and `lead_out_rect_mm` (`--lead-in-round`, `--lead-out-round`, `--lead-in-rect`, `--lead-out-rect`) give the
 //! leads of the round and of the rectangular openings; one that is not given is the lead-in or the lead-out of every other opening. `feed_mm_min` (`--feed`, the speed of the cut), `smax`
 //! (`--smax`, the top of the laser power scale) and `passes` (`--passes`, how many times every contour is cut, for a thick material) complete the cut; their defaults are the conservative ones
-//! (600 mm/min, 1000 and one pass). The keys `server_address`, `server_token`, `server_machine`, `server_timeout_s`, `server_retries`, `server_mdns` and `server_max_answer_mib` set the link to the EH3D server (see `server`).
+//! (600 mm/min, 1000 and one pass). `min_aspect` and `min_area` (`--min-aspect`, `--min-area`) are the ratio limits under which an opening is said not to release the paste and `region_fit_percent` (`--region-fit`) lets a region that nearly fills its enclosing rectangle be opened as that rectangle. The keys `server_address`, `server_token`, `server_machine`, `server_timeout_s`, `server_retries`, `server_mdns` and `server_max_answer_mib` set the link to the EH3D server (see `server`).
 //! A line that makes no sense is an error that says its number.
 
 use crate::output::{FormLeads, Lead, MAX_LEAD_MM};
@@ -25,6 +25,8 @@ pub const MAX_PASSES: u32 = 10;
 /// The default narrowest web (the sheet that stays between two openings) that is not warned about, in mm, and the most that may be asked for (0 gives no warning).
 pub const DEFAULT_MIN_WEB_MM: f64 = 0.1;
 pub const MAX_MIN_WEB_MM: f64 = 5.0;
+/// The ratio limits under which an opening does not release the paste: their defaults (IPC-7525) and the ranges that may be asked for.
+pub use crate::openings::{AREA_LIMIT_RANGE, ASPECT_LIMIT_RANGE, MAX_REGION_FIT_PERCENT};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Settings {
@@ -52,6 +54,12 @@ pub struct Settings {
     pub passes: u32,
     /// The narrowest web between two openings that is not warned about, from 0 to 5 mm (0: no warning).
     pub min_web_mm: f64,
+    /// The smallest aspect ratio (smaller side over thickness) of an opening that releases the paste, from 0.5 to 10 (1.5 by default).
+    pub min_aspect: f64,
+    /// The smallest area ratio (area of the opening over the area of its walls) that releases the paste, from 0.1 to 2 (0.66 by default).
+    pub min_area: f64,
+    /// A region that fills at least 100 minus this percent of its enclosing rectangle is opened as that rectangle, from 0 to 20 (0: only an exact rectangle).
+    pub region_fit_percent: f64,
 }
 
 impl Settings {
@@ -89,8 +97,51 @@ impl Default for Settings {
             smax: DEFAULT_SMAX,
             passes: 1,
             min_web_mm: DEFAULT_MIN_WEB_MM,
+            min_aspect: crate::openings::MIN_ASPECT,
+            min_area: crate::openings::MIN_AREA,
+            region_fit_percent: 0.0,
         }
     }
+}
+
+impl Settings {
+    /// The two ratio limits.
+    pub fn limits(&self) -> crate::openings::Limits {
+        crate::openings::Limits {
+            min_aspect: self.min_aspect,
+            min_area: self.min_area,
+        }
+    }
+
+    /// The rules for the shapes that are not flashed pads.
+    pub fn shape_rules(&self) -> crate::openings::ShapeRules {
+        crate::openings::ShapeRules {
+            region_fit_percent: self.region_fit_percent,
+        }
+    }
+}
+
+fn number_between(name: &str, text: &str, (low, high): (f64, f64)) -> Result<f64, String> {
+    text.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|v| v.is_finite() && (low..=high).contains(v))
+        .ok_or_else(|| format!("{name} '{text}' must be a number from {low} to {high}"))
+}
+
+/// The aspect ratio limit as the file or the command line gives it: from 0.5 to 10.
+pub fn parse_min_aspect(name: &str, text: &str) -> Result<f64, String> {
+    number_between(name, text, ASPECT_LIMIT_RANGE)
+}
+
+/// The area ratio limit as the file or the command line gives it: from 0.1 to 2.
+pub fn parse_min_area(name: &str, text: &str) -> Result<f64, String> {
+    number_between(name, text, AREA_LIMIT_RANGE)
+}
+
+/// How much of its enclosing rectangle a region may leave empty and still be opened as that rectangle, in percent: from 0 to 20.
+pub fn parse_region_fit(name: &str, text: &str) -> Result<f64, String> {
+    number_between(name, text, (0.0, MAX_REGION_FIT_PERCENT))
 }
 
 fn number_in(name: &str, text: &str, max: f64, unit: &str) -> Result<f64, String> {
@@ -195,6 +246,9 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "smax",
             "passes",
             "min_web_mm",
+            "min_aspect",
+            "min_area",
+            "region_fit_percent",
         ];
         let Some(&name) = known.iter().find(|k| **k == key) else {
             return Err(format!("line {n}: '{key}' is not a setting"));
@@ -218,9 +272,30 @@ pub fn parse(text: &str) -> Result<Settings, String> {
             "passes" => {
                 settings.passes = parse_passes(name, value).map_err(|e| format!("line {n}: {e}"))?
             }
+            "min_aspect" => {
+                settings.min_aspect =
+                    parse_min_aspect(name, value).map_err(|e| format!("line {n}: {e}"))?
+            }
+            "min_area" => {
+                settings.min_area =
+                    parse_min_area(name, value).map_err(|e| format!("line {n}: {e}"))?
+            }
+            "region_fit_percent" => {
+                settings.region_fit_percent =
+                    parse_region_fit(name, value).map_err(|e| format!("line {n}: {e}"))?
+            }
             _ => {}
         }
-        if matches!(name, "feed_mm_min" | "smax" | "passes" | "min_web_mm") {
+        if matches!(
+            name,
+            "feed_mm_min"
+                | "smax"
+                | "passes"
+                | "min_web_mm"
+                | "min_aspect"
+                | "min_area"
+                | "region_fit_percent"
+        ) {
             continue;
         }
         let parsed = match name {
@@ -247,7 +322,7 @@ pub fn parse(text: &str) -> Result<Settings, String> {
 pub fn default_file() -> String {
     let d = Settings::default();
     format!(
-        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n# the narrowest web, the sheet that stays between two openings, that is not warned about (0 to {MAX_MIN_WEB_MM} mm, 0 for no warning)\nmin_web_mm = {}\n",
+        "# EH3D-STENCILCAM settings\n# the straight lead-in before each contour, tangent to its first segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_in_mm = {}\n# the straight lead-out after each contour, tangent to its last segment (0 to {MAX_LEAD_MM} mm, 0 for none)\nlead_out_mm = {}\n# the wait after the laser is switched on (0 to {MAX_LASER_WAIT_S} seconds, 0 for none)\nlaser_wait_s = {}\n# the speed of the moves with the laser off, to estimate the time of the job (100 to 100000 mm/min, 0 for no estimate)\nrapid_mm_min = {}\n# the leads of a round opening and of a rectangular one, when they are not the ones above (0 to {MAX_LEAD_MM} mm); take the # off to use them\n# lead_in_round_mm = {}\n# lead_out_round_mm = {}\n# lead_in_rect_mm = {}\n# lead_out_rect_mm = {}\n# the speed of the cut (1 to 30000 mm/min)\nfeed_mm_min = {}\n# the top of the laser power scale, the S of the G-code (1 to 100000)\nsmax = {}\n# how many times every contour is cut (1 to {MAX_PASSES}; more for a thick material)\npasses = {}\n# the narrowest web, the sheet that stays between two openings, that is not warned about (0 to {MAX_MIN_WEB_MM} mm, 0 for no warning)\nmin_web_mm = {}\n# the smallest aspect ratio, the smaller side of an opening over the thickness of the sheet, that releases the paste ({} to {}; 1.5 by the IPC guideline)\nmin_aspect = {}\n# the smallest area ratio, the area of an opening over the area of its walls, that releases the paste ({} to {}; 0.66 by the IPC guideline)\nmin_area = {}\n# a region (a pad drawn as an outline) that fills at least 100 minus this percent of its enclosing rectangle is opened as that rectangle (0 to {MAX_REGION_FIT_PERCENT}; 0 opens only an exact rectangle)\nregion_fit_percent = {}\n",
         d.lead_in_mm,
         d.lead_out_mm,
         d.laser_wait_s,
@@ -259,6 +334,13 @@ pub fn default_file() -> String {
         d.feed_mm_min,
         d.smax,
         d.passes,
-        d.min_web_mm
+        d.min_web_mm,
+        ASPECT_LIMIT_RANGE.0,
+        ASPECT_LIMIT_RANGE.1,
+        d.min_aspect,
+        AREA_LIMIT_RANGE.0,
+        AREA_LIMIT_RANGE.1,
+        d.min_area,
+        d.region_fit_percent
     )
 }

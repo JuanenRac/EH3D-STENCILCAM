@@ -625,14 +625,15 @@ fn paths_stop_at_the_first_opening_that_disappears_and_name_it() {
 }
 
 #[test]
-fn a_flash_of_zero_size_makes_no_opening_and_tracks_and_regions_are_noted_once() {
+fn a_flash_of_zero_size_makes_no_opening_and_a_region_that_is_not_a_rectangle_is_noted_once() {
     let text = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10C,0*%\n%ADD11C,0.5*%\nD10*\nX10000Y10000D03*\nD11*\nX20000Y20000D03*\nX0Y0D02*\nX10000Y0D01*\nX10000Y10000D01*\nG36*\nX0Y0D02*\nX10000Y0D01*\nX10000Y10000D01*\nG37*\nM02*\n";
     let (o, notes) = from_gerber(&eh3d_parser_gerber::parse(text));
-    assert_eq!(o.len(), 1, "{o:?}");
+    // the flash of 0.5 and the two tracks along the axes are openings; the triangle is a note with its reason
+    assert_eq!(o.len(), 3, "{o:?}");
     assert_eq!(
         notes
             .iter()
-            .filter(|n| n.contains("tracks and regions"))
+            .filter(|n| n.contains("is not a rectangle"))
             .count(),
         1,
         "{notes:?}"

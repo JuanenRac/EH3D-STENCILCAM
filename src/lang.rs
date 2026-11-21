@@ -127,10 +127,13 @@ pub enum Msg {
     Weak,
     BadValue,
     SameFile,
+    RatiosTitle,
+    RatiosSmallest,
+    RatiosLine,
 }
 
 impl Msg {
-    pub const ALL: [Msg; 39] = [
+    pub const ALL: [Msg; 42] = [
         Msg::Open,
         Msg::Export,
         Msg::Language,
@@ -170,6 +173,9 @@ impl Msg {
         Msg::Weak,
         Msg::BadValue,
         Msg::SameFile,
+        Msg::RatiosTitle,
+        Msg::RatiosSmallest,
+        Msg::RatiosLine,
     ];
 
     /// The words in the order English, Spanish, German, French, Italian, Japanese, Chinese, Portuguese.
@@ -564,6 +570,36 @@ impl Msg {
                 "出力ファイルがレイヤーそのものです。別の名前を選んでください",
                 "输出文件就是该层本身；请选择其他名称",
                 "O ficheiro de saída é a própria camada; escolha outro nome",
+            ],
+            Msg::RatiosTitle => [
+                "Ratios",
+                "Relaciones",
+                "Verhältnisse",
+                "Rapports",
+                "Rapporti",
+                "比率",
+                "比值",
+                "Rácios",
+            ],
+            Msg::RatiosSmallest => [
+                "Smallest aspect ratio {0}, smallest area ratio {1}",
+                "Relación de aspecto mínima {0}, relación de área mínima {1}",
+                "Kleinstes Aspektverhältnis {0}, kleinstes Flächenverhältnis {1}",
+                "Rapport d'aspect minimal {0}, rapport de surface minimal {1}",
+                "Rapporto d'aspetto minimo {0}, rapporto d'area minimo {1}",
+                "最小アスペクト比 {0}、最小面積比 {1}",
+                "最小纵横比 {0}，最小面积比 {1}",
+                "Rácio de aspeto mínimo {0}, rácio de área mínimo {1}",
+            ],
+            Msg::RatiosLine => [
+                "Opening {0}: aspect {1}, area {2}",
+                "Abertura {0}: aspecto {1}, área {2}",
+                "Öffnung {0}: Aspekt {1}, Fläche {2}",
+                "Ouverture {0} : aspect {1}, surface {2}",
+                "Apertura {0}: aspetto {1}, area {2}",
+                "開口 {0}：アスペクト {1}、面積 {2}",
+                "开口 {0}：纵横 {1}，面积 {2}",
+                "Abertura {0}: aspeto {1}, área {2}",
             ],
         }
     }
