@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because no stencil has been cut with these files and nothing of this program has run on a real laser.
 
-The register has 34 requirements: 27 implemented, 2 prototype, 5 planned and 0 validated. By progress: 27 done, 2 partial, 2 pending and 3 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 39 requirements: 33 implemented, 3 prototype, 3 planned and 0 validated. By progress: 33 done, 3 partial, 0 pending and 3 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -24,7 +24,7 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | STNC-003 | An opening that disappears is an error and a bad profile too. | implemented | done | host-test | `stencil::an_opening_that_disappears_is_an_error_and_a_bad_profile_too` | - |
 | STNC-004 | The aspect and area ratios decide whether the paste comes out. | implemented | done | host-test | `stencil::the_ratios_decide_if_the_paste_comes_out` | - |
 | STNC-005 | Mirroring flips the layer about its middle for the bottom side. | implemented | done | host-test | `stencil::mirroring_flips_the_layer_about_its_middle` | - |
-| STNC-006 | A layer with pads that cannot be opened is not written unless forced. | implemented | done | host-test | `cli::a_layer_with_pads_that_cannot_be_opened_is_not_written_unless_forced` | Macro pads, tracks and regions do not become openings. |
+| STNC-006 | A layer with pads that cannot be opened is not written unless forced. | implemented | done | host-test | `cli::a_layer_with_pads_that_cannot_be_opened_is_not_written_unless_forced` | A track at an angle and a region that is not a rectangle are notes with their reason, not openings. |
 | STNC-007 | `convert` writes nothing when an opening will not release the paste unless forced, and never when the kerf eats an opening. | implemented | done | host-test | `cli::convert_writes_nothing_when_the_kerf_eats_an_opening_even_with_force` | - |
 | STNC-008 | A circle and a closed rectangle of a DXF drawing become a round and a rectangular opening. | implemented | done | host-test | `dxf::a_circle_is_a_round_opening_and_a_closed_rectangle_a_rectangular_one` | - |
 | STNC-009 | The second of two equal openings is left out and the first keeps its place. | implemented | done | host-test | `webs::the_second_of_two_equal_openings_is_left_out_and_the_first_keeps_its_place` | - |
@@ -64,12 +64,17 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | STNC-028 | The window makes the openings and the paths when a layer is opened and refuses a value outside the limits. | prototype | partial | host-test | `src/window::opening_a_layer_makes_the_openings_and_the_paths` | The logic is tested without a screen; no person has looked at the drawing. |
 | STNC-029 | Every sentence of the window has a text in each of the eight languages. | implemented | done | host-test | `src/lang::every_sentence_has_a_text_in_each_of_the_eight_languages` | - |
 
-## Not written yet
+## Shapes, limits, the crib and what is not written yet
 
 | ID | Requirement | State | Progress | Evidence | Test | Limits |
 |---|---|---|---|---|---|---|
-| STNC-030 | Macro pads, tracks and regions of the paste layer become openings. | planned | pending | none | `planned:macro_openings::a_macro_pad_becomes_an_opening` | A polygon pad is cut as a circle with a note today. |
-| STNC-031 | The profiles of the materials are read from the tool crib. | planned | blocked | none | `planned:crib_profiles::the_profile_of_a_material_comes_from_the_crib` | Needs the tool crib program to export materials. |
-| STNC-032 | The window shows the ratios of each opening. | planned | pending | none | `planned:window_ratios::the_window_shows_the_ratios_of_each_opening` | `check` prints them; the window does not. |
+| STNC-030 | A macro pad that is a rectangle, a rectangle drawn as a region and a track along an axis of the paste layer become openings. | implemented | done | host-test | `shape_open::a_macro_pad_becomes_an_opening` | A polygon pad is still cut as a circle with a note, and a track at an angle or a region of another shape is a note. |
+| STNC-031 | The profiles of the materials are read from the tool crib. | planned | blocked | none | `planned:crib_profiles::the_profile_of_a_material_comes_from_the_crib` | Needs the tool crib program to export sheet materials; it exports lasers, and their beam width gives the kerf (see STNC-038). |
+| STNC-032 | The window shows the smallest ratios and the ratios of the weakest openings. | prototype | partial | host-test | `src/window::the_window_shows_the_ratios_of_each_opening` | The sentences are tested without a screen; no person has looked at how they are drawn. |
 | STNC-033 | A stencil is cut with the output and paste is printed with it. | planned | blocked | none | `planned:real_laser::a_stencil_cut_with_the_output_prints_paste` | Needs a laser, a sheet and a person. |
 | STNC-034 | The window is looked at on a screen and matches the picture the program takes of itself. | planned | blocked | none | `planned:window_screen::the_window_matches_the_reference_picture` | Needs a person at a screen. |
+| STNC-035 | The limits of the aspect ratio and of the area ratio are the settings `min_aspect` and `min_area`, and options, with their ranges. | implemented | done | host-test | `ratio_limits::the_limits_are_read_from_the_file_with_their_ranges_and_written_back_by_the_default_file` | - |
+| STNC-036 | An opening that will not release the paste is told with its ratio, its limit and the thickest sheet for which it would do. | implemented | done | host-test | `ratio_limits::the_thickest_sheet_that_does_for_an_opening_meets_both_limits_and_a_thicker_one_does_not` | - |
+| STNC-037 | A check that did not pass ends with the code 2 and a mistake in what was asked with the code 1. | implemented | done | host-test | `ratio_limits::a_check_that_did_not_pass_ends_with_code_two_and_the_limits_can_be_moved` | - |
+| STNC-038 | The kerf is taken from a laser tool of the CSV that the tool crib exports, read with limits, and never from two places. | implemented | done | host-test | `crib_kerf::the_kerf_is_the_beam_width_of_the_laser_that_is_named` | The two programs were never run together; the table is the one the crib program writes. |
+| STNC-039 | A region that nearly fills its rectangle is opened as that rectangle only when `region_fit_percent` allows it, and the change is told. | implemented | done | host-test | `shape_open::a_pad_with_cut_corners_needs_the_fit_and_is_then_reported_apart` | The corners are not given back: the opening is the enclosing rectangle. |

@@ -17,7 +17,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 238 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 263 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.1.0` |
 | 成熟度 | 可用 |
-| 测试 | 238 |
+| 测试 | 263 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,7 +46,7 @@
 |---|---|---|
 | 核心 | 🟡 | 把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
 | 命令行 | 🟡 | `eh3d-stencilcam` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
-| 测试 | 🟡 | 238 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
+| 测试 | 🟡 | 263 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🟠 | 已编写（egui，`--features gui`）：打开或拖入锡膏层、选择材料、编辑参数、查看焊盘和切割路径（锡膏无法脱出的开口为红色）、缩放和平移、导出；其逻辑已测试，但尚未构建，也尚未在屏幕上看过。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
@@ -57,7 +57,7 @@
 * **开口**（`src/openings.rs`）：锡膏层中每个闪现的焊盘（矩形、圆形或长圆形，无论文件单位如何一律用毫米）都是一个开口；按材料的百分比缩小，并按激光切缝缩小切割线，使孔达到要求的尺寸。底面钢网可以镜像。
 * **比例**（`src/openings.rs`）：长宽比（短边除以板厚，至少 1.5）和面积比（开口面积除以孔壁面积，至少 0.66）决定锡膏能否脱模；不合格的开口会连同位置一起报告，在查看之前（或使用 `--force`）`convert` 拒绝写出。
 * **路径**（`src/output.rs`、`src/profile.rs`）：倒圆的矩形、圆和长圆按最近优先的顺序组成闭合路径；激光用恒定功率的 G 代码，移动时关闭激光，或每毫米 40 单位的 HP-GL；Mylar、Kapton 和钢的配置（厚度、缩小、圆角半径和切缝）仅作为起点。
-* **不会写出不完整的钢网：** 当图层中有无法变成开口的焊盘、走线或区域（多边形、宏、区域）时，除非给出 `--force`，否则 `convert` 拒绝写出文件。
+* **不会写出不完整的钢网：** 当图层中有无法变成开口的焊盘、走线或区域（多边形、不是矩形的区域、斜向走线）时，除非给出 `--force`，否则 `convert` 拒绝写出文件。
 * **图层从字节读取：** `--max-bytes N` 会拒绝超过上限（默认 256 MiB）的文件；非 UTF-8 的文本按 Latin-1 读取并给出警告。读取器的警告和错误连同稳定的代码一起输出，`--hide CODE[,CODE]` 可省略这些代码的提示；读取器的错误算作图层丢失了一部分，因此除非给出 `--force`，否则 `convert` 拒绝写出。开口来自 EH3D-GERBERVIEWER 的光圈转换，多边形焊盘按圆形切割（带有说明，因此除非给出 `--force`，`convert` 同样拒绝）。 `--arc-tolerance MM` 设定圆弧的跟随精度，文件过大时的拒绝信息使用系统语言显示。
 
 ## 🧩 在 EH3D 中的角色
@@ -117,6 +117,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                打开文件窗口的文件列表
 │   ├── cli_args.rs                              命令行参数：每个小工具中的同一个文件
 │   ├── config.rs                                设置文件：切割的引入段和引出段以及激光等待
+│   ├── crib.rs                                  从工具库导出的 CSV 中读取激光切缝宽度
 │   ├── dxf_in.rs                                读取图纸（DXF）：圆和矩形成为开口，其余只作提示
 │   ├── gui.rs                                   窗口（egui，gui 特性）：绘制状态并传递用户的操作
 │   ├── lang.rs                                  窗口的文字（八种语言）
@@ -141,11 +142,19 @@ EH3D-STENCILCAM/
 │   ├── stencil.rs                               库和命令行的测试
 │   ├── strict.rs                                命令行测试：它不认识的选项和词
 │   ├── atomic_write.rs                          经改名的临时文件写入的测试
-│   └── window_cli.rs                            测试没有 gui 特性的构建仍然只是命令行
+│   ├── window_cli.rs                            测试没有 gui 特性的构建仍然只是命令行
+│   ├── reqs.rs                                  需求登记表的测试
+│   ├── shape_open.rs                            宏焊盘、区域和沿轴走线生成开口的测试
+│   ├── ratio_limits.rs                          比值下限、其原因和退出码 2 的测试
+│   └── crib_kerf.rs                             从工具库 CSV 读取切缝宽度、其限制和损坏表格的测试
 ├── examples/
 │   ├── paste.gtp                                试用的示例
 │   └── paste.dxf                                同样的焊盘，以图纸（DXF）形式给出
 ├── docs/
+│   ├── NOT_YET.md                               本版本暂不包含的好想法及其原因和时机
+│   ├── REQUIREMENTS.md                          需求登记表：每项的状态、证据和测试
+│   ├── SCOPE.md                                 用途、不做什么以及永远不由它决定的事
+│   ├── STATUS.md                                已有的、缺少的和仍未决定的
 │   ├── leads-by-form.md                         按形状设置引入段和引出段，附计算示例
 │   ├── architecture.json                        架构图数据
 │   └── structure.json                           结构图数据
@@ -156,13 +165,14 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        工作区及其锁定的依赖
 ├── rust-toolchain.toml                          固定的 Rust 工具链
 ├── CHANGELOG.md                                 每个版本的变更
+├── AGENTS.md                                    修改本仓库的人需要遵守的规则
 ├── SECURITY.md SUPPORT.md                       如何报告漏洞及在哪里提问
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   参与贡献、行为准则和许可证
 ```
 
 ## ⚙️ 配置
 
-一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。 `min_web_mm`（对应 `--min-web`）是两个开口之间不会被警告的最窄桥宽（默认 0.1 mm，范围 0 至 5；0 表示不警告）。
+一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。 `min_web_mm`（对应 `--min-web`）是两个开口之间不会被警告的最窄桥宽（默认 0.1 mm，范围 0 至 5；0 表示不警告）。 `min_aspect` 和 `min_area`（对应 `--min-aspect` 和 `--min-area`）是开口无法释放锡膏的比值下限（默认 1.5 和 0.66）；`region_fit_percent`（对应 `--region-fit`，默认 0，最大 20）会把几乎填满其外接矩形的区域（如切角焊盘）按该矩形开口。`--crib FILE.csv --crib-laser NAME` 从工具库导出的 CSV 中的激光工具取切缝宽度。未通过的检查以代码 2 结束。
 
 **服务器模式。** `convert --to-server` 会把刚写出的 G 代码（或 HP-GL 绘图）连同切割所用的数值作为工件保存到 EH3D 服务器，`check --json --to-server` 则保存检查结果，供套件中的其他程序在那里找到。 连接使用套件统一的客户端（EH3D-COMMON 的 `eh3d-serverclient`），其键写在设置文件中：`server_address`（`host:port`，为空表示关闭）、`server_token`（只写，从不显示）、`server_machine`、`server_timeout_s`（1 到 120，默认 15）、`server_retries`（0 到 5，默认 2）、`server_mdns`（默认 `off`）和 `server_max_answer_mib`（1 到 256，默认 8）。服务器的拒绝会按其代码以系统语言说明。`eh3d-stencilcam server status --config FILE` 显示设置（令牌显示为 `***`）和服务器的回答。没有地址就不会发送任何内容，本地工作也从不依赖服务器。
 
@@ -182,7 +192,7 @@ cargo run --release --features gui -- --shot screen.png examples/paste.gtp   # a
 
 ## 🧪 测试
 
-测试套件有 238 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件有 263 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 
@@ -264,7 +274,7 @@ EH3D-STENCILCAM/
 
 * 窗口尚未在屏幕上看过，也不显示每个开口的比例：这由 `check` 完成。
 * 没有在机器上试过，也没有用大量真实文件验证过，也没有独立审查。
-* 锡膏层的宏焊盘、走线和区域不会变成开口（多边形焊盘按圆形切割），材料配置只是起点，也没有针对钢板的多道切割。
+* 锡膏层的多边形焊盘按圆形切割，斜向走线和不是矩形的区域不会变成开口（备注会说明原因），材料配置只是起点，也没有针对钢板的多道切割。
 
 **下一步**
 

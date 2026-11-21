@@ -67,6 +67,19 @@
           }
         },
         {
+          "name": "crib.rs",
+          "desc": {
+            "en": "the kerf of the laser from the CSV that the tool crib exports",
+            "es": "el kerf del láser desde el CSV que exporta el pañol de herramientas",
+            "de": "die Schnittfuge des Lasers aus dem CSV der Werkzeugverwaltung",
+            "fr": "la largeur de coupe du laser depuis le CSV du gestionnaire d'outils",
+            "it": "il kerf del laser dal CSV esportato dal magazzino utensili",
+            "ja": "工具管理が書き出す CSV からレーザーのカーフを取る",
+            "zh": "从工具库导出的 CSV 中读取激光切缝宽度",
+            "pt": "o kerf do laser a partir do CSV que o gestor de ferramentas exporta"
+          }
+        },
+        {
           "name": "dxf_in.rs",
           "desc": {
             "en": "reads a drawing (DXF): circles and rectangles become openings, the rest is a note",
@@ -396,6 +409,45 @@
             "ja": "要件一覧のテスト",
             "zh": "需求登记表的测试",
             "pt": "testes do registo de requisitos"
+          }
+        },
+        {
+          "name": "shape_open.rs",
+          "desc": {
+            "en": "tests of the openings from macro pads, regions and tracks along an axis",
+            "es": "pruebas de las aperturas desde pads de macro, regiones y pistas sobre un eje",
+            "de": "Tests der Öffnungen aus Makro-Pads, Regionen und Bahnen entlang einer Achse",
+            "fr": "tests des ouvertures depuis les pastilles macro, régions et pistes sur un axe",
+            "it": "test delle aperture da pad macro, regioni e piste lungo un asse",
+            "ja": "マクロパッド・領域・軸に沿った配線からの開口のテスト",
+            "zh": "宏焊盘、区域和沿轴走线生成开口的测试",
+            "pt": "testes das aberturas a partir de pads de macro, regiões e pistas sobre um eixo"
+          }
+        },
+        {
+          "name": "ratio_limits.rs",
+          "desc": {
+            "en": "tests of the ratio limits, their reasons and the exit code 2",
+            "es": "pruebas de los límites de relación, sus motivos y el código de salida 2",
+            "de": "Tests der Verhältnisgrenzen, ihrer Begründungen und des Exit-Codes 2",
+            "fr": "tests des limites de rapport, de leurs raisons et du code de sortie 2",
+            "it": "test dei limiti di rapporto, dei loro motivi e del codice di uscita 2",
+            "ja": "比率の下限、その理由、終了コード 2 のテスト",
+            "zh": "比值下限、其原因和退出码 2 的测试",
+            "pt": "testes dos limites de rácio, dos seus motivos e do código de saída 2"
+          }
+        },
+        {
+          "name": "crib_kerf.rs",
+          "desc": {
+            "en": "tests of the kerf from the crib CSV, its limits and damaged tables",
+            "es": "pruebas del kerf desde el CSV del pañol, sus límites y tablas dañadas",
+            "de": "Tests der Schnittfuge aus dem Werkzeug-CSV, seiner Grenzen und beschädigter Tabellen",
+            "fr": "tests de la largeur de coupe depuis le CSV, ses limites et les tables abîmées",
+            "it": "test del kerf dal CSV del magazzino, dei suoi limiti e delle tabelle danneggiate",
+            "ja": "工具 CSV からのカーフ、その上限、壊れた表のテスト",
+            "zh": "从工具库 CSV 读取切缝宽度、其限制和损坏表格的测试",
+            "pt": "testes do kerf a partir do CSV do gestor, dos seus limites e de tabelas danificadas"
           }
         }
       ]

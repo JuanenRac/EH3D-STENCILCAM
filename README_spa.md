@@ -17,7 +17,7 @@
 
 ---
 
-**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 238 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Tiene una ventana (se compila con `--features gui`) que abre una capa de pasta y dibuja los pads y las trayectorias de corte, pero esa ventana todavía no se ha visto en una pantalla; no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
+**Comprobación de honestidad - lo que funciona hoy:** una biblioteca Rust y un programa de línea de comandos (`eh3d-stencilcam`) con 263 pruebas que se ejecutan en un ordenador: convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL. Tiene una ventana (se compila con `--features gui`) que abre una capa de pasta y dibuja los pads y las trayectorias de corte, pero esa ventana todavía no se ha visto en una pantalla; no se ha probado en una máquina y no se ha comprobado con una colección de ficheros reales.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versión | `0.1.0` |
 | Madurez | Funcional |
-| Pruebas | 238 |
+| Pruebas | 263 |
 | Pila tecnológica | Rust |
 | En hardware real | No probado: nada de esto se ha ejecutado en una máquina |
 
@@ -46,7 +46,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 |---|---|---|
 | Núcleo | 🟡 | convierte los pads de una capa de pasta en aperturas de plantilla (reducidas, redondeadas, compensadas por el kerf del láser y comprobadas para la salida de la pasta) y las escribe como G-code o HP-GL; probado en un ordenador con entradas normales y dañadas, no con una colección de ficheros reales. |
 | Línea de comandos | 🟡 | `eh3d-stencilcam` ejecuta las mismas funciones que la biblioteca e imprime el resultado; cada error vuelve como mensaje y un código de salida distinto de cero. |
-| Pruebas | 🟡 | 238 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas, y un láser simulado con un enlace que pierde y daña líneas al azar (con semilla), reenvíos, parada segura y reanudación. |
+| Pruebas | 🟡 | 263 pruebas pasan (`cargo test`), con casos normales, casos límite y entradas dañadas, y un láser simulado con un enlace que pierde y daña líneas al azar (con semilla), reenvíos, parada segura y reanudación. |
 | Seguridad | 🟡 | Rust seguro y simple (`forbid(unsafe_code)`): nada entra en pánico con los ficheros recibidos y un valor malo es un error con su motivo; sin revisión independiente. |
 | Ventana | 🟠 | Escrita (egui, `--features gui`): abrir o soltar una capa de pasta, elegir el material, editar los parámetros, ver los pads y las trayectorias de corte (en rojo las aperturas que no soltarán la pasta), zoom y desplazamiento, exportar; su lógica está probada, pero todavía no se ha compilado ni visto en una pantalla. |
 | Hardware real | 🔴 | No probado: nada de esto se ha ejecutado en una máquina. |
@@ -57,7 +57,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 * **Las aperturas** (`src/openings.rs`): cada pad destellado en la capa de pasta (rectangular, redondo u ovalado, en milímetros sean cuales sean las unidades del fichero) es una apertura; se reduce por el porcentaje del material y la línea de corte se hace más pequeña por el kerf del láser para que el agujero salga del tamaño pedido. Una plantilla para la cara inferior puede reflejarse.
 * **Las proporciones** (`src/openings.rs`): la relación de aspecto (el lado pequeño entre el grosor de la lámina, al menos 1,5) y la relación de área (el área de la apertura entre el área de sus paredes, al menos 0,66) dicen si la pasta saldrá de la apertura; una apertura que falla se indica con su posición y `convert` se niega a escribir hasta que se mire (o `--force`).
 * **Las trayectorias** (`src/output.rs`, `src/profile.rs`): rectángulos redondeados, círculos y óvalos como trayectorias cerradas en el orden de un recorrido al más cercano; G-code para un láser a potencia constante con el láser apagado al desplazarse, o HP-GL a 40 unidades por milímetro; perfiles de Mylar, Kapton y acero con su grosor, reducción, radio de esquina y kerf como puntos de partida.
-* **No se escribe una plantilla incompleta:** `convert` se niega a escribir el fichero cuando la capa tiene pads, pistas o regiones que no pueden ser aberturas (polígonos, macros, regiones), salvo que se dé `--force`.
+* **No se escribe una plantilla incompleta:** `convert` se niega a escribir el fichero cuando la capa tiene pads, pistas o regiones que no pueden ser aberturas (un polígono, una región que no es un rectángulo, una pista en ángulo), salvo que se dé `--force`.
 * **La capa se lee desde sus bytes:** `--max-bytes N` rechaza un fichero que pasa del límite (256 MiB por defecto); el texto que no es UTF-8 se lee como Latin-1 con un aviso. Los avisos y errores del lector se imprimen con su código estable y `--hide CODE[,CODE]` omite los avisos de esos códigos; un error del lector cuenta como una parte perdida de la capa, así que `convert` se niega salvo que se dé `--force`. Las aperturas salen de la conversión de aperturas de EH3D-GERBERVIEWER, y un pad poligonal se corta como un círculo (con una nota, así que `convert` también se niega salvo que se dé `--force`). `--arc-tolerance MM` fija la precisión de los arcos, y el rechazo de un fichero demasiado grande se escribe en el idioma del sistema.
 
 ## 🧩 Papel en EH3D
@@ -117,6 +117,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                la lista de ficheros de la ventana que abre un fichero
 │   ├── cli_args.rs                              los argumentos de la línea de comandos, el mismo fichero en cada utilidad pequeña
 │   ├── config.rs                                el fichero de ajustes: la entrada y la salida de los cortes y la espera del láser
+│   ├── crib.rs                                  el kerf del láser desde el CSV que exporta el pañol de herramientas
 │   ├── dxf_in.rs                                lee un dibujo (DXF): círculos y rectángulos pasan a ser aberturas, lo demás es un aviso
 │   ├── gui.rs                                   la ventana (egui, con la característica gui): dibuja el estado y transmite lo que hace la persona
 │   ├── lang.rs                                  las palabras de la ventana en los ocho idiomas
@@ -141,11 +142,19 @@ EH3D-STENCILCAM/
 │   ├── stencil.rs                               pruebas de la biblioteca y la línea de comandos
 │   ├── strict.rs                                pruebas de la línea de comandos: opciones y palabras que no conoce
 │   ├── atomic_write.rs                          pruebas de la escritura por un fichero temporal que se renombra
-│   └── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
+│   ├── window_cli.rs                            pruebas de que una compilación sin la característica gui sigue siendo solo línea de comandos
+│   ├── reqs.rs                                  pruebas del registro de requisitos
+│   ├── shape_open.rs                            pruebas de las aperturas desde pads de macro, regiones y pistas sobre un eje
+│   ├── ratio_limits.rs                          pruebas de los límites de relación, sus motivos y el código de salida 2
+│   └── crib_kerf.rs                             pruebas del kerf desde el CSV del pañol, sus límites y tablas dañadas
 ├── examples/
 │   ├── paste.gtp                                una muestra para probar el programa
 │   └── paste.dxf                                las mismas almohadillas como dibujo (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               buenas ideas fuera de esta versión, con el porqué y el cuándo
+│   ├── REQUIREMENTS.md                          el registro de requisitos: estado, evidencia y la prueba de cada uno
+│   ├── SCOPE.md                                 para qué sirve, qué no hará y qué no decide nunca
+│   ├── STATUS.md                                qué existe, qué falta y qué sigue abierto
 │   ├── leads-by-form.md                         entrada y salida por forma de apertura, con valores calculados
 │   ├── architecture.json                        datos de la imagen de Arquitectura
 │   └── structure.json                           datos de la imagen de Estructura
@@ -156,13 +165,14 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        el workspace y sus dependencias fijadas
 ├── rust-toolchain.toml                          la toolchain de Rust fijada
 ├── CHANGELOG.md                                 qué cambió en cada versión
+├── AGENTS.md                                    las reglas para quien cambie el repositorio
 ├── SECURITY.md SUPPORT.md                       cómo informar de una vulnerabilidad y dónde preguntar
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   cómo contribuir, el código de conducta y la licencia
 ```
 
 ## ⚙️ Configuración
 
-Un pequeño fichero de ajustes, `stencil.cfg` (`clave = valor`, uno por línea, `#` empieza un comentario), guarda lo que merece afinarse: `lead_in_mm` y `lead_out_mm`, la longitud del tramo recto de entrada antes de cada contorno y del de salida después (0,3 mm por defecto, de 0 a 5; 0 no escribe ninguno), y `laser_wait_s`, la espera tras encender el láser (0 por defecto, hasta 60). `eh3d-stencilcam config` imprime el fichero con cada valor por defecto (`examples/stencil.cfg` es ese fichero) y `--config FICHERO` lee uno; `--lead-in MM`, `--lead-out MM` y `--laser-wait SEGUNDOS` dan los mismos ajustes en la línea de comandos y ganan al fichero. Una clave desconocida, repetida o fuera de su rango es un error que dice su línea. Lo demás se da como argumentos de la línea de comandos (véase Interfaces) y cada valor por defecto está escrito en la ayuda de la orden (`eh3d-stencilcam help`). Los límites fijos están en el código como constantes con nombre y las pruebas los cubren. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (con las opciones `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` e `--lead-out-rect`) dan la entrada y la salida de las aperturas redondas y de las rectangulares; en el fichero van como comentarios y, si no se dan, se usan las generales `lead_in_mm` y `lead_out_mm`. `min_web_mm` (con `--min-web`) es el puente más estrecho entre dos aberturas del que no se avisa (0,1 mm por defecto, de 0 a 5; 0 no da aviso).
+Un pequeño fichero de ajustes, `stencil.cfg` (`clave = valor`, uno por línea, `#` empieza un comentario), guarda lo que merece afinarse: `lead_in_mm` y `lead_out_mm`, la longitud del tramo recto de entrada antes de cada contorno y del de salida después (0,3 mm por defecto, de 0 a 5; 0 no escribe ninguno), y `laser_wait_s`, la espera tras encender el láser (0 por defecto, hasta 60). `eh3d-stencilcam config` imprime el fichero con cada valor por defecto (`examples/stencil.cfg` es ese fichero) y `--config FICHERO` lee uno; `--lead-in MM`, `--lead-out MM` y `--laser-wait SEGUNDOS` dan los mismos ajustes en la línea de comandos y ganan al fichero. Una clave desconocida, repetida o fuera de su rango es un error que dice su línea. Lo demás se da como argumentos de la línea de comandos (véase Interfaces) y cada valor por defecto está escrito en la ayuda de la orden (`eh3d-stencilcam help`). Los límites fijos están en el código como constantes con nombre y las pruebas los cubren. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (con las opciones `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` e `--lead-out-rect`) dan la entrada y la salida de las aperturas redondas y de las rectangulares; en el fichero van como comentarios y, si no se dan, se usan las generales `lead_in_mm` y `lead_out_mm`. `min_web_mm` (con `--min-web`) es el puente más estrecho entre dos aberturas del que no se avisa (0,1 mm por defecto, de 0 a 5; 0 no da aviso). `min_aspect` y `min_area` (con `--min-aspect` y `--min-area`) son los límites de relación por debajo de los cuales una apertura no suelta la pasta (1,5 y 0,66 por defecto), y `region_fit_percent` (con `--region-fit`, 0 por defecto, hasta 20) abre como rectángulo una región que llena casi todo su rectángulo, como un pad con las esquinas cortadas. `--crib FICHERO.csv --crib-laser NOMBRE` toma el kerf de una herramienta láser del CSV que exporta el pañol de herramientas. Una comprobación que no se supera termina con el código 2.
 
 **Modo servidor.** `convert --to-server` guarda en el servidor EH3D, como artefacto, el G-code (o el trazado HP-GL) que acaba de escribir, con los valores con que se cortó, y `check --json --to-server` guarda el resultado de la comprobación, para que los demás programas de la suite los encuentren allí. El enlace es el cliente único de la suite (`eh3d-serverclient` de EH3D-COMMON) y sus claves van en el archivo de ajustes: `server_address` (`host:port`; vacío significa apagado), `server_token` (solo escritura, nunca se muestra), `server_machine`, `server_timeout_s` (1 a 120, 15 por defecto), `server_retries` (0 a 5, 2 por defecto), `server_mdns` (`off` por defecto) y `server_max_answer_mib` (1 a 256, 8 por defecto). Las negativas del servidor se explican por su código en el idioma del sistema. `eh3d-stencilcam server status --config FILE` muestra los ajustes (el token como `***`) y lo que responde el servidor. No se envía nada sin dirección y el trabajo local nunca depende del servidor.
 
@@ -182,7 +192,7 @@ Para sacar una captura de la ventana sin abrirla a mano, ejecútelo con `--shot 
 
 ## 🧪 Pruebas
 
-El conjunto tiene 238 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
+El conjunto tiene 263 pruebas (`cargo test`, ejecutadas en Windows y Linux en el CI). Comprueban los casos normales, los casos límite y las entradas dañadas: ficheros vacíos, basura y ficheros cortados nunca provocan un pánico. El CI ejecuta además `cargo fmt --check`, `cargo clippy` con las advertencias como errores y `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilación y publicación
 
@@ -264,7 +274,7 @@ EH3D-STENCILCAM/
 
 * La ventana todavía no se ha visto en una pantalla y no muestra las relaciones de cada apertura: eso lo hace `check`.
 * No se ha probado en una máquina ni con una colección de ficheros reales y no ha tenido revisión independiente.
-* Los pads de macro y las pistas y regiones de la capa de pasta no se convierten en aperturas (un pad poligonal se corta como un círculo), los perfiles de los materiales son puntos de partida y no hay corte en varias pasadas para una lámina de acero.
+* Un pad poligonal de la capa de pasta se corta como un círculo, y una pista en ángulo o una región que no es un rectángulo no se convierte en apertura (una nota dice por qué), los perfiles de los materiales son puntos de partida y no hay corte en varias pasadas para una lámina de acero.
 
 **Siguiente**
 

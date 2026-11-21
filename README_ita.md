@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 238 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 263 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.0` |
 | Maturità | Funzionale |
-| Test | 238 |
+| Test | 263 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 238 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 263 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -57,7 +57,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **Le aperture** (`src/openings.rs`): ogni pad flashato nel livello di pasta (rettangolare, tondo od ovale, in millimetri qualunque siano le unità del file) è un'apertura; viene ridotta della percentuale del materiale e la linea di taglio è resa più piccola del kerf del laser perché il foro esca della misura chiesta. Uno stencil per il lato inferiore può essere specchiato.
 * **I rapporti** (`src/openings.rs`): il rapporto d'aspetto (il lato piccolo sullo spessore del foglio, almeno 1,5) e il rapporto d'area (l'area dell'apertura sull'area delle sue pareti, almeno 0,66) dicono se la pasta uscirà dall'apertura; un'apertura che non li rispetta è segnalata con la sua posizione e `convert` rifiuta di scrivere finché non la si guarda (o `--force`).
 * **I percorsi** (`src/output.rs`, `src/profile.rs`): rettangoli arrotondati, cerchi e ovali come percorsi chiusi nell'ordine di un giro al più vicino; G-code per un laser a potenza costante, spento negli spostamenti, o HP-GL a 40 unità al millimetro; profili per Mylar, Kapton e acciaio con spessore, riduzione, raggio degli angoli e kerf come punti di partenza.
-* **Una maschera incompleta non viene scritta:** `convert` rifiuta di scrivere il file quando lo strato ha pad, piste o regioni che non possono diventare aperture (poligoni, macro, regioni), salvo con `--force`.
+* **Una maschera incompleta non viene scritta:** `convert` rifiuta di scrivere il file quando lo strato ha pad, piste o regioni che non possono diventare aperture (un poligono, una regione che non è un rettangolo, una pista in diagonale), salvo con `--force`.
 * **Lo strato viene letto dai suoi byte:** `--max-bytes N` rifiuta un file oltre il limite (256 MiB di default); il testo che non è UTF-8 viene letto come Latin-1 con un avviso. Gli avvisi e gli errori del lettore sono stampati con il loro codice stabile e `--hide CODE[,CODE]` omette gli avvisi di quei codici; un errore del lettore conta come una parte persa dello strato, quindi `convert` rifiuta salvo con `--force`. Le aperture vengono dalla conversione delle aperture di EH3D-GERBERVIEWER, e un pad poligonale viene tagliato come un cerchio (con una nota, quindi anche questo `convert` lo rifiuta salvo con `--force`). `--arc-tolerance MM` stabilisce la precisione degli archi, e il rifiuto di un file troppo grande è scritto nella lingua del sistema.
 
 ## 🧩 Ruolo in EH3D
@@ -117,6 +117,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                l'elenco dei file della finestra che apre un file
 │   ├── cli_args.rs                              gli argomenti della riga di comando, lo stesso file in ogni piccola utilità
 │   ├── config.rs                                il file delle impostazioni: ingresso e uscita dei tagli e l'attesa del laser
+│   ├── crib.rs                                  il kerf del laser dal CSV esportato dal magazzino utensili
 │   ├── dxf_in.rs                                legge un disegno (DXF): cerchi e rettangoli diventano aperture, il resto è un avviso
 │   ├── gui.rs                                   la finestra (egui, con la funzione gui): disegna lo stato e inoltra ciò che fa la persona
 │   ├── lang.rs                                  le parole della finestra nelle otto lingue
@@ -141,11 +142,19 @@ EH3D-STENCILCAM/
 │   ├── stencil.rs                               test della libreria e della riga di comando
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 │   ├── atomic_write.rs                          test della scrittura tramite un file temporaneo rinominato
-│   └── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
+│   ├── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
+│   ├── reqs.rs                                  test del registro dei requisiti
+│   ├── shape_open.rs                            test delle aperture da pad macro, regioni e piste lungo un asse
+│   ├── ratio_limits.rs                          test dei limiti di rapporto, dei loro motivi e del codice di uscita 2
+│   └── crib_kerf.rs                             test del kerf dal CSV del magazzino, dei suoi limiti e delle tabelle danneggiate
 ├── examples/
 │   ├── paste.gtp                                un esempio per provare il programma
 │   └── paste.dxf                                gli stessi pad come disegno (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               buone idee fuori da questa versione, con il perché e il quando
+│   ├── REQUIREMENTS.md                          il registro dei requisiti: stato, evidenza e test di ciascuno
+│   ├── SCOPE.md                                 a cosa serve, cosa non farà e cosa non decide mai
+│   ├── STATUS.md                                cosa esiste, cosa manca e cosa è ancora aperto
 │   ├── leads-by-form.md                         ingresso e uscita per forma, con valori calcolati
 │   ├── architecture.json                        dati dell'immagine di Architettura
 │   └── structure.json                           dati dell'immagine di Struttura
@@ -156,13 +165,14 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        il workspace e le sue dipendenze bloccate
 ├── rust-toolchain.toml                          la toolchain Rust fissata
 ├── CHANGELOG.md                                 cosa è cambiato in ogni versione
+├── AGENTS.md                                    le regole per chi modifica il repository
 ├── SECURITY.md SUPPORT.md                       come segnalare una vulnerabilità e dove chiedere
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   come contribuire, codice di condotta e licenza
 ```
 
 ## ⚙️ Configurazione
 
-Un piccolo file di impostazioni, `stencil.cfg` (`chiave = valore`, uno per riga, `#` inizia un commento), contiene ciò che vale la pena regolare: `lead_in_mm` e `lead_out_mm`, la lunghezza del tratto retto di ingresso prima di ogni contorno e di uscita dopo (0,3 mm per impostazione predefinita, da 0 a 5; 0 non ne scrive), e `laser_wait_s`, l'attesa dopo l'accensione del laser (0 per impostazione predefinita, fino a 60). `eh3d-stencilcam config` stampa il file con ogni valore predefinito (`examples/stencil.cfg` è quel file) e `--config FILE` ne legge uno; `--lead-in MM`, `--lead-out MM` e `--laser-wait SECONDI` danno le stesse impostazioni sulla riga di comando e prevalgono sul file. Una chiave sconosciuta, ripetuta o fuori dal suo intervallo è un errore che indica la sua riga. Il resto si passa come argomenti della riga di comando (vedi Interfacce) e ogni valore predefinito è scritto nella guida del comando (`eh3d-stencilcam help`). I limiti fissi sono costanti con nome nel codice, coperte da test. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (con le opzioni `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` e `--lead-out-rect`) indicano ingresso e uscita delle aperture rotonde e di quelle rettangolari; nel file sono scritte come commenti e, se non sono indicate, si usano le generali `lead_in_mm` e `lead_out_mm`. `min_web_mm` (con `--min-web`) è il ponte più stretto tra due aperture di cui non si avvisa (0,1 mm per impostazione predefinita, da 0 a 5; 0 non avvisa).
+Un piccolo file di impostazioni, `stencil.cfg` (`chiave = valore`, uno per riga, `#` inizia un commento), contiene ciò che vale la pena regolare: `lead_in_mm` e `lead_out_mm`, la lunghezza del tratto retto di ingresso prima di ogni contorno e di uscita dopo (0,3 mm per impostazione predefinita, da 0 a 5; 0 non ne scrive), e `laser_wait_s`, l'attesa dopo l'accensione del laser (0 per impostazione predefinita, fino a 60). `eh3d-stencilcam config` stampa il file con ogni valore predefinito (`examples/stencil.cfg` è quel file) e `--config FILE` ne legge uno; `--lead-in MM`, `--lead-out MM` e `--laser-wait SECONDI` danno le stesse impostazioni sulla riga di comando e prevalgono sul file. Una chiave sconosciuta, ripetuta o fuori dal suo intervallo è un errore che indica la sua riga. Il resto si passa come argomenti della riga di comando (vedi Interfacce) e ogni valore predefinito è scritto nella guida del comando (`eh3d-stencilcam help`). I limiti fissi sono costanti con nome nel codice, coperte da test. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (con le opzioni `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` e `--lead-out-rect`) indicano ingresso e uscita delle aperture rotonde e di quelle rettangolari; nel file sono scritte come commenti e, se non sono indicate, si usano le generali `lead_in_mm` e `lead_out_mm`. `min_web_mm` (con `--min-web`) è il ponte più stretto tra due aperture di cui non si avvisa (0,1 mm per impostazione predefinita, da 0 a 5; 0 non avvisa). `min_aspect` e `min_area` (con `--min-aspect` e `--min-area`) sono i limiti di rapporto sotto i quali un'apertura non rilascia la pasta (1,5 e 0,66 per impostazione predefinita), e `region_fit_percent` (con `--region-fit`, 0 per impostazione predefinita, fino a 20) apre come quel rettangolo una regione che riempie quasi tutto il suo rettangolo, come un pad con gli angoli tagliati. `--crib FILE.csv --crib-laser NOME` prende il kerf da uno strumento laser del CSV che esporta il magazzino utensili. Un controllo non superato termina con il codice 2.
 
 **Modalità server.** `convert --to-server` conserva sul server EH3D, come artefatto, il G-code (o il tracciato HP-GL) appena scritto, con i valori con cui è stato tagliato, e `check --json --to-server` conserva il risultato del controllo, così gli altri programmi della suite li trovano lì. Il collegamento è l'unico client della suite (`eh3d-serverclient` di EH3D-COMMON) e le sue chiavi stanno nel file delle impostazioni: `server_address` (`host:port`; vuoto significa spento), `server_token` (solo scrittura, mai mostrato), `server_machine`, `server_timeout_s` (da 1 a 120, 15 predefinito), `server_retries` (da 0 a 5, 2 predefinito), `server_mdns` (`off` predefinito) e `server_max_answer_mib` (da 1 a 256, 8 predefinito). I rifiuti del server vengono spiegati dal loro codice nella lingua del sistema. `eh3d-stencilcam server status --config FILE` mostra le impostazioni (il token come `***`) e la risposta del server. Senza indirizzo non viene inviato nulla e il lavoro locale non dipende mai dal server.
 
@@ -182,7 +192,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 238 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 263 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 
@@ -264,7 +274,7 @@ EH3D-STENCILCAM/
 
 * La finestra non è ancora stata vista su uno schermo e non mostra i rapporti di ogni apertura: lo fa `check`.
 * Non è stato provato su una macchina né con una raccolta di file reali e non ha avuto revisione indipendente.
-* I pad macro e le piste e le regioni del livello di pasta non diventano aperture (un pad poligonale viene tagliato come un cerchio), i profili dei materiali sono punti di partenza e non c'è taglio a più passate per un foglio d'acciaio.
+* Un pad poligonale del livello di pasta viene tagliato come un cerchio, e una pista in diagonale o una regione che non è un rettangolo non diventa un'apertura (una nota dice perché), i profili dei materiali sono punti di partenza e non c'è taglio a più passate per un foglio d'acciaio.
 
 **Prossimi passi**
 

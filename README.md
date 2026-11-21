@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 238 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 263 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.0` |
 | Maturity | Functional |
-| Tests | 238 |
+| Tests | 263 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 238 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 263 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -57,7 +57,7 @@ Each line is one part of this repository and the light says how far it is today.
 * **The openings** (`src/openings.rs`): every pad flashed in the paste layer (rectangular, round or obround, in millimetres whatever the units of the file) is an opening; it is shrunk by the percentage of the material, and the cut line is made smaller by the kerf of the laser so that the hole comes out the size that was asked. A stencil for the bottom side can be mirrored.
 * **The ratios** (`src/openings.rs`): the aspect ratio (the small side over the thickness of the sheet, at least 1.5) and the area ratio (the area of the opening over the area of its walls, at least 0.66) say whether the paste will leave the opening; an opening that fails is reported with its position, and `convert` refuses to write until it is looked at (or `--force`).
 * **The paths** (`src/output.rs`, `src/profile.rs`): rounded rectangles, circles and obrounds as closed paths in the order of a nearest-first walk; G-code for a laser at constant power with the laser off while travelling, or HP-GL at 40 units to the millimetre; profiles for Mylar, Kapton and steel with their thickness, shrink, corner radius and kerf as starting points.
-* **An incomplete stencil is not written:** `convert` refuses to write the file when the layer has pads, tracks or regions that cannot become openings (polygons, macros, regions) unless `--force` is given.
+* **An incomplete stencil is not written:** `convert` refuses to write the file when the layer has pads, tracks or regions that cannot become openings (a polygon, a region that is not a rectangle, a track at an angle) unless `--force` is given.
 * **The layer is read from its bytes:** `--max-bytes N` refuses a file over the limit (256 MiB by default); text that is not UTF-8 is read as Latin-1 with a warning. The warnings and errors of the reader are printed with their stable code and `--hide CODE[,CODE]` leaves out the notices of those codes; an error of the reader counts as a part of the layer that was lost, so `convert` refuses it unless `--force` is given. The openings come from the conversion of apertures of EH3D-GERBERVIEWER, and a polygon pad is cut as a circle (with a note, so `convert` refuses it too unless `--force` is given). `--arc-tolerance MM` sets how closely arcs are followed, and the refusal of a large file is written in the language of the system.
 
 ## 🧩 Role in EH3D
@@ -117,6 +117,7 @@ EH3D-STENCILCAM/
 │   ├── browse.rs                                the list of files of the window that opens a file
 │   ├── cli_args.rs                              the arguments of the command line, the same file in every small utility
 │   ├── config.rs                                the settings file: the lead-in and lead-out of the cuts and the laser wait
+│   ├── crib.rs                                  the kerf of the laser from the CSV that the tool crib exports
 │   ├── dxf_in.rs                                reads a drawing (DXF): circles and rectangles become openings, the rest is a note
 │   ├── gui.rs                                   the window (egui, with the gui feature): draws the state and passes on what the person does
 │   ├── lang.rs                                  the words of the window in the eight languages
@@ -141,11 +142,19 @@ EH3D-STENCILCAM/
 │   ├── stencil.rs                               tests of the library and the command line
 │   ├── strict.rs                                tests of the command line: options and words it does not know
 │   ├── atomic_write.rs                          tests of the write through a temporary file that is renamed
-│   └── window_cli.rs                            tests that a build without the gui feature stays a command line
+│   ├── window_cli.rs                            tests that a build without the gui feature stays a command line
+│   ├── reqs.rs                                  tests of the register of requirements
+│   ├── shape_open.rs                            tests of the openings from macro pads, regions and tracks along an axis
+│   ├── ratio_limits.rs                          tests of the ratio limits, their reasons and the exit code 2
+│   └── crib_kerf.rs                             tests of the kerf from the crib CSV, its limits and damaged tables
 ├── examples/
 │   ├── paste.gtp                                a sample to try the program with
 │   └── paste.dxf                                the same pads as a drawing (DXF)
 ├── docs/
+│   ├── NOT_YET.md                               good ideas that are left out of this version, with why and when
+│   ├── REQUIREMENTS.md                          the register of requirements: state, evidence and the test of each
+│   ├── SCOPE.md                                 what the program is for, what it will not do and what it never decides
+│   ├── STATUS.md                                what exists, what is missing and what is still open
 │   ├── leads-by-form.md                         leads by form of the opening, with worked values
 │   ├── architecture.json                        data of the Architecture picture
 │   └── structure.json                           data of the Repository Structure picture
@@ -156,13 +165,14 @@ EH3D-STENCILCAM/
 ├── Cargo.toml Cargo.lock                        the workspace and its locked dependencies
 ├── rust-toolchain.toml                          the pinned Rust toolchain
 ├── CHANGELOG.md                                 what changed in each version
+├── AGENTS.md                                    the rules for anyone who changes the repository
 ├── SECURITY.md SUPPORT.md                       how to report a vulnerability and where to ask
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   how to contribute, the code of conduct and the licence
 ```
 
 ## ⚙️ Configuration
 
-A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (with the options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` and `--lead-out-rect`) give the leads of the round and of the rectangular openings; they are written as comments in the file and, when they are not given, the general `lead_in_mm` and `lead_out_mm` are used. `min_web_mm` (with `--min-web`) is the narrowest web between two openings that is not warned about (0.1 mm by default, from 0 to 5; 0 gives no warning).
+A small settings file, `stencil.cfg` (`key = value`, one per line, `#` starts a comment), holds what is worth tuning: `lead_in_mm` and `lead_out_mm`, the length of the straight lead-in before each contour and of the lead-out after it (0.3 mm by default, from 0 to 5; 0 writes none), and `laser_wait_s`, the wait after the laser is switched on (0 by default, up to 60). `eh3d-stencilcam config` prints the file with every default (`examples/stencil.cfg` is that file) and `--config FILE` reads one; `--lead-in MM`, `--lead-out MM` and `--laser-wait SECONDS` give the same settings on the command line and win over the file. A key that is not known, given twice or out of its range is an error that says its line. The rest is given as arguments of the command line (see Interfaces) and every default is written in the help of the command (`eh3d-stencilcam help`). The fixed limits live in the code as named constants and are covered by tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (with the options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` and `--lead-out-rect`) give the leads of the round and of the rectangular openings; they are written as comments in the file and, when they are not given, the general `lead_in_mm` and `lead_out_mm` are used. `min_web_mm` (with `--min-web`) is the narrowest web between two openings that is not warned about (0.1 mm by default, from 0 to 5; 0 gives no warning). `min_aspect` and `min_area` (with `--min-aspect` and `--min-area`) are the ratio limits under which an opening does not release the paste (1.5 and 0.66 by default), and `region_fit_percent` (with `--region-fit`, 0 by default, up to 20) opens a region that fills nearly all of its rectangle, such as a pad with cut corners, as that rectangle. `--crib FILE.csv --crib-laser NAME` takes the kerf from a laser tool of the CSV that the tool crib exports. A check that does not pass ends with the code 2.
 
 **Server mode.** `convert --to-server` keeps the G-code (or the HP-GL plot) it has just written on the EH3D server as an artifact, with the values it was cut with, and `check --json --to-server` keeps the result of the check, so the other programs of the suite find them there. The link is the one client of the suite (`eh3d-serverclient` of EH3D-COMMON) and its keys go in the settings file: `server_address` (`host:port`; empty means off), `server_token` (write-only, never shown), `server_machine`, `server_timeout_s` (1 to 120, 15 by default), `server_retries` (0 to 5, 2 by default), `server_mdns` (`off` by default) and `server_max_answer_mib` (1 to 256, 8 by default). The refusals of the server are told by their code in the language of the system. `eh3d-stencilcam server status --config FILE` shows the settings (the token as `***`) and what the server answers. Nothing is sent without an address and the local work never depends on the server.
 
@@ -182,7 +192,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 238 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 263 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
@@ -264,7 +274,7 @@ EH3D-STENCILCAM/
 
 * The window has not been looked at on a screen yet, and it does not show the ratios of each opening: `check` does.
 * It has not been tried on a machine nor with a collection of real files, and it has had no independent review.
-* Macro pads, tracks and regions of the paste layer are not turned into openings (a polygon pad is cut as a circle), the profiles of the materials are starting points, and there is no step-by-step multi-pass cutting for a steel sheet.
+* A polygon pad of the paste layer is cut as a circle, and a track at an angle or a region that is not a rectangle is not turned into an opening (a note says why), the profiles of the materials are starting points, and there is no step-by-step multi-pass cutting for a steel sheet.
 
 **Next**
 
