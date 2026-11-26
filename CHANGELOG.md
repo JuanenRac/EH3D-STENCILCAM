@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 - **A path with no point no longer stops the order of the cuts, and an artifact cannot be named `.` or `..`:** `ordered_indices` read the first point of every path and panicked on an empty one, so the program, the plot and the time of a list with an empty path all stopped (an empty path is now left out); the name of a file kept on the server could be `..` or hold a character that reverses or hides text. 33 new tests cover the order of many paths, the leads, the times, the plot, the atomic write and the server names and bytes.
+- The shared workflow checker (`tools/workflow_hygiene.py`) is the current one of the documentation hub: the filters under a trigger (branches, paths, types) are no longer read as events.
 
 ## [0.1.2] - Sheets from the tool crib and DXF output
 
