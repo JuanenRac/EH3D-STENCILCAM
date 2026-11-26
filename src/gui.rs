@@ -4,7 +4,7 @@
 use crate::browse::{self, Browser};
 use crate::lang::{Lang, Msg};
 use crate::shot::{ShotRequest, ShotTheme, PATIENCE_FRAMES};
-use crate::window::{material_msg, Window, LAYER_EXTENSIONS, MATERIALS};
+use crate::window::{material_msg, Window, LAYER_EXTENSIONS, MATERIALS, TABLE_EXTENSIONS};
 use eframe::egui::{
     self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke, Vec2,
 };
@@ -77,6 +77,13 @@ impl App {
         });
     }
 
+    fn table_dialog(&mut self) {
+        self.dialog = Some(Dialog {
+            browser: Browser::new(self.folder(), &TABLE_EXTENSIONS),
+            export: None,
+        });
+    }
+
     fn export_dialog(&mut self) {
         let name = self
             .win
@@ -116,6 +123,18 @@ impl App {
                 {
                     self.fit_pending = true;
                 }
+                if ui
+                    .add_enabled(
+                        self.win.project.is_some(),
+                        egui::Button::new(Msg::SaveProject.tr(lang)),
+                    )
+                    .clicked()
+                {
+                    self.win.save_project();
+                }
+                if ui.button(Msg::SheetTable.tr(lang)).clicked() {
+                    self.table_dialog();
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::ComboBox::from_id_salt("language")
                         .selected_text(self.win.lang.name())
@@ -142,6 +161,56 @@ impl App {
                         .color(ACCENT),
                 );
                 ui.separator();
+                if !self.win.job_layers.is_empty() {
+                    ui.label(Msg::JobLayer.tr(lang));
+                    let current = self
+                        .win
+                        .layer
+                        .as_ref()
+                        .and_then(|l| l.job.as_ref())
+                        .map(|j| j.rel.clone())
+                        .unwrap_or_default();
+                    let mut picked = None;
+                    egui::ComboBox::from_id_salt("job_layer")
+                        .selected_text(current.clone())
+                        .show_ui(ui, |ui| {
+                            for (i, f) in self.win.job_layers.iter().enumerate() {
+                                if ui.selectable_label(f.rel == current, &f.rel).clicked() {
+                                    picked = Some(i);
+                                }
+                            }
+                        });
+                    if let Some(i) = picked {
+                        if self.win.choose_job_layer(i) {
+                            self.fit_pending = true;
+                        }
+                    }
+                }
+                if !self.win.sheets.is_empty() {
+                    ui.label(Msg::Sheet.tr(lang));
+                    let current = self
+                        .win
+                        .sheet
+                        .as_ref()
+                        .map_or_else(|| Msg::NoSheet.tr(lang).to_string(), |s| s.name.clone());
+                    let mut picked = None;
+                    egui::ComboBox::from_id_salt("sheet")
+                        .selected_text(current.clone())
+                        .show_ui(ui, |ui| {
+                            let none = self.win.sheet.is_none();
+                            if ui.selectable_label(none, Msg::NoSheet.tr(lang)).clicked() {
+                                picked = Some(None);
+                            }
+                            for (i, s) in self.win.sheets.iter().enumerate() {
+                                if ui.selectable_label(s.name == current, &s.name).clicked() {
+                                    picked = Some(Some(i));
+                                }
+                            }
+                        });
+                    if let Some(choice) = picked {
+                        self.win.choose_sheet(choice);
+                    }
+                }
                 ui.label(Msg::Material.tr(lang));
                 let mut chosen = self.win.material;
                 egui::ComboBox::from_id_salt("material")

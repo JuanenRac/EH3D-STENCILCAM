@@ -106,6 +106,19 @@
           }
         },
         {
+          "name": "eh3dfile.rs",
+          "desc": {
+            "en": "the .eh3d project: the paste layers of the job in, the stencils in their own branch",
+            "es": "el proyecto .eh3d: entran las capas de pasta del trabajo, las plantillas quedan en su rama",
+            "de": "das .eh3d-Projekt: Pastenebenen des Auftrags hinein, Schablonen in den eigenen Zweig",
+            "fr": "le projet .eh3d : les couches de pâte du travail entrent, les pochoirs vont dans leur branche",
+            "it": "il progetto .eh3d: entrano i livelli pasta del lavoro, gli stencil nel loro ramo",
+            "ja": ".eh3d プロジェクト：ジョブのペーストレイヤーを読み、ステンシルは自分のブランチに保存",
+            "zh": ".eh3d 项目：读入作业的锡膏层，钢网存入自己的分支",
+            "pt": "o projeto .eh3d: entram as camadas de pasta do trabalho, os estênceis ficam no seu ramo"
+          }
+        },
+        {
           "name": "gui.rs",
           "desc": {
             "en": "the window (egui, with the gui feature): draws the state and passes on what the person does",
@@ -487,6 +500,19 @@
             "ja": "開口の図面のテスト：読み戻し、既存ファイルは上書きしない",
             "zh": "开口图纸的测试：回读，绝不覆盖已有文件",
             "pt": "testes do desenho das aberturas: leitura de volta, nunca sobre um ficheiro"
+          }
+        },
+        {
+          "name": "project.rs",
+          "desc": {
+            "en": "tests of the project: branches, out of date, command line, window and sheets",
+            "es": "pruebas del proyecto: ramas, desactualizado, línea de comandos, ventana y láminas",
+            "de": "Tests des Projekts: Zweige, Veraltetes, Befehlszeile, Fenster und Folien",
+            "fr": "tests du projet : branches, périmé, ligne de commande, fenêtre et feuilles",
+            "it": "test del progetto: rami, superato, riga di comando, finestra e fogli",
+            "ja": "プロジェクトのテスト：ブランチ、古さ、コマンドライン、ウィンドウ、シート",
+            "zh": "项目测试：分支、过期、命令行、窗口和薄片",
+            "pt": "testes do projeto: ramos, desatualizado, linha de comandos, janela e folhas"
           }
         }
       ]

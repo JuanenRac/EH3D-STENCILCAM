@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because no stencil has been cut with these files and nothing of this program has run on a real laser.
 
-The register has 47 requirements: 41 implemented, 4 prototype, 2 planned and 0 validated. By progress: 41 done, 4 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 51 requirements: 44 implemented, 5 prototype, 2 planned and 0 validated. By progress: 44 done, 5 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -83,6 +83,15 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | STNC-042 | A damaged table of sheets, read with a fixed seed, never panics and every sheet that comes out is in range. | implemented | done | host-test | `sheets::a_damaged_table_of_sheets_is_read_without_a_panic_and_every_sheet_that_comes_out_is_in_range` | Seeded generation, not a continuous fuzzer. |
 | STNC-043 | A limit of 0 in a sheet gives none, the command line wins over the sheet and the sheet over the settings file, and a figure this program does not take is an error that names the sheet. | implemented | done | host-test | `sheets::the_command_line_wins_over_the_sheet_and_the_sheet_over_the_settings_file` | - |
 | STNC-044 | The settings file chooses the sheet with `sheet_file` and `sheet_name`, the options win over it, and a bad line says its number. | implemented | done | host-test | `sheets::the_settings_file_chooses_the_sheet_with_two_keys_and_a_bad_line_says_its_number` | - |
-| STNC-045 | The window shows the sheet that was chosen, in the eight languages, and takes its figures and its ratio limits. | prototype | partial | host-test | `sheets::the_window_shows_the_sheet_that_was_chosen_in_the_language_of_the_person` | The logic is tested without a screen; no person has looked at it, and the window has no control yet to pick the file or the sheet. |
+| STNC-045 | The window shows the sheet that was chosen, in the eight languages, and takes its figures and its ratio limits. | prototype | partial | host-test | `sheets::the_window_shows_the_sheet_that_was_chosen_in_the_language_of_the_person` | The logic is tested without a screen; no person has looked at it. |
 | STNC-046 | The openings are written as a drawing of circles and rectangles in millimetres that reads back as the same openings, with the same text each time. | implemented | done | host-test | `dxf_out::the_drawing_of_circles_and_rectangles_reads_back_as_the_same_openings` | An obround opening is refused (or left out with `--force`); the drawing was read back by this program only and no CAD program has opened it. |
 | STNC-047 | A drawing is never written over a file that exists unless `--overwrite` is given. | implemented | done | host-test | `dxf_out::convert_to_a_dxf_draws_the_reduced_openings_and_never_replaces_a_file_unless_asked` | - |
+
+## The project of the suite
+
+| ID | Requirement | State | Progress | Evidence | Test | Limits |
+|---|---|---|---|---|---|---|
+| STNC-048 | The paste layers are read from the job of a `.eh3d` project, chosen by path or file name, and a job without one is refused. | implemented | done | host-test | `project::the_paste_layers_are_chosen_by_path_or_name_and_name_their_stencils` | Invented projects; no project of a real board. |
+| STNC-049 | Each stencil is kept in the branch `stencilcam/` only, and a refused conversion leaves the project as it was. | implemented | done | host-test | `project::convert_keeps_a_stencil_for_each_paste_layer_in_its_own_branch_only` | - |
+| STNC-050 | A job that changes makes the stencils out of date, and one layer made again keeps the others only while the job is the same. | implemented | done | host-test | `project::one_layer_converted_again_keeps_the_stencils_of_the_others_while_the_job_is_the_same` | - |
+| STNC-051 | The window opens the paste layers of a project, saves their stencils and offers the sheets of a table in a list. | prototype | partial | host-test | `project::the_window_opens_the_paste_layers_of_a_project_and_saves_their_stencils` | The logic is tested without a screen; no person has looked at the window. |

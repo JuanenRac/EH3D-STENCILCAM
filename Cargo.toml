@@ -2,7 +2,7 @@
 name = "eh3d-stencilcam"
 version = "0.1.2"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.89"
 description = "Solder paste stencils from the paste layer of a board: shrunk and rounded openings, laser kerf compensation, ratio checks and G-code or HP-GL cutting paths"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/JuanenRac/EH3D-STENCILCAM"
@@ -27,6 +27,8 @@ eh3d-parser-gerber = { version = ">=0.0.2", path = "../EH3D-CORE-LIBS/crates/eh3
 eh3d-parser-gcode = { version = ">=0.0.7", path = "../EH3D-CORE-LIBS/crates/eh3d-parser-gcode" }
 eh3d-gerberviewer ={ version = ">=0.0.1", path = "../EH3D-GERBERVIEWER" }
 eh3d-serverclient = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/serverclient" }
+# the `.eh3d` project of the suite, one file with a branch for each program: this program writes only `stencilcam/`
+eh3d-project = { version = ">=0.0.1", path = "../EH3D-COMMON/crates/project" }
 
 # the window
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts"], optional = true }
@@ -35,6 +37,10 @@ png = { version = "0.17", optional = true }
 # the window of Linux needs a windowing system chosen at build time (X11 and Wayland); Windows and macOS have their own
 [target.'cfg(target_os = "linux")'.dependencies]
 eframe = { version = "0.37.0", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"], optional = true }
+
+[dev-dependencies]
+# the tests make their own project files
+tempfile = "3"
 
 [profile.release]
 opt-level = 3

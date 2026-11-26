@@ -3,6 +3,9 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The project of the suite (`.eh3d`):** `project info FILE` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project, and `project convert FILE` turns each paste layer of the job (or the one named with `--layer`) into a stencil kept in the branch `stencilcam/` only, with a copy of the layer and a reference to the content of the job. A job that changes afterwards makes the stencils out of date (exit 2). 7 new tests with invented projects.
+- **A list of sheets and the layer of the job in the window:** a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list, a dropped `.eh3d` file opens the paste layers of its job (top and bottom are chosen from a list) and the stencil can be saved back to the project. The words are in the eight languages; no person has looked at the window yet.
+- The crate `eh3d-project` of EH3D-COMMON is now used; Rust 1.89 or newer is needed.
 - **A path with no point no longer stops the order of the cuts, and an artifact cannot be named `.` or `..`:** `ordered_indices` read the first point of every path and panicked on an empty one, so the program, the plot and the time of a list with an empty path all stopped (an empty path is now left out); the name of a file kept on the server could be `..` or hold a character that reverses or hides text. 33 new tests cover the order of many paths, the leads, the times, the plot, the atomic write and the server names and bytes.
 - The shared workflow checker (`tools/workflow_hygiene.py`) is the current one of the documentation hub: the filters under a trigger (branches, paths, types) are no longer read as events.
 

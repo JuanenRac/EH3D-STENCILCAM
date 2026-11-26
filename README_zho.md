@@ -17,7 +17,7 @@
 
 ---
 
-**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 314 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
+**诚实检查 - 当前真正能运行的内容：** 一个 Rust 库和一个命令行程序（`eh3d-stencilcam`），有 321 个在电脑上运行的测试：把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL。它有一个窗口（用 `--features gui` 构建），可打开锡膏层并绘制焊盘和切割路径，但窗口尚未在屏幕上看过，没有在机器上试过，也没有用大量真实文件验证过。
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | 版本 | `0.1.2` |
 | 成熟度 | 可用 |
-| 测试 | 314 |
+| 测试 | 321 |
 | 技术栈 | Rust |
 | 真实硬件 | 未试过：这里的任何内容都没有在机器上运行过 |
 
@@ -46,7 +46,7 @@
 |---|---|---|
 | 核心 | 🟡 | 把锡膏层的焊盘变成钢网开口（缩小、倒圆、按激光切缝补偿并检查锡膏脱模），并写成 G 代码或 HP-GL；已在电脑上用正常和损坏的输入测试，未用大量真实文件验证。 |
 | 命令行 | 🟡 | `eh3d-stencilcam` 运行与库相同的函数并打印结果；每个错误都以消息和非零退出码返回。 |
-| 测试 | 🟡 | 314 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
+| 测试 | 🟡 | 321 个测试通过（`cargo test`），包含正常情况、边界情况和损坏的输入，以及带有随机（固定种子）丢行和损坏链路的模拟激光器、重发、安全停止和续传。 |
 | 安全 | 🟡 | 纯安全 Rust（`forbid(unsafe_code)`）：处理收到的文件时不会 panic，错误的值会返回带原因的错误；没有独立审查。 |
 | 窗口 | 🟠 | 已编写（egui，`--features gui`）：打开或拖入锡膏层、选择材料、编辑参数、查看焊盘和切割路径（锡膏无法脱出的开口为红色）、缩放和平移、导出；其逻辑已测试，但尚未构建，也尚未在屏幕上看过。 |
 | 真实硬件 | 🔴 | 未试过：这里的任何内容都没有在机器上运行过。 |
@@ -122,6 +122,7 @@ EH3D-STENCILCAM/
 │   ├── crib.rs                                  从工具库的 CSV 表读取激光切缝宽度和板材
 │   ├── dxf_in.rs                                读取图纸（DXF）：圆和矩形成为开口，其余只作提示
 │   ├── dxf_out.rs                               把开口写成由圆和矩形组成的图纸（DXF）
+│   ├── eh3dfile.rs                              .eh3d 项目：读入作业的锡膏层，钢网存入自己的分支
 │   ├── gui.rs                                   窗口（egui，gui 特性）：绘制状态并传递用户的操作
 │   ├── lang.rs                                  窗口的文字（八种语言）
 │   ├── layer.rs                                 从字节读取图层，并按代码显示读取器的提示
@@ -151,7 +152,8 @@ EH3D-STENCILCAM/
 │   ├── ratio_limits.rs                          比值下限、其原因和退出码 2 的测试
 │   ├── crib_kerf.rs                             从工具库 CSV 读取切缝宽度、其限制和损坏表格的测试
 │   ├── sheets.rs                                工具库板材的测试：读取、选项、设置和窗口
-│   └── dxf_out.rs                               开口图纸的测试：回读，绝不覆盖已有文件
+│   ├── dxf_out.rs                               开口图纸的测试：回读，绝不覆盖已有文件
+│   └── project.rs                               项目测试：分支、过期、命令行、窗口和薄片
 ├── examples/
 │   ├── paste.gtp                                试用的示例
 │   └── paste.dxf                                同样的焊盘，以图纸（DXF）形式给出
@@ -175,6 +177,8 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   参与贡献、行为准则和许可证
 ```
 
+**套件项目。** `.eh3d` 文件为每个程序保存一个分支。`project info FILE.eh3d` 显示作业（`manufacturing/` 分支，即一个 `.eh3dproj` 包）的图层和项目中保存的钢网；`project convert FILE.eh3d [--layer NAME] [--plt]` 用与 `convert` 相同的选项和拒绝条件，把作业的每个锡膏层（或指定的图层）转换为钢网，并连同该图层的副本和来源分支的内容只保存到 `stencilcam/` 分支。之后作业如有改动，`project info` 会提示钢网已过期，并以 2 结束。在窗口中，拖入 `.eh3d` 会打开其作业的锡膏层（顶面和底面从列表中选择），钢网可保存回项目；薄片表（`.csv`，拖入或用按钮打开）以列表方式提供薄片。
+
 ## ⚙️ 配置
 
 一个小的设置文件 `stencil.cfg`（`键 = 值`，每行一个，`#` 开始注释）保存值得调整的内容：`lead_in_mm` 和 `lead_out_mm` 是每条轮廓之前的直线引入段和之后的引出段的长度（默认 0.3 mm，范围 0 到 5；0 表示不写），`laser_wait_s` 是激光点亮后的等待（默认 0，最长 60）。`eh3d-stencilcam config` 会打印带有所有默认值的文件（`examples/stencil.cfg` 就是该文件），`--config FILE` 读取文件；`--lead-in MM`、`--lead-out MM` 和 `--laser-wait 秒数` 在命令行给出同样的设置并优先于文件。未知的键、重复的键或超出范围的值会报错并指出其行号。其余内容通过命令行参数给出（见接口），每个默认值都写在命令的帮助中（`eh3d-stencilcam help`）。固定的限制是代码中的具名常量，并有测试覆盖。`lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm`（对应选项 `--lead-in-round`、`--lead-out-round`、`--lead-in-rect` 和 `--lead-out-rect`）分别给出圆形开口和矩形开口的引入段和引出段；它们在文件中以注释形式给出，未给出时使用通用的 `lead_in_mm` 和 `lead_out_mm`。 `min_web_mm`（对应 `--min-web`）是两个开口之间不会被警告的最窄桥宽（默认 0.1 mm，范围 0 至 5；0 表示不警告）。 `min_aspect` 和 `min_area`（对应 `--min-aspect` 和 `--min-area`）是开口无法释放锡膏的比值下限（默认 1.5 和 0.66）；`region_fit_percent`（对应 `--region-fit`，默认 0，最大 20）会把几乎填满其外接矩形的区域（如切角焊盘）按该矩形开口。`--crib FILE.csv --crib-laser NAME` 从工具库导出的 CSV 中的激光工具取切缝宽度。未通过的检查以代码 2 结束。
@@ -183,7 +187,7 @@ EH3D-STENCILCAM/
 
 ## 🚀 快速开始
 
-需要稳定版 Rust 工具链（1.75 或更新）。
+需要稳定版 Rust 工具链（1.89 或更新）。
 
 ```bash
 cargo build --release
@@ -197,7 +201,7 @@ cargo run --release --features gui -- --shot screen.png examples/paste.gtp   # a
 
 ## 🧪 测试
 
-测试套件有 314 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
+测试套件有 321 个测试（`cargo test`，CI 在 Windows 和 Linux 上运行）。它们检查正常情况、边界情况和损坏的输入：空文件、乱码和被截断的文件绝不会 panic。CI 还运行 `cargo fmt --check`、把警告当作错误的 `cargo clippy` 以及 `python -I tools/ci_validate.py`。
 
 ## 🏗️ 构建与发布
 

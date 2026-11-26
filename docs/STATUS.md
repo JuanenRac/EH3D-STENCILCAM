@@ -6,12 +6,11 @@ EH3D-STENCILCAM is a working program on a computer: a library (`eh3d_stencilcam`
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 47 requirements: 41 implemented, 4 prototype, 2 planned and 0 validated. By progress: 41 done, 4 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 51 requirements: 44 implemented, 5 prototype, 2 planned and 0 validated. By progress: 44 done, 5 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
 * Whether the corner radius and the other starting points of the materials should also be read from the tool crib of the suite (the thickness, the reduction, the kerf and the ratio limits of a sheet are read from it when a sheet is chosen).
-* Whether the window should have a control to pick the table of sheets and the sheet (it shows the sheet that the settings or the command line chose, and nothing more).
 * Whether an opening may follow a polygon or a track at an angle instead of being a circle, a rectangle or an obround.
 * Whether a steel sheet needs a cutting step by step in several passes.
 

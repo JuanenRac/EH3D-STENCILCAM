@@ -338,6 +338,12 @@ pub fn sheets_from_crib(csv: &str) -> Result<Vec<SheetSpec>, String> {
     Ok(out)
 }
 
+/// Every sheet of the table of sheets in a file, refusing one over [`MAX_CRIB_BYTES`] before it is read; every message starts with the path.
+pub fn sheets_from_file(path: &str) -> Result<Vec<SheetSpec>, String> {
+    let text = read_bounded(path)?;
+    sheets_from_crib(&text).map_err(|e| format!("{path}: {e}"))
+}
+
 /// The sheet called `name` (any case, spaces around ignored) of a table of sheets.
 pub fn sheet_from_crib(csv: &str, name: &str) -> Result<SheetSpec, String> {
     let wanted = name.trim().to_lowercase();
