@@ -105,7 +105,7 @@ fn a_seeded_set_of_openings_always_reads_back_the_same() {
         let n = 1 + (s.next() % 12) as usize;
         let list: Vec<Opening> = (0..n)
             .map(|_| {
-                let form = if s.next() % 2 == 0 {
+                let form = if s.next().is_multiple_of(2) {
                     Form::Round
                 } else {
                     Form::Rectangle
