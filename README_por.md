@@ -17,7 +17,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 325 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 331 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versão | `0.1.3` |
 | Maturidade | Funcional |
-| Testes | 325 |
+| Testes | 331 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -46,7 +46,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `eh3d-stencilcam` executa as mesmas funções da biblioteca e imprime o resultado; cada erro volta como mensagem e código de saída diferente de zero. |
-| Testes | 🟡 | 325 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas, e um laser simulado com uma ligação que perde e danifica linhas ao acaso (com semente), reenvios, paragem segura e retoma. |
+| Testes | 🟡 | 331 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas, e um laser simulado com uma ligação que perde e danifica linhas ao acaso (com semente), reenvios, paragem segura e retoma. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
 | Janela | 🟠 | Escrita (egui, `--features gui`): abrir ou largar uma camada de pasta, escolher o material, editar os parâmetros, ver os pads e as trajetórias de corte (a vermelho as aberturas que não libertarão a pasta), zoom e deslocamento, exportar; a sua lógica está testada, mas ainda não foi compilada nem vista num ecrã. |
 | Hardware real | 🔴 | Não experimentado: nada disto foi executado numa máquina. |
@@ -91,7 +91,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Sem código unsafe:** `#![forbid(unsafe_code)]` na biblioteca e no programa.
 * **O G-code leva o cabeçalho padrão e uma ordem mais rápida:** o ficheiro começa com linhas de comentário do gerador, das unidades e da camada com o seu SHA-256, um retângulo de cantos vivos não tem pontos repetidos e a ordem dos cortes encontra-se com uma grelha, de modo que cem mil aberturas ficam ordenadas num instante.
 * **Uma espera depois de ligar o laser:** `--laser-wait SEGUNDOS` escreve uma espera `G4` depois de cada `M3` para que o laser esteja à sua potência antes de a cabeça se mover (0 por omissão: sem espera); os testes voltam a ler o G-code com o leitor da suite e não encontram nenhum aviso nem nenhum corte com o laser desligado. `--rapid MM_MIN` (ou `rapid_mm_min` em `stencil.cfg`, de 100 a 100000, 0 por omissão: sem estimativa) é a velocidade dos movimentos com o laser desligado: o `convert` imprime então o tempo estimado do trabalho em G-code (corte, espera do laser e deslocações; a aceleração da máquina não é contada).
-* **Colocar o stencil na folha:** `--origin X,Y` leva o canto inferior esquerdo das aberturas para X,Y e `--bed LARGURA,ALTURA` recusa escrever quando um ponto de um contorno cai fora da mesa (as entradas não contam); sem elas usam-se as coordenadas da placa tal como estão.
+* **Colocar o stencil na folha:** `--origin X,Y` leva o canto inferior esquerdo das aberturas para X,Y e `--bed LARGURA,ALTURA` recusa escrever quando a cabeça sairia da mesa, com um ponto de um contorno ou, em G-code, com o início de uma entrada ou o fim de uma saída; sem elas usam-se as coordenadas da placa tal como estão. A janela escreve o programa que o `convert` escreve com os mesmos valores: tem entre os parâmetros as entradas e saídas do corte (também por forma), a espera do laser, as passagens, a origem e a mesa, e deixa de fora uma abertura repetida no mesmo sítio.
 * **Um troço reto de entrada e de saída em cada corte:** o G-code pode entrar em cada contorno por uma reta tangente ao seu primeiro segmento e sair pelo prolongamento do último (0,3 mm cada um por omissão, `--lead-in MM`, `--lead-out MM` ou `lead_in_mm` e `lead_out_mm` em `stencil.cfg`; 0 não escreve nenhum e o programa é o que se escreve sem troços). O laser fica desligado enquanto a cabeça viaja até ao início da entrada, liga-se aí (e espera, se for pedido) e desliga-se no fim da saída. Os contornos são convexos e vão no sentido anti-horário, por isso ambos os troços ficam fora da abertura, sobre a folha que se conserva; em HP-GL não se escreve nenhum.
 * **Entrada e saída por forma:** uma abertura redonda e uma retangular podem ter a sua própria entrada e saída (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` ou `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` em `stencil.cfg`, de 0 a 5 mm); a que não for indicada é a geral `--lead-in` ou `--lead-out`, e uma abertura oblonga usa sempre as gerais. A estimativa do tempo conta as de cada forma. Ver `docs/leads-by-form.md`.
 * **Um desenho como entrada, e a velocidade, a escala do laser e as passagens em `stencil.cfg`:** um ficheiro que termina em `.dxf` é lido como desenho (os círculos passam a ser aberturas redondas e os retângulos fechados com os lados sobre os eixos, retangulares; lê-se a unidade do desenho e qualquer outra entidade é um aviso, pelo que `convert` recusa escrever sem `--force`); `--feed`, `--smax` e `--passes` (`feed_mm_min`, `smax` e `passes` no ficheiro; por omissão 600 mm/min, 1000 e uma passagem) definem a velocidade do corte, o topo da escala de potência do laser e quantas vezes se corta cada contorno. Testado apenas no computador: nada foi cortado num laser.
@@ -177,7 +177,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   como contribuir, o código de conduta e a licença
 ```
 
-**O projeto da suite.** Um ficheiro `.eh3d` tem um ramo por programa. `project info FICHEIRO.eh3d` mostra as camadas do trabalho (o ramo `manufacturing/`, um pacote `.eh3dproj`) e os estênceis guardados no projeto; `project convert FICHEIRO.eh3d [--layer NOME] [--plt]` transforma cada camada de pasta do trabalho (ou a indicada) num estêncil, com as mesmas opções e as mesmas recusas de `convert`, e guarda-o apenas no ramo `stencilcam/`, com uma cópia da camada e o conteúdo do ramo de onde vem. Se o trabalho mudar depois, `project info` avisa que os estênceis estão desatualizados e termina com 2. Na janela, um `.eh3d` largado abre as camadas de pasta do seu trabalho (a face de cima e a de baixo escolhem-se numa lista) e o estêncil é guardado no projeto, e uma tabela de folhas (`.csv`, largada ou aberta com o seu botão) apresenta as folhas numa lista.
+**O projeto da suite.** Um ficheiro `.eh3d` tem um ramo por programa. `project info FICHEIRO.eh3d` mostra as camadas do trabalho (o ramo `manufacturing/`, um pacote `.eh3dproj`) e os estênceis guardados no projeto; `project convert FICHEIRO.eh3d [--layer NOME] [--plt]` transforma cada camada de pasta do trabalho (ou a indicada) num estêncil, com as mesmas opções e as mesmas recusas de `convert`, e guarda-o apenas no ramo `stencilcam/`, com uma cópia da camada e o conteúdo do ramo de onde vem. Se o trabalho mudar depois, `project info` avisa que os estênceis estão desatualizados e termina com 2. Na janela, um `.eh3d` largado abre as camadas de pasta do seu trabalho (a face de cima e a de baixo escolhem-se numa lista) e o estêncil é guardado no projeto, e uma tabela de folhas (`.csv`, largada ou aberta com o seu botão) apresenta as folhas numa lista. Quando guardar removeria uma assinatura do projeto ou do seu ramo, a janela pergunta primeiro e sem acordo não escreve nada.
 
 ## ⚙️ Configuração
 
@@ -201,7 +201,7 @@ Para tirar uma captura da janela sem a abrir à mão, execute-o com `--shot FICH
 
 ## 🧪 Testes
 
-O conjunto tem 325 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 331 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 

@@ -11,7 +11,7 @@ The CAM program of the suite for solder-paste stencils: it reads the pads flashe
 * Turns every rectangular, round or obround pad of the paste layer into an opening in millimetres, shrunk by the percentage of the material, with the kerf taken off the cut line; the stencil for the bottom side can be mirrored.
 * Computes the aspect ratio and the area ratio of each opening and refuses to write while an opening will not release the paste (unless `--force`); an opening the kerf would eat is refused even with `--force`.
 * Refuses to write an incomplete stencil: a layer with pads, tracks or regions that cannot become openings (a polygon, a region that is not a rectangle, a track at an angle) is told with the reason of each, and written only with `--force`.
-* Writes G-code for a laser (laser off while travelling, a wait after the laser is switched on, a standard header, a lead-in and lead-out by form, a start at an origin and a bed that refuses a point outside it) or an HP-GL plot at 40 units to the millimetre, always through a temporary file renamed over the old one.
+* Writes G-code for a laser (laser off while travelling, a wait after the laser is switched on, a standard header, a lead-in and lead-out by form, a start at an origin and a bed that the head, leads included, may not leave) or an HP-GL plot at 40 units to the millimetre, always through a temporary file renamed over the old one.
 * Warns of narrow webs between openings, leaves out an opening repeated in the same place and estimates the time of the cut when the rapid speed is given.
 * Has profiles for Mylar, Kapton and steel as starting points, and shows all of this in a window (built with `--features gui`) in eight languages.
 

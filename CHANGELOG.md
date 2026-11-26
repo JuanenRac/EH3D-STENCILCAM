@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The window writes the same program as the command:** it now has the lead-in and lead-out (0.3 mm by default, also by shape of the opening), the wait of the laser, the passes, the origin and the bed among its parameters, with the limits of the command line, and leaves out an opening repeated in the same place. Before, the window wrote no leads, no wait, one pass and had no bed limit.
+- **The bed limit counts the lead-ins and the lead-outs:** `--bed` (and the bed of the window) refuses G-code whose lead-in starts or lead-out ends outside the bed, not only a point of a contour. A stencil moved to `--origin 0,0` needs room for its leads. A HP-GL plot has no leads and is checked as before.
+- **The window asks before it removes a signature:** saving into a project that is signed, or whose branch `stencilcam/` is, shows what would be removed and writes nothing until it is agreed.
+- 6 new tests.
 - **The stencil of one side no longer takes the place of the other:** the paste layers `board.gtp` and `board.gbp` were both kept as `stencil-board.nc`, so the bottom side silently replaced the top one. When two layers would share a name, each is now kept with its whole name (`stencil+board.gtp.nc`). A file name that two layers share is no longer chosen by guess with `--layer`: the path says which.
 - **Nothing is written over a project or over a file the run reads:** `convert` and the window refuse an output that ends in `.eh3d`, and `convert` one that is the settings file, the table of tools or the table of sheets.
 - **The window says when keeping a stencil removed a signature** of the project.

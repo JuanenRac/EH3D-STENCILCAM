@@ -21,7 +21,7 @@ use eh3d_stencilcam::openings::{
 };
 use eh3d_stencilcam::output::{
     duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, move_to_origin,
-    outside_bed, paths, write_atomic, FormLeads, Lead,
+    outside_bed_with_leads, paths, repeated, write_atomic, FormLeads, Lead,
 };
 use eh3d_stencilcam::profile::{Material, Profile};
 use eh3d_stencilcam::server;
@@ -52,7 +52,7 @@ out the notices of those codes (for example units-missing). --arc-tolerance MM (
 --crib FILE.csv --crib-laser NAME takes the kerf from the beam width of a laser tool in the CSV that the tool crib of the suite exports (a file over 1 MiB is refused); it replaces --kerf.
 --sheet-file SHEETS.csv --sheet NAME (or sheet_file and sheet_name of the settings file) takes a sheet of the table of sheets that the tool crib exports (export-sheets-csv; a file over 1 MiB is refused): its thickness, its reduction of every opening on each side (replacing the percent of --shrink, which is then refused), its kerf (a kerf of 0 takes the beam width of the laser of --crib and --crib-laser, or --kerf) and the ratio limits it gives (a limit of 0 gives none, and --min-aspect and --min-area win over the sheet, which wins over the settings file). --thickness is refused with a sheet; --kerf and --crib are refused when the sheet has a kerf of its own.
 --rapid MM_MIN (0 by default: no estimate; otherwise 100 to 100000) is the speed of the moves with the laser off: convert then prints the estimated time of the G-code job.
---origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when a point of a contour falls outside the bed 0..WIDTH by 0..HEIGHT (the leads are not counted).
+--origin X,Y moves the stencil so that the lower-left corner of its openings is at X,Y (the coordinates of the board are used as they are when it is not given). --bed WIDTH,HEIGHT refuses to write when the head would leave the bed 0..WIDTH by 0..HEIGHT: a point of a contour and, in G-code, the start of a lead-in or the end of a lead-out.
 --config FILE reads stencil.cfg (lead_in_mm, lead_out_mm, lead_in_round_mm, lead_out_round_mm, lead_in_rect_mm, lead_out_rect_mm, laser_wait_s, rapid_mm_min, feed_mm_min, smax, passes, min_web_mm, min_aspect, min_area, region_fit_percent); the options win over the file.
 --min-aspect N (0.5 to 10, 1.5 by default) and --min-area N (0.1 to 2, 0.66 by default) are the limits under which an opening does not release the paste; each reason in check and in convert names the ratio, its limit and the thickest sheet for which the opening would do. A track along an axis and a region that is a rectangle become openings; --region-fit PERCENT (0 to 20, 0 by default) also opens a region that fills at least 100 minus PERCENT of its enclosing rectangle (a pad with rounded corners) as that rectangle, with a note.
 --min-web MM (0.1 by default, 0 to 5; 0 gives no warning) warns, in check and in convert, of two openings whose web (the sheet that stays between them) is narrower, or that touch or overlap; it never stops convert. Two openings of the same form, size and place are one hole: the second is left out, with a note on the standard error. check prints how many openings there are of each form and the paste they hold; check --json prints that and the rest of the result as one JSON object.
@@ -593,21 +593,24 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             if let Some(o) = origin {
                 move_to_origin(&mut once, o);
             }
+            let once_forms = forms(&openings);
+            let is_plot = out.to_ascii_lowercase().ends_with(".plt");
             if let Some(b) = bed {
-                if let Some(pt) = outside_bed(&once, b) {
+                // a plot has no leads
+                let walked = if is_plot {
+                    FormLeads::uniform(0.0, 0.0)
+                } else {
+                    leads
+                };
+                if let Some(pt) = outside_bed_with_leads(&once, &once_forms, &walked, b) {
                     return Err(format!(
-                        "the point {:.3},{:.3} falls outside the bed {},{}; move the stencil with --origin",
+                        "the point {:.3},{:.3} falls outside the bed {},{} (the lead-in and the lead-out count); move the stencil with --origin",
                         pt.0, pt.1, b.0, b.1
                     ));
                 }
             }
-            let once_forms = forms(&openings);
             // every contour is cut `passes` times: all the contours once, then all of them again
-            let all: Vec<_> = (0..passes).flat_map(|_| once.iter().cloned()).collect();
-            let all_forms: Vec<_> = (0..passes)
-                .flat_map(|_| once_forms.iter().copied())
-                .collect();
-            let is_plot = out.to_ascii_lowercase().ends_with(".plt");
+            let (all, all_forms) = repeated(&once, &once_forms, passes);
             let estimate = if rapid > 0.0 && !is_plot {
                 Some(estimate_time_with_forms(
                     &all, &all_forms, feed, laser_wait, &leads, rapid,

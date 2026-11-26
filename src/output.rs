@@ -64,13 +64,54 @@ pub fn move_to_origin(paths: &mut [Path], origin: (f64, f64)) {
     }
 }
 
-/// The first point of the paths that lies outside the bed (`0..=width` by `0..=height`), if there is one. The leads are not counted.
+/// The first point of the paths that lies outside the bed (`0..=width` by `0..=height`), if there is one. Only the points of the paths: a program with leads is checked with
+/// [`outside_bed_with_leads`].
 pub fn outside_bed(paths: &[Path], bed: (f64, f64)) -> Option<(f64, f64)> {
     paths
         .iter()
         .flatten()
         .copied()
         .find(|p| !(p.0 >= 0.0 && p.0 <= bed.0 && p.1 >= 0.0 && p.1 <= bed.1))
+}
+
+/// A point this far outside the bed is the rounding of a sum (a stencil moved to the origin 0,0), not a move of the head.
+const BED_ROUNDING_MM: f64 = 1e-9;
+
+/// The first point the head goes to that lies outside the bed (`0..=width` by `0..=height`), if there is one: the points of each contour and, with them, where its lead-in starts
+/// and where its lead-out ends (`forms[i]` is the form of `paths[i]`, which chooses its leads). With every lead at 0 only the contours count.
+pub fn outside_bed_with_leads(
+    paths: &[Path],
+    forms: &[Form],
+    leads: &FormLeads,
+    bed: (f64, f64),
+) -> Option<(f64, f64)> {
+    let inside = |p: &(f64, f64)| {
+        p.0 >= -BED_ROUNDING_MM
+            && p.0 <= bed.0 + BED_ROUNDING_MM
+            && p.1 >= -BED_ROUNDING_MM
+            && p.1 <= bed.1 + BED_ROUNDING_MM
+    };
+    paths
+        .iter()
+        .enumerate()
+        .filter(|(_, path)| !path.is_empty())
+        .find_map(|(k, path)| {
+            let lead = forms.get(k).map_or(leads.general, |f| leads.for_form(*f));
+            let (entry, exit) = lead_points(path, lead.in_mm, lead.out_mm);
+            entry
+                .into_iter()
+                .chain(path.iter().copied())
+                .chain(exit)
+                .find(|p| !inside(p))
+        })
+}
+
+/// The paths and their forms as they are cut with `passes` passes: all the contours once, then all of them again.
+pub fn repeated(paths: &[Path], forms: &[Form], passes: u32) -> (Vec<Path>, Vec<Form>) {
+    (
+        (0..passes).flat_map(|_| paths.iter().cloned()).collect(),
+        (0..passes).flat_map(|_| forms.iter().copied()).collect(),
+    )
 }
 
 /// The forms of the openings, in the order of [`paths`] (the form of each path, to choose its leads).

@@ -2,12 +2,15 @@
 //! decided there, in code that is tested.
 
 use crate::browse::{self, Browser};
-use crate::lang::{Lang, Msg};
+use crate::lang::{fill, Lang, Msg};
 use crate::shot::{ShotRequest, ShotTheme, PATIENCE_FRAMES};
-use crate::window::{material_msg, Window, LAYER_EXTENSIONS, MATERIALS, TABLE_EXTENSIONS};
+use crate::window::{
+    material_msg, Window, LAYER_EXTENSIONS, MATERIALS, SHAPE_LEAD_KEYS, TABLE_EXTENSIONS,
+};
 use eframe::egui::{
     self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke, Vec2,
 };
+use eh3d_project::suitetext::S;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -154,110 +157,164 @@ impl App {
         egui::Panel::left("parameters")
             .default_size(260.0)
             .show(ui, |ui| {
-                ui.add_space(4.0);
-                ui.label(
-                    egui::RichText::new(Msg::Parameters.tr(lang))
-                        .strong()
-                        .color(ACCENT),
-                );
-                ui.separator();
-                if !self.win.job_layers.is_empty() {
-                    ui.label(Msg::JobLayer.tr(lang));
-                    let current = self
-                        .win
-                        .layer
-                        .as_ref()
-                        .and_then(|l| l.job.as_ref())
-                        .map(|j| j.rel.clone())
-                        .unwrap_or_default();
-                    let mut picked = None;
-                    egui::ComboBox::from_id_salt("job_layer")
-                        .selected_text(current.clone())
-                        .show_ui(ui, |ui| {
-                            for (i, f) in self.win.job_layers.iter().enumerate() {
-                                if ui.selectable_label(f.rel == current, &f.rel).clicked() {
-                                    picked = Some(i);
-                                }
-                            }
-                        });
-                    if let Some(i) = picked {
-                        if self.win.choose_job_layer(i) {
-                            self.fit_pending = true;
-                        }
-                    }
-                }
-                if !self.win.sheets.is_empty() {
-                    ui.label(Msg::Sheet.tr(lang));
-                    let current = self
-                        .win
-                        .sheet
-                        .as_ref()
-                        .map_or_else(|| Msg::NoSheet.tr(lang).to_string(), |s| s.name.clone());
-                    let mut picked = None;
-                    egui::ComboBox::from_id_salt("sheet")
-                        .selected_text(current.clone())
-                        .show_ui(ui, |ui| {
-                            let none = self.win.sheet.is_none();
-                            if ui.selectable_label(none, Msg::NoSheet.tr(lang)).clicked() {
-                                picked = Some(None);
-                            }
-                            for (i, s) in self.win.sheets.iter().enumerate() {
-                                if ui.selectable_label(s.name == current, &s.name).clicked() {
-                                    picked = Some(Some(i));
-                                }
-                            }
-                        });
-                    if let Some(choice) = picked {
-                        self.win.choose_sheet(choice);
-                    }
-                }
-                ui.label(Msg::Material.tr(lang));
-                let mut chosen = self.win.material;
-                egui::ComboBox::from_id_salt("material")
-                    .selected_text(material_msg(chosen).tr(lang))
-                    .show_ui(ui, |ui| {
-                        for m in MATERIALS {
-                            ui.selectable_value(&mut chosen, m, material_msg(m).tr(lang));
-                        }
-                    });
-                if chosen != self.win.material {
-                    self.win.set_material(chosen);
-                }
-                for i in 0..self.win.fields.len() {
-                    let label = self.win.fields[i].label.tr(lang);
-                    let mut text = self.win.fields[i].text.clone();
-                    ui.label(label);
-                    let edit = egui::TextEdit::singleline(&mut text).desired_width(f32::INFINITY);
-                    if ui.add(edit).changed() {
-                        self.win.set_field(i, text);
-                    }
-                }
-                ui.add_space(8.0);
-                let mut mirror = self.win.mirror;
-                if ui.checkbox(&mut mirror, Msg::Mirror.tr(lang)).changed() {
-                    self.win.set_mirror(mirror);
-                }
-                let mut force = self.win.force;
-                if ui.checkbox(&mut force, Msg::Force.tr(lang)).changed() {
-                    self.win.set_force(force);
-                }
-                if let Some(line) = self.win.sheet_text() {
-                    ui.add_space(8.0);
-                    ui.label(line);
-                }
-                let lines = self.win.ratio_texts(5);
-                if !lines.is_empty() {
-                    ui.add_space(8.0);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add_space(4.0);
                     ui.label(
-                        egui::RichText::new(Msg::RatiosTitle.tr(lang))
+                        egui::RichText::new(Msg::Parameters.tr(lang))
                             .strong()
                             .color(ACCENT),
                     );
-                    for line in lines {
+                    ui.separator();
+                    if !self.win.job_layers.is_empty() {
+                        ui.label(Msg::JobLayer.tr(lang));
+                        let current = self
+                            .win
+                            .layer
+                            .as_ref()
+                            .and_then(|l| l.job.as_ref())
+                            .map(|j| j.rel.clone())
+                            .unwrap_or_default();
+                        let mut picked = None;
+                        egui::ComboBox::from_id_salt("job_layer")
+                            .selected_text(current.clone())
+                            .show_ui(ui, |ui| {
+                                for (i, f) in self.win.job_layers.iter().enumerate() {
+                                    if ui.selectable_label(f.rel == current, &f.rel).clicked() {
+                                        picked = Some(i);
+                                    }
+                                }
+                            });
+                        if let Some(i) = picked {
+                            if self.win.choose_job_layer(i) {
+                                self.fit_pending = true;
+                            }
+                        }
+                    }
+                    if !self.win.sheets.is_empty() {
+                        ui.label(Msg::Sheet.tr(lang));
+                        let current = self
+                            .win
+                            .sheet
+                            .as_ref()
+                            .map_or_else(|| Msg::NoSheet.tr(lang).to_string(), |s| s.name.clone());
+                        let mut picked = None;
+                        egui::ComboBox::from_id_salt("sheet")
+                            .selected_text(current.clone())
+                            .show_ui(ui, |ui| {
+                                let none = self.win.sheet.is_none();
+                                if ui.selectable_label(none, Msg::NoSheet.tr(lang)).clicked() {
+                                    picked = Some(None);
+                                }
+                                for (i, s) in self.win.sheets.iter().enumerate() {
+                                    if ui.selectable_label(s.name == current, &s.name).clicked() {
+                                        picked = Some(Some(i));
+                                    }
+                                }
+                            });
+                        if let Some(choice) = picked {
+                            self.win.choose_sheet(choice);
+                        }
+                    }
+                    ui.label(Msg::Material.tr(lang));
+                    let mut chosen = self.win.material;
+                    egui::ComboBox::from_id_salt("material")
+                        .selected_text(material_msg(chosen).tr(lang))
+                        .show_ui(ui, |ui| {
+                            for m in MATERIALS {
+                                ui.selectable_value(&mut chosen, m, material_msg(m).tr(lang));
+                            }
+                        });
+                    if chosen != self.win.material {
+                        self.win.set_material(chosen);
+                    }
+                    for i in 0..self.win.fields.len() {
+                        let key = self.win.fields[i].key;
+                        if !SHAPE_LEAD_KEYS.contains(&key) {
+                            self.parameter(ui, i);
+                        }
+                        // after the leads of every opening come the ones of one form, closed until wanted
+                        if key == "lead_out_mm" {
+                            egui::CollapsingHeader::new(Msg::LeadsByShape.tr(lang))
+                                .id_salt("leads_by_shape")
+                                .show(ui, |ui| {
+                                    for key in SHAPE_LEAD_KEYS {
+                                        if let Some(k) = self.win.field_index(key) {
+                                            self.parameter(ui, k);
+                                        }
+                                    }
+                                });
+                        }
+                    }
+                    ui.add_space(8.0);
+                    let mut mirror = self.win.mirror;
+                    if ui.checkbox(&mut mirror, Msg::Mirror.tr(lang)).changed() {
+                        self.win.set_mirror(mirror);
+                    }
+                    let mut force = self.win.force;
+                    if ui.checkbox(&mut force, Msg::Force.tr(lang)).changed() {
+                        self.win.set_force(force);
+                    }
+                    if let Some(line) = self.win.sheet_text() {
+                        ui.add_space(8.0);
                         ui.label(line);
                     }
-                }
+                    let lines = self.win.ratio_texts(5);
+                    if !lines.is_empty() {
+                        ui.add_space(8.0);
+                        ui.label(
+                            egui::RichText::new(Msg::RatiosTitle.tr(lang))
+                                .strong()
+                                .color(ACCENT),
+                        );
+                        for line in lines {
+                            ui.label(line);
+                        }
+                    }
+                });
             });
+    }
+
+    /// One parameter: its name and the box it is typed in.
+    fn parameter(&mut self, ui: &mut egui::Ui, index: usize) {
+        let label = self.win.fields[index].label.tr(self.win.lang);
+        let mut text = self.win.fields[index].text.clone();
+        ui.label(label);
+        let edit = egui::TextEdit::singleline(&mut text).desired_width(f32::INFINITY);
+        if ui.add(edit).changed() {
+            self.win.set_field(index, text);
+        }
+    }
+
+    /// Asks before a write that would remove a signature of the project.
+    fn confirm_window(&mut self, ctx: &egui::Context) {
+        let Some(asked) = &self.win.pending else {
+            return;
+        };
+        let lang = self.win.lang;
+        let lines: Vec<String> = asked.iter().map(|w| w.text(lang.code())).collect();
+        let (mut write, mut cancel) = (false, false);
+        let answer = egui::Modal::new(egui::Id::unique("confirm_signature")).show(ctx, |ui| {
+            ui.set_max_width(420.0);
+            ui.label(
+                egui::RichText::new(S::ConfirmTitle.tr(lang.code()))
+                    .strong()
+                    .color(ACCENT),
+            );
+            ui.separator();
+            for line in &lines {
+                ui.colored_label(DANGER, line.as_str());
+            }
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                write = ui.button(S::Write.tr(lang.code())).clicked();
+                cancel = ui.button(Msg::Cancel.tr(lang)).clicked();
+            });
+        });
+        if write {
+            self.win.confirm_save();
+        } else if cancel || answer.should_close() {
+            self.win.cancel_save();
+        }
     }
 
     fn status_bar(&mut self, ui: &mut egui::Ui) {
@@ -271,6 +328,13 @@ impl App {
                     OK
                 };
                 ui.label(egui::RichText::new(text).color(colour));
+                if self.win.duplicates > 0 {
+                    let count = self.win.duplicates.to_string();
+                    ui.label(
+                        egui::RichText::new(fill(Msg::Duplicates.tr(lang), &[count.as_str()]))
+                            .color(DIM),
+                    );
+                }
                 for notice in &self.win.notices {
                     ui.label(egui::RichText::new(notice.as_str()).color(DANGER));
                 }
@@ -506,6 +570,7 @@ impl eframe::App for App {
         self.side_panel(ui);
         self.canvas(ui);
         self.dialog_window(&ctx);
+        self.confirm_window(&ctx);
         self.shot_tick(&ctx);
     }
 }

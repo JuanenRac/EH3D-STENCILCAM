@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 325 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 331 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.3` |
 | Maturity | Functional |
-| Tests | 325 |
+| Tests | 331 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 325 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 331 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -91,7 +91,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **No unsafe code:** `#![forbid(unsafe_code)]` in the library and the program.
 * **The G-code carries the standard header and a faster order:** the file starts with comment lines for the generator, the units and the layer with its SHA-256, a rectangle with sharp corners has no repeated points, and the order of the cuts is found with a grid, so a hundred thousand openings are ordered in moments.
 * **A wait after the laser is switched on:** `--laser-wait SECONDS` writes a `G4` wait after each `M3` so that the laser is at its power before the head moves (0 by default: no wait); the tests read the G-code back with the reader of the suite and find no warning and no cut with the laser off. `--rapid MM_MIN` (or `rapid_mm_min` in `stencil.cfg`, from 100 to 100000, 0 by default: no estimate) is the speed of the moves with the laser off: `convert` then prints the estimated time of the G-code job (cutting, waiting for the laser and moving; the acceleration of the machine is not counted).
-* **Placing the stencil on the sheet:** `--origin X,Y` moves the lower-left corner of the openings to X,Y and `--bed WIDTH,HEIGHT` refuses to write when a point of a contour falls outside the bed (the leads are not counted); without them the coordinates of the board are used as they are.
+* **Placing the stencil on the sheet:** `--origin X,Y` moves the lower-left corner of the openings to X,Y and `--bed WIDTH,HEIGHT` refuses to write when the head would leave the bed, with a point of a contour or, in G-code, with the start of a lead-in or the end of a lead-out; without them the coordinates of the board are used as they are. The window writes the program `convert` writes with the same values: it has the lead-ins and lead-outs (also by shape), the wait of the laser, the passes, the origin and the bed among its parameters, and leaves out an opening repeated in the same place.
 * **A straight lead-in and lead-out on every cut:** the G-code can enter each contour along a straight line tangent to its first segment and leave it along the prolongation of its last one (0.3 mm each by default, `--lead-in MM`, `--lead-out MM` or `lead_in_mm` and `lead_out_mm` in `stencil.cfg`; 0 writes none and the program is the one written without leads). The laser stays off while the head travels to the start of the lead-in, is switched on there (and waits, if asked), and is switched off at the end of the lead-out. The outlines are convex and run counter-clockwise, so both leads lie outside the opening, on the sheet that is kept; a lead is not written in HP-GL.
 * **Leads by form:** a round opening and a rectangular one can have their own lead-in and lead-out (`--lead-in-round MM`, `--lead-out-round MM`, `--lead-in-rect MM`, `--lead-out-rect MM` or `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` in `stencil.cfg`, from 0 to 5 mm); one that is not given is the general `--lead-in` or `--lead-out`, and an obround opening always uses the general ones. The estimate of the time counts the leads of each form. See `docs/leads-by-form.md`.
 * **A drawing as input, and the speed, the laser scale and the passes in `stencil.cfg`:** a file ending in `.dxf` is read as a drawing (the circles become round openings and the closed rectangles with their sides along the axes rectangular ones; the unit of the drawing is read and any other entity is a note, so `convert` refuses to write unless `--force` is given); `--feed`, `--smax` and `--passes` (`feed_mm_min`, `smax` and `passes` in the file; 600 mm/min, 1000 and one pass by default) set the speed of the cut, the top of the laser power scale and how many times every contour is cut. Tested on a computer only: nothing has been cut on a laser.
@@ -177,7 +177,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   how to contribute, the code of conduct and the licence
 ```
 
-**The project of the suite.** A `.eh3d` file holds one branch for each program. `project info FILE.eh3d` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project; `project convert FILE.eh3d [--layer NAME] [--plt]` turns each paste layer of the job (or the one named) into a stencil with the same options and the same refusals as `convert`, and keeps it in the branch `stencilcam/` only, with a copy of the layer and the content of the branch it came from. When the job changes afterwards, `project info` says that the stencils are out of date and ends with 2. In the window, a dropped `.eh3d` file opens the paste layers of its job (the top and the bottom side are chosen from a list) and the stencil is saved back to the project, and a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list.
+**The project of the suite.** A `.eh3d` file holds one branch for each program. `project info FILE.eh3d` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project; `project convert FILE.eh3d [--layer NAME] [--plt]` turns each paste layer of the job (or the one named) into a stencil with the same options and the same refusals as `convert`, and keeps it in the branch `stencilcam/` only, with a copy of the layer and the content of the branch it came from. When the job changes afterwards, `project info` says that the stencils are out of date and ends with 2. In the window, a dropped `.eh3d` file opens the paste layers of its job (the top and the bottom side are chosen from a list) and the stencil is saved back to the project, and a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list. When saving would remove a signature of the project or of its branch, the window asks first and writes nothing unless it is agreed.
 
 ## ⚙️ Configuration
 
@@ -201,7 +201,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 325 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 331 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 

@@ -2,18 +2,24 @@
 //! last said to the person and the zoom of the picture. The screen (`gui`, built with the `gui` feature) only draws this and passes on what the person does, so everything here is
 //! tested as plain code.
 
+use crate::config;
 use crate::crib::{sheet_from_file, sheets_from_file, SheetSpec};
 use crate::eh3dfile;
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
 use crate::openings::{
-    from_gerber_with, mirrored, ratios, shrunk, weak_with, Limits, Opening, Ratios,
+    deduplicated, from_gerber_with, mirrored, ratios, shrunk, weak_with, Limits, Opening, Ratios,
 };
-use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
+use crate::output::{
+    forms, gcode_with_form_leads, hpgl, move_to_origin, outside_bed_with_leads, paths, repeated,
+    write_atomic, FormLeads, Lead, Path as CutPath,
+};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_project::manufacturing::{self as suite, JobFile};
+use eh3d_project::suitetext::Said;
+use eh3d_project::suiteview;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -45,7 +51,16 @@ pub struct Field {
     pub text: String,
 }
 
-/// The parameters the window offers, in the order they are shown: the four of the profile of the material, then the feed and the power of the laser.
+/// The parameters of the leads of the round and of the rectangular openings: left empty, an opening takes the lead-in and the lead-out of every other one.
+pub const SHAPE_LEAD_KEYS: [&str; 4] = [
+    "lead_in_round_mm",
+    "lead_out_round_mm",
+    "lead_in_rect_mm",
+    "lead_out_rect_mm",
+];
+
+/// The parameters the window offers, in the order they are shown: the four of the profile of the material, the feed and the power of the laser, and then how the contours are cut
+/// (the leads, the wait of the laser and the passes) and where (the origin and the bed, both empty for none). Their starting values are those of the command line.
 pub fn default_fields(material: Material) -> Vec<Field> {
     let p = Profile::of(material);
     let f = |key: &'static str, label: Msg, text: String| Field { key, label, text };
@@ -60,7 +75,49 @@ pub fn default_fields(material: Material) -> Vec<Field> {
         f("kerf_mm", Msg::Kerf, p.kerf_mm.to_string()),
         f("feed", Msg::Feed, "600".to_string()),
         f("smax", Msg::LaserPower, "1000".to_string()),
+        f(
+            "lead_in_mm",
+            Msg::LeadIn,
+            config::DEFAULT_LEAD_MM.to_string(),
+        ),
+        f(
+            "lead_out_mm",
+            Msg::LeadOut,
+            config::DEFAULT_LEAD_MM.to_string(),
+        ),
+        f("lead_in_round_mm", Msg::LeadInRound, String::new()),
+        f("lead_out_round_mm", Msg::LeadOutRound, String::new()),
+        f("lead_in_rect_mm", Msg::LeadInRect, String::new()),
+        f("lead_out_rect_mm", Msg::LeadOutRect, String::new()),
+        f("laser_wait_s", Msg::LaserWait, "0".to_string()),
+        f("passes", Msg::Passes, "1".to_string()),
+        f("origin_x", Msg::OriginX, String::new()),
+        f("origin_y", Msg::OriginY, String::new()),
+        f("bed_width", Msg::BedWidth, String::new()),
+        f("bed_height", Msg::BedHeight, String::new()),
     ]
+}
+
+/// The parameters of the material and of the laser, the first of the list: every one is a number that must be there.
+const PROFILE_KEYS: [&str; 6] = [
+    "thickness_mm",
+    "shrink_percent",
+    "corner_radius_mm",
+    "kerf_mm",
+    "feed",
+    "smax",
+];
+
+/// How the contours are cut and where, as the options of `convert` say it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CutOptions {
+    pub leads: FormLeads,
+    pub laser_wait_s: f64,
+    pub passes: u32,
+    /// Where the lower-left corner of the openings goes (`--origin`).
+    pub origin: Option<(f64, f64)>,
+    /// The width and the height of the bed the head may not leave (`--bed`).
+    pub bed: Option<(f64, f64)>,
 }
 
 /// What the window last said to the person.
@@ -83,6 +140,13 @@ pub enum Status {
         why: String,
     },
     SameFile,
+    /// The head would leave the bed: the first point outside it and the size of the bed.
+    OutsideBed {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    },
     /// A paste layer of the job of a project was opened.
     ProjectOpened {
         name: String,
@@ -121,6 +185,20 @@ impl Status {
                 fill(Msg::BadValue.tr(lang), &[label.tr(lang), why.as_str()])
             }
             Status::SameFile => Msg::SameFile.tr(lang).to_string(),
+            Status::OutsideBed {
+                x,
+                y,
+                width,
+                height,
+            } => fill(
+                Msg::OutsideBed.tr(lang),
+                &[
+                    format!("{x:.3}").as_str(),
+                    format!("{y:.3}").as_str(),
+                    width.to_string().as_str(),
+                    height.to_string().as_str(),
+                ],
+            ),
             Status::ProjectOpened { name, layers } => fill(
                 Msg::ProjectOpened.tr(lang),
                 &[name.as_str(), layers.to_string().as_str()],
@@ -193,6 +271,10 @@ pub struct Window {
     pub notices: Vec<String>,
     /// The sheets of the table of sheets that was read, to choose one.
     pub sheets: Vec<SheetSpec>,
+    /// How many openings repeat another one (same form, size and place) and are left out, as the command line does.
+    pub duplicates: usize,
+    /// What a person has to agree to before the stencil is written into the project; `None` while nothing is asked.
+    pub pending: Option<Vec<Said>>,
 }
 
 impl Window {
@@ -216,6 +298,8 @@ impl Window {
             job_layers: Vec::new(),
             notices: Vec::new(),
             sheets: Vec::new(),
+            duplicates: 0,
+            pending: None,
         }
     }
 
@@ -223,7 +307,7 @@ impl Window {
     pub fn params(&self) -> Result<(Profile, f64, u32), Status> {
         let mut p = Profile::of(self.material);
         let (mut feed, mut smax) = (600.0, 1000.0);
-        for f in &self.fields {
+        for f in self.fields.iter().filter(|f| PROFILE_KEYS.contains(&f.key)) {
             let v = f
                 .text
                 .trim()
@@ -254,6 +338,97 @@ impl Window {
             });
         }
         Ok((p, feed, smax as u32))
+    }
+
+    /// The place of a parameter in `fields`.
+    pub fn field_index(&self, key: &str) -> Option<usize> {
+        self.fields.iter().position(|f| f.key == key)
+    }
+
+    fn field(&self, key: &str) -> (Msg, &str) {
+        self.fields
+            .iter()
+            .find(|f| f.key == key)
+            .map_or((Msg::Parameters, ""), |f| (f.label, f.text.trim()))
+    }
+
+    /// A value read by one of the readers of the settings, so that the window takes exactly what the command line takes.
+    fn read<T>(
+        &self,
+        key: &str,
+        name: &str,
+        reader: impl Fn(&str, &str) -> Result<T, String>,
+    ) -> Result<T, Status> {
+        let (label, text) = self.field(key);
+        reader(name, text).map_err(|why| Status::BadValue { label, why })
+    }
+
+    /// Two values that are given together or not at all.
+    fn pair(&self, first: &str, second: &str) -> Result<Option<(f64, f64)>, Status> {
+        let read = |key: &str| {
+            let (label, text) = self.field(key);
+            text.parse::<f64>()
+                .ok()
+                .filter(|v| v.is_finite())
+                .ok_or_else(|| Status::BadValue {
+                    label,
+                    why: if text.is_empty() {
+                        "give both values or leave both empty".to_string()
+                    } else {
+                        format!("'{text}' is not a number")
+                    },
+                })
+        };
+        if self.field(first).1.is_empty() && self.field(second).1.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some((read(first)?, read(second)?)))
+    }
+
+    /// The leads, the wait of the laser, the passes, the origin and the bed from the values typed, with the limits of the command line (the feed is checked here too).
+    pub fn cut_options(&self) -> Result<CutOptions, Status> {
+        self.read("feed", "feed", config::parse_feed)?;
+        let lead = |key: &str, name: &str| self.read(key, name, config::parse_lead);
+        let general = Lead {
+            in_mm: lead("lead_in_mm", "lead-in")?,
+            out_mm: lead("lead_out_mm", "lead-out")?,
+        };
+        // a lead of one form that is not given is the one of every other opening
+        let of_form = |key: &str, name: &str, other: f64| {
+            if self.field(key).1.is_empty() {
+                Ok(other)
+            } else {
+                lead(key, name)
+            }
+        };
+        let leads = FormLeads {
+            general,
+            round: Lead {
+                in_mm: of_form("lead_in_round_mm", "lead-in-round", general.in_mm)?,
+                out_mm: of_form("lead_out_round_mm", "lead-out-round", general.out_mm)?,
+            },
+            rect: Lead {
+                in_mm: of_form("lead_in_rect_mm", "lead-in-rect", general.in_mm)?,
+                out_mm: of_form("lead_out_rect_mm", "lead-out-rect", general.out_mm)?,
+            },
+        };
+        let laser_wait_s = self.read("laser_wait_s", "laser wait", config::parse_wait)?;
+        let passes = self.read("passes", "passes", config::parse_passes)?;
+        let origin = self.pair("origin_x", "origin_y")?;
+        let bed = self.pair("bed_width", "bed_height")?;
+        if bed.is_some_and(|b| b.0 <= 0.0 || b.1 <= 0.0) {
+            return Err(Status::BadValue {
+                label: Msg::BedWidth,
+                why: "the bed needs a width and a height above 0".to_string(),
+            });
+        }
+        Ok(CutOptions {
+            leads,
+            laser_wait_s,
+            passes,
+            origin,
+            bed,
+        })
     }
 
     /// Changes the text of a parameter and works the stencil out again.
@@ -426,6 +601,7 @@ impl Window {
                 self.project = Some(path.to_path_buf());
                 self.job_layers = layers;
                 self.notices.clear();
+                self.pending = None;
                 if !self.choose_job_layer(0) {
                     (self.project, self.job_layers) = before;
                     return false;
@@ -457,6 +633,7 @@ impl Window {
         let beside = project.with_file_name(file.file_name());
         match paste_from_bytes(&beside, file.file_name(), file.bytes.clone()) {
             Ok(mut layer) => {
+                self.pending = None;
                 layer.job = Some(file.clone());
                 self.layer = Some(layer);
                 self.update();
@@ -469,8 +646,50 @@ impl Window {
         }
     }
 
-    /// Makes the G-code of the layer of the job and keeps it in the branch `stencilcam/` of the project. What stops an export stops this too.
+    /// What writing the stencil into the project would take away: its signature, or the one of the branch of this program.
+    fn signature_warnings(project: &Path) -> Result<Vec<Said>, String> {
+        let own = eh3dfile::KIT.branch;
+        let seen = suiteview::view(project, own)?.own_hash;
+        // the project as it is now, so that only what is said about its signatures is left to say
+        suiteview::warnings(project, Some(project), seen.as_deref(), own)
+    }
+
+    /// Keeps the stencil of the layer of the job in the project, but asks first (`pending`) when writing would remove a signature: nothing is written until
+    /// [`Window::confirm_save`].
     pub fn save_project(&mut self) -> bool {
+        self.pending = None;
+        let (Some(project), Some(_)) = (
+            self.project.clone(),
+            self.layer.as_ref().and_then(|l| l.job.as_ref()),
+        ) else {
+            self.status = Status::NoProject;
+            return false;
+        };
+        match Self::signature_warnings(&project) {
+            Ok(asked) if asked.is_empty() => self.write_project(),
+            Ok(asked) => {
+                self.pending = Some(asked);
+                false
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// The person agreed: the stencil is written. Nothing happens when nothing was asked.
+    pub fn confirm_save(&mut self) -> bool {
+        self.pending.take().is_some() && self.write_project()
+    }
+
+    /// The person did not agree: the project stays as it is.
+    pub fn cancel_save(&mut self) {
+        self.pending = None;
+    }
+
+    /// Makes the G-code of the layer of the job and keeps it in the branch `stencilcam/` of the project. What stops an export stops this too.
+    fn write_project(&mut self) -> bool {
         let (Some(project), Some(job)) = (
             self.project.clone(),
             self.layer.as_ref().and_then(|l| l.job.clone()),
@@ -526,6 +745,7 @@ impl Window {
                 self.project = None;
                 self.job_layers.clear();
                 self.notices.clear();
+                self.pending = None;
                 self.layer = Some(layer);
                 self.update();
                 true
@@ -562,11 +782,19 @@ impl Window {
                 return false;
             }
         };
+        if let Err(st) = self.cut_options() {
+            self.status = st;
+            return false;
+        }
         let raw = self
             .layer
             .as_ref()
             .map(|l| l.openings.clone())
             .unwrap_or_default();
+        // the same hole twice is cut once, as the command line does: the second burns the edge of the first
+        let (unique, repeats) = deduplicated(&raw, 0.001);
+        let raw = if repeats > 0 { unique } else { raw };
+        self.duplicates = repeats;
         self.openings = if self.mirror { mirrored(&raw) } else { raw };
         self.cuts.clear();
         self.weak.clear();
@@ -655,7 +883,8 @@ impl Window {
         self.layer.as_ref().map(|l| l.path.with_extension("nc"))
     }
 
-    /// Writes the stencil: HP-GL for a name that ends in `.plt` (whatever its case), laser G-code for any other.
+    /// Writes the stencil: HP-GL for a name that ends in `.plt` (whatever its case), laser G-code for any other. The program is the one `convert` writes with the same values:
+    /// the origin, the bed (which the leads of G-code may not leave either), the passes, the leads and the wait of the laser.
     pub fn export(&mut self, out: &Path) -> bool {
         let Some(layer_path) = self.layer.as_ref().map(|l| l.path.clone()) else {
             self.status = Status::NoLayer;
@@ -687,6 +916,13 @@ impl Window {
                 return false;
             }
         };
+        let cut = match self.cut_options() {
+            Ok(v) => v,
+            Err(st) => {
+                self.status = st;
+                return false;
+            }
+        };
         let (name, hash) = self
             .layer
             .as_ref()
@@ -695,8 +931,31 @@ impl Window {
         let is_plot = out
             .extension()
             .is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("plt"));
+        let mut once = self.cuts.clone();
+        if let Some(origin) = cut.origin {
+            move_to_origin(&mut once, origin);
+        }
+        let once_forms = forms(&self.openings);
+        if let Some(bed) = cut.bed {
+            // a plot has no leads
+            let walked = if is_plot {
+                FormLeads::uniform(0.0, 0.0)
+            } else {
+                cut.leads
+            };
+            if let Some((x, y)) = outside_bed_with_leads(&once, &once_forms, &walked, bed) {
+                self.status = Status::OutsideBed {
+                    x,
+                    y,
+                    width: bed.0,
+                    height: bed.1,
+                };
+                return false;
+            }
+        }
+        let (all, all_forms) = repeated(&once, &once_forms, cut.passes);
         let text = if is_plot {
-            Ok(hpgl(&self.cuts))
+            Ok(hpgl(&all))
         } else {
             let head = header(&Header {
                 generator: "eh3d-stencilcam",
@@ -704,7 +963,8 @@ impl Window {
                 source: Some((name.as_str(), hash)),
                 tools: "laser",
             });
-            gcode(&self.cuts, feed, smax).map(|g| format!("{head}{g}"))
+            gcode_with_form_leads(&all, &all_forms, feed, smax, cut.laser_wait_s, &cut.leads)
+                .map(|g| format!("{head}{g}"))
         };
         let text = match text {
             Ok(t) => t,
