@@ -12,8 +12,8 @@ use crate::openings::{
 use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
-use eh3d_gerberviewer::eh3dfile::{self as suite, JobFile};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
+use eh3d_project::manufacturing::{self as suite, JobFile};
 use std::fs;
 use std::path::{Path, PathBuf};
 

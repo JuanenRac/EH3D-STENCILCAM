@@ -3,6 +3,7 @@
 All notable changes to this project are documented here.
 
 ## [Unreleased]
+- **The reading and writing of the job of an `.eh3d` project are shared:** they are the module `eh3d_project::manufacturing` of EH3D-COMMON, the same for every manufacturing program; the commands, the window and the files of a project do not change.
 - **The project of the suite (`.eh3d`):** `project info FILE` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project, and `project convert FILE` turns each paste layer of the job (or the one named with `--layer`) into a stencil kept in the branch `stencilcam/` only, with a copy of the layer and a reference to the content of the job. A job that changes afterwards makes the stencils out of date (exit 2). 7 new tests with invented projects.
 - **A list of sheets and the layer of the job in the window:** a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list, a dropped `.eh3d` file opens the paste layers of its job (top and bottom are chosen from a list) and the stencil can be saved back to the project. The words are in the eight languages; no person has looked at the window yet.
 - The crate `eh3d-project` of EH3D-COMMON is now used; Rust 1.89 or newer is needed.
