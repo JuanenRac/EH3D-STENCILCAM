@@ -5,8 +5,8 @@
 mod cli_args;
 
 use cli_args::{finish, flag, num, switch};
-use eh3d_gerberviewer::eh3dfile as suite;
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
+use eh3d_project::manufacturing as suite;
 use eh3d_serverclient::Settings as LinkSettings;
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::crib::SheetSpec;
