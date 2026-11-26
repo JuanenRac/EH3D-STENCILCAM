@@ -18,6 +18,8 @@ fn convert(out: &Path, options: &[&str]) -> Output {
         .arg(sample())
         .arg(out)
         .args(options)
+        // the sample has an opening that will not release the paste
+        .arg("--force")
         .output()
         .expect("the program runs")
 }
@@ -25,6 +27,7 @@ fn convert(out: &Path, options: &[&str]) -> Output {
 fn window(values: &[(&str, &str)]) -> Window {
     let mut w = Window::new(Lang::En);
     assert!(w.open(&sample()), "{:?}", w.status);
+    w.set_force(true);
     for (key, text) in values {
         let k = w
             .field_index(key)
