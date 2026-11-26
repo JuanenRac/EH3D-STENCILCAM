@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The stencil of one side no longer takes the place of the other:** the paste layers `board.gtp` and `board.gbp` were both kept as `stencil-board.nc`, so the bottom side silently replaced the top one. When two layers would share a name, each is now kept with its whole name (`stencil+board.gtp.nc`). A file name that two layers share is no longer chosen by guess with `--layer`: the path says which.
+- **Nothing is written over a project or over a file the run reads:** `convert` and the window refuse an output that ends in `.eh3d`, and `convert` one that is the settings file, the table of tools or the table of sheets.
+- **The window says when keeping a stencil removed a signature** of the project.
+- 4 new tests with invented projects.
+
 ## [0.1.3] - Makes stencils straight from the shared project of the suite
 
 - **The reading and writing of the job of an `.eh3d` project are shared:** they are the module `eh3d_project::manufacturing` of EH3D-COMMON, the same for every manufacturing program; the commands, the window and the files of a project do not change.

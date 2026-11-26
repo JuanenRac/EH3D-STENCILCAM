@@ -189,6 +189,8 @@ pub struct Window {
     pub project: Option<PathBuf>,
     /// The paste layers of that job.
     pub job_layers: Vec<JobFile>,
+    /// What the last write to the project says besides that it was kept (a signature that it removed).
+    pub notices: Vec<String>,
     /// The sheets of the table of sheets that was read, to choose one.
     pub sheets: Vec<SheetSpec>,
 }
@@ -212,6 +214,7 @@ impl Window {
             viewport: Viewport::default(),
             project: None,
             job_layers: Vec::new(),
+            notices: Vec::new(),
             sheets: Vec::new(),
         }
     }
@@ -422,6 +425,7 @@ impl Window {
                 let before = (self.project.take(), std::mem::take(&mut self.job_layers));
                 self.project = Some(path.to_path_buf());
                 self.job_layers = layers;
+                self.notices.clear();
                 if !self.choose_job_layer(0) {
                     (self.project, self.job_layers) = before;
                     return false;
@@ -474,7 +478,7 @@ impl Window {
             self.status = Status::NoProject;
             return false;
         };
-        let name = eh3dfile::result_name(&job, "nc");
+        let name = eh3dfile::result_name(&self.job_layers, &job, "nc");
         let dir = match eh3dfile::scratch_dir() {
             Ok(dir) => dir,
             Err(why) => {
@@ -490,7 +494,11 @@ impl Window {
             return false;
         };
         match eh3dfile::save_stencil(&project, &job, &name, bytes) {
-            Ok(_) => {
+            Ok(said) => {
+                // a signature that the write removed is told in the words of the window
+                let (words, other) = eh3d_project::suiteview::notices(&said);
+                self.notices = words.iter().map(|w| w.text(self.lang.code())).collect();
+                self.notices.extend(other);
                 self.status = Status::ProjectSaved { file: name };
                 true
             }
@@ -517,6 +525,7 @@ impl Window {
             Ok(layer) => {
                 self.project = None;
                 self.job_layers.clear();
+                self.notices.clear();
                 self.layer = Some(layer);
                 self.update();
                 true
@@ -659,7 +668,11 @@ impl Window {
             (Ok(a), Ok(b)) => a == b,
             _ => layer_path == out,
         };
-        if same {
+        // nor over a project of the suite, which holds the work of other programs
+        let a_project = out
+            .extension()
+            .is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case("eh3d"));
+        if same || a_project {
             self.status = Status::SameFile;
             return false;
         }

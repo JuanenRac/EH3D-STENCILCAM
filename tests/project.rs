@@ -92,8 +92,11 @@ fn the_paste_layers_are_chosen_by_path_or_name_and_name_their_stencils() {
     assert_eq!(top, eh3dfile::choose(&layers, "layers/top.gtp").unwrap());
     let why = eh3dfile::choose(&layers, "other.gtp").unwrap_err();
     assert!(why.contains("layers/bottom.gbp"), "{why}");
-    assert_eq!(eh3dfile::result_name(top, "nc"), "stencil-top.nc");
-    assert_eq!(eh3dfile::result_name(top, "plt"), "stencil-top.plt");
+    assert_eq!(eh3dfile::result_name(&layers, top, "nc"), "stencil-top.nc");
+    assert_eq!(
+        eh3dfile::result_name(&layers, top, "plt"),
+        "stencil-top.plt"
+    );
 }
 
 #[test]
@@ -217,4 +220,127 @@ fn a_table_of_sheets_dropped_on_the_window_offers_them_to_choose() {
     assert!(w.sheet.is_none());
     assert!(!w.load_sheet_table(&dir.path().join("missing.csv")));
     assert_eq!(w.sheets.len(), 2);
+}
+
+/// A job whose paste layers have these paths inside `manufacturing/`.
+fn write_layers(path: &Path, files: &[(&str, &str)]) {
+    let layers: Vec<String> = files
+        .iter()
+        .map(|(rel, _)| format!(r#"{{"path":"{rel}","kind":"paste","name":"{rel}"}}"#))
+        .collect();
+    let record = format!(
+        r#"{{"format_version":"1.0.0","layers":[{}]}}"#,
+        layers.join(",")
+    );
+    let mut entries: Vec<(&str, &[u8])> = vec![("project.json", record.as_bytes())];
+    entries.extend(files.iter().map(|(rel, text)| (*rel, text.as_bytes())));
+    write_branch(path, SOURCE_BRANCH, &entries);
+}
+
+#[test]
+fn the_top_and_the_bottom_side_with_one_stem_each_keep_their_own_stencil() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = project(dir.path());
+    write_layers(
+        &path,
+        &[("layers/board.gtp", PASTE), ("layers/board.gbp", OTHER)],
+    );
+    let out = run(&path, &["convert"]);
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let both = ["stencil+board.gbp.nc", "stencil+board.gtp.nc"];
+    assert_eq!(suite::state(&KIT, &path).unwrap().results, both);
+    for (name, source) in [(both[1], "board.gtp"), (both[0], "board.gbp")] {
+        let code = String::from_utf8(suite::read_result(&KIT, &path, name).unwrap()).unwrap();
+        assert!(code.contains(source), "{name}: {code}");
+    }
+    let mut w = Window::new(Lang::En);
+    assert!(w.open(&path), "{:?}", w.status);
+    assert!(w.choose_job_layer(1));
+    assert!(w.save_project(), "{:?}", w.status);
+    assert_eq!(suite::state(&KIT, &path).unwrap().results, both);
+}
+
+#[test]
+fn a_file_name_that_two_paste_layers_share_is_not_chosen_by_guess() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = project(dir.path());
+    write_layers(
+        &path,
+        &[("layers/a/top.gtp", PASTE), ("layers/b/top.gtp", OTHER)],
+    );
+    let layers = eh3dfile::paste_layers(&path).unwrap();
+    let why = eh3dfile::choose(&layers, "top.gtp").unwrap_err();
+    assert!(
+        why.contains("layers/a/top.gtp") && why.contains("layers/b/top.gtp"),
+        "{why}"
+    );
+    let second = eh3dfile::choose(&layers, "layers/b/top.gtp").unwrap();
+    assert_eq!(second.bytes, OTHER.as_bytes());
+    assert_eq!(
+        eh3dfile::result_name(&layers, second, "nc"),
+        "stencil+b+top.gtp.nc"
+    );
+}
+
+#[test]
+fn no_stencil_is_written_over_a_project_or_the_settings_it_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = project(dir.path());
+    let before = std::fs::read(&path).unwrap();
+    let layer = dir.path().join("one.gtp");
+    std::fs::write(&layer, PASTE).unwrap();
+    let convert = |out: &Path, extra: &[&std::ffi::OsStr]| {
+        Command::new(BIN)
+            .arg("convert")
+            .arg(&layer)
+            .arg(out)
+            .args(extra)
+            .output()
+            .expect("the program runs")
+    };
+    let out = convert(&path, &[]);
+    assert!(!out.status.success());
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("project"),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+    let settings = dir.path().join("my.cfg");
+    std::fs::write(&settings, "passes = 1\n").unwrap();
+    let out = convert(&settings, &["--config".as_ref(), settings.as_os_str()]);
+    assert!(!out.status.success());
+    assert_eq!(std::fs::read_to_string(&settings).unwrap(), "passes = 1\n");
+    let mut w = Window::new(Lang::En);
+    assert!(w.open(&path), "{:?}", w.status);
+    assert!(!w.export(&path));
+    assert_eq!(w.status, Status::SameFile);
+    assert_eq!(std::fs::read(&path).unwrap(), before);
+}
+
+#[test]
+fn the_window_says_when_keeping_a_stencil_removed_the_signature_of_the_project() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = project(dir.path());
+    let signer = eh3d_project::Ed25519Signer::from_seed(&[7; 32]);
+    Project::open(&path, &OpenOptions::default())
+        .unwrap()
+        .sign_project(&signer, &SaveOptions::default())
+        .unwrap();
+    let mut w = Window::new(Lang::En);
+    assert!(w.open(&path), "{:?}", w.status);
+    assert!(w.notices.is_empty());
+    assert!(w.save_project(), "{:?}", w.status);
+    assert!(
+        w.notices.iter().any(|n| n.contains("signature")),
+        "{:?}",
+        w.notices
+    );
+    assert!(w.open(&path), "{:?}", w.status);
+    assert!(w.notices.is_empty());
 }
