@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 331 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 340 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.3` |
 | Maturità | Funzionale |
-| Test | 331 |
+| Test | 340 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 331 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 340 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -98,6 +98,7 @@ Come si incastrano le parti di questo repository: chi lo usa, cosa contiene e da
 * **Ponti stretti, aperture ripetute e la pasta in `check`:** `--min-web MM` (o `min_web_mm` in `stencil.cfg`, da 0 a 5 mm, 0,1 per impostazione predefinita, 0 per non avvisare) segnala, in `check` e in `convert`, due aperture il cui ponte (il foglio che resta tra loro) è più stretto, o che si toccano o si sovrappongono, e non ferma mai `convert`; due aperture della stessa forma, dimensione e posizione sono un solo foro, quindi la seconda viene lasciata fuori con una nota invece di essere tagliata due volte; `check` stampa quante aperture ci sono di ogni forma e la pasta che contengono (in microlitri) e `check --json` stampa questo e il resto del risultato come un unico oggetto JSON per altri programmi. Provato solo su un computer.
 * **Il foglio del magazzino utensili:** `--sheet-file FOGLI.csv --sheet NOME` (o `sheet_file` e `sheet_name` in `stencil.cfg`) prende un foglio dalla tabella dei fogli che esporta il magazzino utensili (`export-sheets-csv`): il suo spessore, la sua riduzione di ogni apertura per lato, il suo kerf (un kerf di 0 prende la larghezza del fascio del laser di `--crib`) e i suoi limiti di rapporto sostituiscono quelli del materiale. Le colonne si trovano dal nome, il file si legge con un limite di dimensione (1 MiB) e di righe, ogni errore nomina la sua riga, e la riga di comando prevale sul foglio e il foglio sul file delle impostazioni. Nessun numero è un valore predefinito di questo programma: un limite di 0 non ne dà nessuno. La finestra mostra il foglio scelto.
 * **Un disegno in uscita:** `convert LIVELLO USCITA.dxf` scrive le aperture come le ha lo stencil, cerchi e rettangoli in millimetri, così lo stesso programma le rilegge; un'apertura oblunga è rifiutata a meno che `--force` la lasci fuori, e un file che esiste non viene mai sostituito se non con `--overwrite` (`--create`, il predefinito, lo rifiuta).
+* **La finestra legge `stencil.cfg`, avvisa dei ponti stretti e disegna:** legge il file di impostazioni come `--config` (il pulsante *File di impostazioni...*, un file `.cfg` trascinato su di essa o `gui --config FILE`), con gli stessi intervalli e rifiuti, la lamina che nomina e il tempo stimato; mostra le coppie di aperture il cui ponte è più stretto di `min_web_mm`; e un nome che finisce in `.dxf` riceve il disegno che scrive `convert`, mai sopra un file esistente.
 
 ## 🔒 Sicurezza e protezione
 
@@ -147,6 +148,7 @@ EH3D-STENCILCAM/
 │   ├── strict.rs                                test della riga di comando: opzioni e parole che non conosce
 │   ├── atomic_write.rs                          test della scrittura tramite un file temporaneo rinominato
 │   ├── window_cli.rs                            test che una compilazione senza la funzione gui resti una riga di comando
+│   ├── window_config.rs                         test che confrontano finestra e comando: impostazioni, ponti, disegno
 │   ├── reqs.rs                                  test del registro dei requisiti
 │   ├── shape_open.rs                            test delle aperture da pad macro, regioni e piste lungo un asse
 │   ├── ratio_limits.rs                          test dei limiti di rapporto, dei loro motivi e del codice di uscita 2
@@ -201,7 +203,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 331 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 340 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 

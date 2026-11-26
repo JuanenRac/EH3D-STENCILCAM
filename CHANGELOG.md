@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The window reads `stencil.cfg` as the command does:** with the button *Settings file...*, a `.cfg` file dropped on it or `gui --config FILE`; the same keys, ranges and refusals, the sheet the file names, the narrowest web, the ratio limits, `region_fit_percent` and the estimated time of `rapid_mm_min`. A file that is refused changes nothing, and neither it nor a table that was read can be written over.
+- **The window shows the warning of the narrow webs:** the pairs of openings whose web is narrower than `min_web_mm` (0.1 mm by default), or that touch or overlap, by their numbers, in the eight languages.
+- **A name that ends in `.dxf` writes a drawing from the window:** before, it wrote G-code under that name. It is the drawing `convert` writes, with the same refusals: no origin and no bed, obround openings only left out when forced, and never over a file that exists.
+- 9 new tests that compare the window with the command.
 - **The window writes the same program as the command:** it now has the lead-in and lead-out (0.3 mm by default, also by shape of the opening), the wait of the laser, the passes, the origin and the bed among its parameters, with the limits of the command line, and leaves out an opening repeated in the same place. Before, the window wrote no leads, no wait, one pass and had no bed limit.
 - **The bed limit counts the lead-ins and the lead-outs:** `--bed` (and the bed of the window) refuses G-code whose lead-in starts or lead-out ends outside the bed, not only a point of a contour. A stencil moved to `--origin 0,0` needs room for its leads. A HP-GL plot has no leads and is checked as before.
 - **The window asks before it removes a signature:** saving into a project that is signed, or whose branch `stencilcam/` is, shows what would be removed and writes nothing until it is agreed.

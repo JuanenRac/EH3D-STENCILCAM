@@ -17,7 +17,7 @@
 
 ---
 
-**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 331 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
+**Verificação de honestidade - o que funciona hoje:** uma biblioteca Rust e um programa de linha de comandos (`eh3d-stencilcam`) com 340 testes que correm num computador: transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL. Tem uma janela (compilada com `--features gui`) que abre uma camada de pasta e desenha os pads e as trajetórias de corte, mas que ainda não foi vista num ecrã; não foi experimentado numa máquina e não foi verificado com uma coleção de ficheiros reais.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versão | `0.1.3` |
 | Maturidade | Funcional |
-| Testes | 331 |
+| Testes | 340 |
 | Tecnologias | Rust |
 | Em hardware real | Não experimentado: nada disto correu numa máquina |
 
@@ -46,7 +46,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 |---|---|---|
 | Núcleo | 🟡 | transforma os pads de uma camada de pasta em aberturas de stencil (reduzidas, arredondadas, compensadas pelo kerf do laser e verificadas para a libertação da pasta) e escreve-as como G-code ou HP-GL; testado num computador com entradas normais e danificadas, não com uma coleção de ficheiros reais. |
 | Linha de comandos | 🟡 | `eh3d-stencilcam` executa as mesmas funções da biblioteca e imprime o resultado; cada erro volta como mensagem e código de saída diferente de zero. |
-| Testes | 🟡 | 331 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas, e um laser simulado com uma ligação que perde e danifica linhas ao acaso (com semente), reenvios, paragem segura e retoma. |
+| Testes | 🟡 | 340 testes passam (`cargo test`), com casos normais, casos-limite e entradas danificadas, e um laser simulado com uma ligação que perde e danifica linhas ao acaso (com semente), reenvios, paragem segura e retoma. |
 | Segurança | 🟡 | Rust seguro e simples (`forbid(unsafe_code)`): nada entra em pânico com os ficheiros recebidos e um valor mau é um erro com o seu motivo; sem revisão independente. |
 | Janela | 🟠 | Escrita (egui, `--features gui`): abrir ou largar uma camada de pasta, escolher o material, editar os parâmetros, ver os pads e as trajetórias de corte (a vermelho as aberturas que não libertarão a pasta), zoom e deslocamento, exportar; a sua lógica está testada, mas ainda não foi compilada nem vista num ecrã. |
 | Hardware real | 🔴 | Não experimentado: nada disto foi executado numa máquina. |
@@ -98,6 +98,7 @@ Como as partes deste repositório se encaixam: quem o usa, o que contém e de qu
 * **Pontes estreitas, aberturas repetidas e a pasta em `check`:** `--min-web MM` (ou `min_web_mm` em `stencil.cfg`, de 0 a 5 mm, 0,1 por predefinição, 0 para não avisar) avisa, em `check` e em `convert`, de duas aberturas cuja ponte (a folha que fica entre elas) é mais estreita, ou que se tocam ou se sobrepõem, e nunca interrompe `convert`; duas aberturas da mesma forma, tamanho e posição são um só furo, pelo que a segunda é deixada de fora com uma nota em vez de ser cortada duas vezes; `check` imprime quantas aberturas há de cada forma e a pasta que contêm (em microlitros) e `check --json` imprime isso e o resto do resultado como um único objeto JSON para outros programas. Testado apenas num computador.
 * **A folha do armazém de ferramentas:** `--sheet-file FOLHAS.csv --sheet NOME` (ou `sheet_file` e `sheet_name` em `stencil.cfg`) toma uma folha da tabela de folhas que o armazém de ferramentas exporta (`export-sheets-csv`): a sua espessura, a sua redução de cada abertura por lado, o seu kerf (um kerf de 0 toma a largura do feixe do laser de `--crib`) e os seus limites de rácio substituem os do material. As colunas encontram-se pelo nome, o ficheiro lê-se com um limite de tamanho (1 MiB) e de linhas, cada falha nomeia a sua linha, e a linha de comandos prevalece sobre a folha e a folha sobre o ficheiro de definições. Nenhum valor é um valor por defeito deste programa: um limite de 0 não dá nenhum. A janela mostra a folha escolhida.
 * **Um desenho como saída:** `convert CAMADA SAIDA.dxf` escreve as aberturas como o stencil as tem, círculos e retângulos em milímetros, de modo que este mesmo programa as volta a ler; uma abertura oblonga é recusada a menos que `--force` a deixe de fora, e um ficheiro que existe nunca é substituído a não ser com `--overwrite` (`--create`, o valor por defeito, recusa-o).
+* **A janela lê `stencil.cfg`, avisa das pontes estreitas e desenha:** lê o ficheiro de definições como `--config` (o botão *Ficheiro de definições...*, um `.cfg` largado sobre ela ou `gui --config FICHEIRO`), com os mesmos intervalos e recusas, a folha que nomeia e o tempo estimado; mostra os pares de aberturas cuja ponte é mais estreita que `min_web_mm`; e um nome terminado em `.dxf` recebe o desenho que `convert` escreve, nunca por cima de um ficheiro existente.
 
 ## 🔒 Segurança e proteção
 
@@ -147,6 +148,7 @@ EH3D-STENCILCAM/
 │   ├── strict.rs                                testes da linha de comandos: opções e palavras que não conhece
 │   ├── atomic_write.rs                          testes da escrita por um ficheiro temporário que é renomeado
 │   ├── window_cli.rs                            testes de que uma compilação sem a funcionalidade gui continua a ser só linha de comandos
+│   ├── window_config.rs                         testes que comparam a janela com o comando: definições, pontes, desenho
 │   ├── reqs.rs                                  testes do registo de requisitos
 │   ├── shape_open.rs                            testes das aberturas a partir de pads de macro, regiões e pistas sobre um eixo
 │   ├── ratio_limits.rs                          testes dos limites de rácio, dos seus motivos e do código de saída 2
@@ -201,7 +203,7 @@ Para tirar uma captura da janela sem a abrir à mão, execute-o com `--shot FICH
 
 ## 🧪 Testes
 
-O conjunto tem 331 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
+O conjunto tem 340 testes (`cargo test`, executados em Windows e Linux no CI). Verificam os casos normais, os casos-limite e as entradas danificadas: ficheiros vazios, lixo e ficheiros cortados nunca provocam pânico. O CI executa ainda `cargo fmt --check`, `cargo clippy` com avisos como erros e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilação e publicação
 

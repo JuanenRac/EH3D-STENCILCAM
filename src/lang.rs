@@ -156,10 +156,22 @@ pub enum Msg {
     BedHeight,
     OutsideBed,
     Duplicates,
+    SettingsFile,
+    ConfigRead,
+    ConfigLine,
+    WebsSummary,
+    WebNarrow,
+    WebTouch,
+    Estimate,
+    Drawn,
+    LeftOut,
+    DrawingExists,
+    DrawingPlacement,
+    InputFile,
 }
 
 impl Msg {
-    pub const ALL: [Msg; 68] = [
+    pub const ALL: [Msg; 80] = [
         Msg::Open,
         Msg::Export,
         Msg::Language,
@@ -228,6 +240,18 @@ impl Msg {
         Msg::BedHeight,
         Msg::OutsideBed,
         Msg::Duplicates,
+        Msg::SettingsFile,
+        Msg::ConfigRead,
+        Msg::ConfigLine,
+        Msg::WebsSummary,
+        Msg::WebNarrow,
+        Msg::WebTouch,
+        Msg::Estimate,
+        Msg::Drawn,
+        Msg::LeftOut,
+        Msg::DrawingExists,
+        Msg::DrawingPlacement,
+        Msg::InputFile,
     ];
 
     /// The words in the order English, Spanish, German, French, Italian, Japanese, Chinese, Portuguese.
@@ -913,6 +937,126 @@ impl Msg {
                 "{0} 个开口与其他开口重复，已略去",
                 "{0} abertura(s) repetem outra e ficam de fora",
             ],
+            Msg::SettingsFile => [
+                "Settings file...",
+                "Fichero de ajustes...",
+                "Einstellungsdatei...",
+                "Fichier de réglages...",
+                "File di impostazioni...",
+                "設定ファイル...",
+                "设置文件...",
+                "Ficheiro de definições...",
+            ],
+            Msg::ConfigRead => [
+                "Settings read from {0}",
+                "Ajustes leídos de {0}",
+                "Einstellungen aus {0} gelesen",
+                "Réglages lus dans {0}",
+                "Impostazioni lette da {0}",
+                "{0} から設定を読み込みました",
+                "已从 {0} 读取设置",
+                "Definições lidas de {0}",
+            ],
+            Msg::ConfigLine => [
+                "Settings file {0}: narrowest web {1} mm, aspect ratio {2}, area ratio {3}, region fit {4} %",
+                "Fichero de ajustes {0}: puente mínimo {1} mm, relación de aspecto {2}, de área {3}, ajuste de región {4} %",
+                "Einstellungsdatei {0}: schmalster Steg {1} mm, Aspektverhältnis {2}, Flächenverhältnis {3}, Regionstoleranz {4} %",
+                "Fichier de réglages {0} : pont minimal {1} mm, rapport d'aspect {2}, de surface {3}, tolérance de région {4} %",
+                "File di impostazioni {0}: ponte minimo {1} mm, rapporto d'aspetto {2}, di area {3}, tolleranza di regione {4} %",
+                "設定ファイル {0}: 最小ウェブ {1} mm、アスペクト比 {2}、面積比 {3}、領域の許容 {4} %",
+                "设置文件 {0}：最窄连桥 {1} mm，宽厚比 {2}，面积比 {3}，区域容差 {4} %",
+                "Ficheiro de definições {0}: ponte mínima {1} mm, rácio de aspeto {2}, de área {3}, tolerância de região {4} %",
+            ],
+            Msg::WebsSummary => [
+                "Warning: {0} pair(s) of openings are less than {1} mm apart: the sheet between them may break",
+                "Aviso: {0} par(es) de aberturas están a menos de {1} mm: la lámina entre ellas puede romperse",
+                "Warnung: {0} Öffnungspaar(e) liegen weniger als {1} mm auseinander: die Folie dazwischen kann reißen",
+                "Attention : {0} paire(s) d'ouvertures à moins de {1} mm : la feuille entre elles peut casser",
+                "Attenzione: {0} coppia/e di aperture a meno di {1} mm: la lamina fra loro può rompersi",
+                "警告: {0} 組の開口の間隔が {1} mm 未満です。間のシートが切れるおそれがあります",
+                "警告：{0} 对开口的间距小于 {1} mm：其间的片材可能断裂",
+                "Aviso: {0} par(es) de aberturas estão a menos de {1} mm: a folha entre elas pode partir-se",
+            ],
+            Msg::WebNarrow => [
+                "Openings {0} and {1}: {2} mm apart",
+                "Aberturas {0} y {1}: separadas {2} mm",
+                "Öffnungen {0} und {1}: {2} mm Abstand",
+                "Ouvertures {0} et {1} : écart de {2} mm",
+                "Aperture {0} e {1}: distanti {2} mm",
+                "開口 {0} と {1}: 間隔 {2} mm",
+                "开口 {0} 和 {1}：间距 {2} mm",
+                "Aberturas {0} e {1}: afastadas {2} mm",
+            ],
+            Msg::WebTouch => [
+                "Openings {0} and {1} touch or overlap",
+                "Las aberturas {0} y {1} se tocan o se solapan",
+                "Öffnungen {0} und {1} berühren oder überlappen sich",
+                "Les ouvertures {0} et {1} se touchent ou se chevauchent",
+                "Le aperture {0} e {1} si toccano o si sovrappongono",
+                "開口 {0} と {1} は接しているか重なっています",
+                "开口 {0} 和 {1} 相接或重叠",
+                "As aberturas {0} e {1} tocam-se ou sobrepõem-se",
+            ],
+            Msg::Estimate => [
+                "Estimated time: {0} (the acceleration of the machine is not counted)",
+                "Tiempo estimado: {0} (no cuenta la aceleración de la máquina)",
+                "Geschätzte Zeit: {0} (ohne die Beschleunigung der Maschine)",
+                "Durée estimée : {0} (sans l'accélération de la machine)",
+                "Tempo stimato: {0} (senza l'accelerazione della macchina)",
+                "推定時間: {0}（機械の加速は含みません）",
+                "预计时间：{0}（未计机器加速）",
+                "Tempo estimado: {0} (sem a aceleração da máquina)",
+            ],
+            Msg::Drawn => [
+                "{0} openings drawn in {1}",
+                "{0} aberturas dibujadas en {1}",
+                "{0} Öffnungen in {1} gezeichnet",
+                "{0} ouvertures dessinées dans {1}",
+                "{0} aperture disegnate in {1}",
+                "{0} 個の開口を {1} に作図しました",
+                "已将 {0} 个开口绘制到 {1}",
+                "{0} aberturas desenhadas em {1}",
+            ],
+            Msg::LeftOut => [
+                "{0} obround opening(s) are not in the drawing",
+                "{0} abertura(s) oblonga(s) no están en el dibujo",
+                "{0} Langloch-Öffnung(en) fehlen in der Zeichnung",
+                "{0} ouverture(s) oblongue(s) ne sont pas dans le dessin",
+                "{0} apertura/e a stadio non sono nel disegno",
+                "{0} 個の長円形の開口は図面に含まれていません",
+                "{0} 个长圆形开口不在图纸中",
+                "{0} abertura(s) oblonga(s) não estão no desenho",
+            ],
+            Msg::DrawingExists => [
+                "{0} already exists: a drawing is never written over a file; choose another name",
+                "{0} ya existe: un dibujo nunca se escribe sobre un fichero; elija otro nombre",
+                "{0} existiert bereits: eine Zeichnung überschreibt nie eine Datei; einen anderen Namen wählen",
+                "{0} existe déjà : un dessin n'écrase jamais un fichier ; choisissez un autre nom",
+                "{0} esiste già: un disegno non sovrascrive mai un file; scegli un altro nome",
+                "{0} は既に存在します。図面はファイルを上書きしません。別の名前を選んでください",
+                "{0} 已存在：图纸从不覆盖文件；请选择其他名称",
+                "{0} já existe: um desenho nunca é escrito sobre um ficheiro; escolha outro nome",
+            ],
+            Msg::DrawingPlacement => [
+                "A drawing has no origin and no bed: leave them empty",
+                "Un dibujo no tiene origen ni cama: déjelos vacíos",
+                "Eine Zeichnung hat weder Ursprung noch Bett: leer lassen",
+                "Un dessin n'a ni origine ni plateau : laissez-les vides",
+                "Un disegno non ha origine né piano: lasciali vuoti",
+                "図面には原点もベッドもありません。空欄にしてください",
+                "图纸没有原点和工作台：请留空",
+                "Um desenho não tem origem nem mesa: deixe-os vazios",
+            ],
+            Msg::InputFile => [
+                "The output file is the settings file or a table that was read; choose another name",
+                "El fichero de salida es el de ajustes o una tabla leída; elija otro nombre",
+                "Die Ausgabedatei ist die Einstellungsdatei oder eine gelesene Tabelle; einen anderen Namen wählen",
+                "Le fichier de sortie est le fichier de réglages ou un tableau lu ; choisissez un autre nom",
+                "Il file di uscita è il file di impostazioni o una tabella letta; scegli un altro nome",
+                "出力ファイルは設定ファイルか読み込んだ表です。別の名前を選んでください",
+                "输出文件是设置文件或已读取的表格；请选择其他名称",
+                "O ficheiro de saída é o de definições ou uma tabela lida; escolha outro nome",
+            ],
         }
     }
 
@@ -946,7 +1090,7 @@ mod tests {
     fn a_template_has_the_same_places_in_every_language() {
         for m in Msg::ALL {
             let places = |l: Lang| {
-                (0..4)
+                (0..5)
                     .filter(|k| m.tr(l).contains(&format!("{{{k}}}")))
                     .count()
             };

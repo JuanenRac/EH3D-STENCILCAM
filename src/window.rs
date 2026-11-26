@@ -4,15 +4,18 @@
 
 use crate::config;
 use crate::crib::{sheet_from_file, sheets_from_file, SheetSpec};
+use crate::dxf_in::is_drawing;
+use crate::dxf_out;
 use crate::eh3dfile;
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
 use crate::openings::{
-    deduplicated, from_gerber_with, mirrored, ratios, shrunk, weak_with, Limits, Opening, Ratios,
+    deduplicated, from_gerber_rules, mirrored, narrow_webs, ratios, shrunk, weak_with, Limits,
+    NarrowWeb, Opening, Ratios, ShapeRules,
 };
 use crate::output::{
-    forms, gcode_with_form_leads, hpgl, move_to_origin, outside_bed_with_leads, paths, repeated,
-    write_atomic, FormLeads, Lead, Path as CutPath,
+    duration_text, estimate_time_with_forms, forms, gcode_with_form_leads, hpgl, move_to_origin,
+    outside_bed_with_leads, paths, repeated, write_atomic, FormLeads, Lead, Path as CutPath,
 };
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
@@ -30,6 +33,8 @@ pub const LAYER_EXTENSIONS: [&str; 15] = [
 ];
 /// The extensions of a table of sheets.
 pub const TABLE_EXTENSIONS: [&str; 1] = ["csv"];
+/// The extension of a settings file (`stencil.cfg`).
+pub const CONFIG_EXTENSIONS: [&str; 1] = ["cfg"];
 
 /// The materials of the stencil, in the order the window offers them.
 pub const MATERIALS: [Material; 3] = [Material::Mylar, Material::Kapton, Material::Steel];
@@ -165,6 +170,24 @@ pub enum Status {
         count: usize,
         file: String,
     },
+    /// A settings file was read.
+    ConfigRead {
+        file: String,
+    },
+    /// The openings were written as a drawing; `left_out` obround ones are not in it.
+    Drawn {
+        file: String,
+        openings: usize,
+        left_out: usize,
+    },
+    /// A drawing is never written over a file that exists.
+    DrawingExists {
+        file: String,
+    },
+    /// A drawing has no origin and no bed.
+    DrawingPlacement,
+    /// The output is the settings file or a table that the stencil was made with.
+    InputFile,
 }
 
 impl Status {
@@ -210,6 +233,26 @@ impl Status {
                 Msg::SheetsRead.tr(lang),
                 &[count.to_string().as_str(), file.as_str()],
             ),
+            Status::ConfigRead { file } => fill(Msg::ConfigRead.tr(lang), &[file.as_str()]),
+            Status::Drawn {
+                file,
+                openings,
+                left_out,
+            } => {
+                let drawn = fill(
+                    Msg::Drawn.tr(lang),
+                    &[openings.to_string().as_str(), file.as_str()],
+                );
+                if *left_out == 0 {
+                    drawn
+                } else {
+                    let left = fill(Msg::LeftOut.tr(lang), &[left_out.to_string().as_str()]);
+                    format!("{drawn}. {left}")
+                }
+            }
+            Status::DrawingExists { file } => fill(Msg::DrawingExists.tr(lang), &[file.as_str()]),
+            Status::DrawingPlacement => Msg::DrawingPlacement.tr(lang).to_string(),
+            Status::InputFile => Msg::InputFile.tr(lang).to_string(),
         }
     }
 
@@ -223,7 +266,39 @@ impl Status {
                 | Status::ProjectOpened { .. }
                 | Status::ProjectSaved { .. }
                 | Status::SheetsRead { .. }
+                | Status::ConfigRead { .. }
+                | Status::Drawn { .. }
         )
+    }
+}
+
+/// The files the window is asked to open by the command line, the settings file first: no arguments, `gui [LAYER] [--config FILE]`, or a single file given by the system to open.
+/// `None` when the arguments are a command.
+pub fn window_files(args: &[String]) -> Option<Vec<PathBuf>> {
+    match args {
+        [] => Some(Vec::new()),
+        [word, rest @ ..] if word == "gui" => {
+            let (mut layer, mut settings) = (None, None);
+            let mut rest = rest.iter();
+            while let Some(arg) = rest.next() {
+                if arg == "--config" {
+                    if settings.replace(PathBuf::from(rest.next()?)).is_some() {
+                        return None;
+                    }
+                } else if arg.starts_with('-') || layer.replace(PathBuf::from(arg)).is_some() {
+                    return None;
+                }
+            }
+            Some(settings.into_iter().chain(layer).collect())
+        }
+        [file]
+            if !file.starts_with('-')
+                && Path::new(file).extension().is_some()
+                && Path::new(file).is_file() =>
+        {
+            Some(vec![PathBuf::from(file)])
+        }
+        _ => None,
     }
 }
 
@@ -237,6 +312,8 @@ pub struct Layer {
     pub openings: Vec<Opening>,
     /// What could not become an opening.
     pub notes: Vec<String>,
+    /// What was opened as something a little different (`region_fit_percent`).
+    pub approximated: Vec<String>,
     /// The layer of the job of a project this one is.
     pub job: Option<JobFile>,
 }
@@ -275,6 +352,16 @@ pub struct Window {
     pub duplicates: usize,
     /// What a person has to agree to before the stencil is written into the project; `None` while nothing is asked.
     pub pending: Option<Vec<Said>>,
+    /// The settings in force: those of the settings file that was read, the defaults of the command otherwise.
+    pub config: config::Settings,
+    /// The name of the settings file that was read.
+    pub config_file: Option<String>,
+    /// The pairs of openings whose web is narrower than `min_web_mm`, by their numbers (from 1), as the command warns of them.
+    pub webs: Vec<NarrowWeb>,
+    /// The estimated time of the last G-code written, when the settings give the speed of the moves with the laser off.
+    pub estimate: Option<String>,
+    /// The settings file and the tables that were read: none of them may be written over.
+    read_files: Vec<PathBuf>,
 }
 
 impl Window {
@@ -300,6 +387,11 @@ impl Window {
             sheets: Vec::new(),
             duplicates: 0,
             pending: None,
+            config: config::Settings::default(),
+            config_file: None,
+            webs: Vec::new(),
+            estimate: None,
+            read_files: Vec::new(),
         }
     }
 
@@ -455,12 +547,154 @@ impl Window {
         self.update();
     }
 
-    /// The ratio limits in force: those of the sheet when one was chosen (a limit of 0 leaves the default), the defaults otherwise.
+    /// The ratio limits in force: those of the sheet when one was chosen (a limit of 0 leaves the one of the settings), those of the settings otherwise.
     pub fn limits(&self) -> Limits {
+        let base = self.config.limits();
         match &self.sheet {
-            Some(s) => s.limits(Limits::default()).unwrap_or_default(),
-            None => Limits::default(),
+            Some(s) => s.limits(base).unwrap_or(base),
+            None => base,
         }
+    }
+
+    /// Reads a settings file (`stencil.cfg`) the way `--config` of the command does: the same keys, ranges and refusals, with the sheet it names. Its values replace the
+    /// feed, the power, the leads, the wait and the passes of the parameters. A file that is refused changes nothing.
+    pub fn load_config(&mut self, path: &Path) -> bool {
+        match self.apply_config(path) {
+            Ok(()) => true,
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    fn apply_config(&mut self, path: &Path) -> Result<(), String> {
+        let shown = path.display().to_string();
+        let text = fs::read_to_string(path).map_err(|e| format!("{shown}: {e}"))?;
+        let settings = config::parse(&text).map_err(|e| format!("{shown}: {e}"))?;
+        let chosen = match config::sheet_choice(&text) {
+            (Some(file), Some(name)) => {
+                let sheet = sheet_from_file(&file, &name)?;
+                sheet.limits(settings.limits())?;
+                Some((sheets_from_file(&file)?, sheet, PathBuf::from(file)))
+            }
+            (None, None) => {
+                // a sheet chosen in the window stays, with the limits of this file under it
+                if let Some(s) = &self.sheet {
+                    s.limits(settings.limits())?;
+                }
+                None
+            }
+            _ => {
+                return Err(
+                    "the sheet file and the sheet name go together (sheet_file and sheet_name)"
+                        .into(),
+                )
+            }
+        };
+        // the shapes of the layer that is open depend on `region_fit_percent`
+        let layer = match &self.layer {
+            Some(old) => {
+                let mut layer = paste_from_bytes_with(
+                    &old.path,
+                    &old.name,
+                    old.bytes.clone(),
+                    &settings.shape_rules(),
+                )?;
+                layer.job = old.job.clone();
+                Some(layer)
+            }
+            None => None,
+        };
+        let text_of = |v: Option<f64>| v.map(|v| v.to_string()).unwrap_or_default();
+        let values = [
+            ("feed", settings.feed_mm_min.to_string()),
+            ("smax", settings.smax.to_string()),
+            ("lead_in_mm", settings.lead_in_mm.to_string()),
+            ("lead_out_mm", settings.lead_out_mm.to_string()),
+            ("lead_in_round_mm", text_of(settings.lead_in_round_mm)),
+            ("lead_out_round_mm", text_of(settings.lead_out_round_mm)),
+            ("lead_in_rect_mm", text_of(settings.lead_in_rect_mm)),
+            ("lead_out_rect_mm", text_of(settings.lead_out_rect_mm)),
+            ("laser_wait_s", settings.laser_wait_s.to_string()),
+            ("passes", settings.passes.to_string()),
+        ];
+        for (key, value) in values {
+            if let Some(k) = self.field_index(key) {
+                self.fields[k].text = value;
+            }
+        }
+        self.config = settings;
+        self.config_file = Some(name_of(path));
+        self.read_files.push(path.to_path_buf());
+        if let Some((sheets, sheet, file)) = chosen {
+            self.put_sheet_in_fields(&sheet);
+            self.sheets = sheets;
+            self.sheet = Some(sheet);
+            self.read_files.push(file);
+        }
+        self.pending = None;
+        self.estimate = None;
+        let file = name_of(path);
+        if layer.is_some() {
+            self.layer = layer;
+            self.update();
+            if matches!(self.status, Status::Computed { .. }) {
+                self.status = Status::ConfigRead { file };
+            }
+        } else {
+            self.status = Status::ConfigRead { file };
+        }
+        Ok(())
+    }
+
+    /// The line that says which settings file is in force and the values of it that have no box of their own; `None` when no file was read.
+    pub fn config_text(&self) -> Option<String> {
+        let file = self.config_file.as_ref()?;
+        let c = &self.config;
+        Some(fill(
+            Msg::ConfigLine.tr(self.lang),
+            &[
+                file.as_str(),
+                c.min_web_mm.to_string().as_str(),
+                c.min_aspect.to_string().as_str(),
+                c.min_area.to_string().as_str(),
+                c.region_fit_percent.to_string().as_str(),
+            ],
+        ))
+    }
+
+    /// The warning of the narrow webs in the language chosen: first how many pairs there are, then at most `count` of them by the numbers of their openings. Empty when there are none.
+    pub fn web_texts(&self, count: usize) -> Vec<String> {
+        if self.webs.is_empty() {
+            return Vec::new();
+        }
+        let mut out = vec![fill(
+            Msg::WebsSummary.tr(self.lang),
+            &[
+                self.webs.len().to_string().as_str(),
+                self.config.min_web_mm.to_string().as_str(),
+            ],
+        )];
+        for w in self.webs.iter().take(count) {
+            let (first, second) = (w.first.to_string(), w.second.to_string());
+            out.push(if w.web_mm <= 0.0 {
+                fill(
+                    Msg::WebTouch.tr(self.lang),
+                    &[first.as_str(), second.as_str()],
+                )
+            } else {
+                fill(
+                    Msg::WebNarrow.tr(self.lang),
+                    &[
+                        first.as_str(),
+                        second.as_str(),
+                        format!("{:.3}", w.web_mm).as_str(),
+                    ],
+                )
+            });
+        }
+        out
     }
 
     fn put_sheet_in_fields(&mut self, s: &SheetSpec) {
@@ -479,7 +713,7 @@ impl Window {
     /// limits this program cannot take is refused and the old one stays.
     pub fn set_sheet(&mut self, sheet: Option<SheetSpec>) -> bool {
         if let Some(s) = &sheet {
-            if let Err(why) = s.limits(Limits::default()) {
+            if let Err(why) = s.limits(self.config.limits()) {
                 self.status = Status::Failed(why);
                 return false;
             }
@@ -504,7 +738,10 @@ impl Window {
     /// Reads the table of sheets in `file` (with the limits of the crib reader) and chooses the sheet called `name`; the status says what went wrong.
     pub fn load_sheet(&mut self, file: &str, name: &str) -> bool {
         match sheet_from_file(file, name) {
-            Ok(s) => self.set_sheet(Some(s)),
+            Ok(s) => {
+                self.read_files.push(PathBuf::from(file));
+                self.set_sheet(Some(s))
+            }
             Err(why) => {
                 self.status = Status::Failed(why);
                 false
@@ -571,6 +808,7 @@ impl Window {
                     file: name_of(path),
                 };
                 self.sheets = sheets;
+                self.read_files.push(path.to_path_buf());
                 true
             }
             Err(why) => {
@@ -631,7 +869,8 @@ impl Window {
         };
         // the stencil is suggested next to the project, with the name of the layer
         let beside = project.with_file_name(file.file_name());
-        match paste_from_bytes(&beside, file.file_name(), file.bytes.clone()) {
+        let rules = self.config.shape_rules();
+        match paste_from_bytes_with(&beside, file.file_name(), file.bytes.clone(), &rules) {
             Ok(mut layer) => {
                 self.pending = None;
                 layer.job = Some(file.clone());
@@ -728,8 +967,8 @@ impl Window {
         }
     }
 
-    /// Opens a paste layer and works the stencil out. The old layer stays open when the new one cannot be read. A `.eh3d` project opens the paste layer of its job and a `.csv` file
-    /// is read as a table of sheets.
+    /// Opens a paste layer and works the stencil out. The old layer stays open when the new one cannot be read. A `.eh3d` project opens the paste layer of its job, a `.csv` file
+    /// is read as a table of sheets and a `.cfg` file as the settings file.
     pub fn open(&mut self, path: &Path) -> bool {
         if suite::is_project(path) {
             return self.open_project(path);
@@ -740,7 +979,13 @@ impl Window {
         {
             return self.load_sheet_table(path);
         }
-        match read_paste_layer(path, self.lang) {
+        if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("cfg"))
+        {
+            return self.load_config(path);
+        }
+        match read_paste_layer_with(path, self.lang, &self.config.shape_rules()) {
             Ok(layer) => {
                 self.project = None;
                 self.job_layers.clear();
@@ -771,6 +1016,8 @@ impl Window {
 
     /// Works the openings, the cutting paths and the checks out with the parameters. Returns whether the paths could be made.
     pub fn update(&mut self) -> bool {
+        self.webs.clear();
+        self.estimate = None;
         if self.layer.is_none() {
             self.status = Status::NoLayer;
             return false;
@@ -802,15 +1049,18 @@ impl Window {
         let limits = self.limits();
         let shown: Result<Vec<Opening>, String> =
             self.openings.iter().map(|o| shrunk(o, &p)).collect();
+        let min_web = self.config.min_web_mm;
         let found = shown.and_then(|s| {
+            let webs = narrow_webs(&s, min_web);
             let all = s
                 .iter()
                 .map(|o| ratios(o, p.thickness_mm))
                 .collect::<Result<Vec<_>, _>>()?;
-            weak_with(&s, p.thickness_mm, &limits).map(|w| (w, all))
+            weak_with(&s, p.thickness_mm, &limits).map(|w| (w, all, webs))
         });
         match found {
-            Ok((list, all)) => {
+            Ok((list, all, webs)) => {
+                self.webs = webs;
                 self.weak = list.into_iter().map(|(i, _)| i).collect();
                 self.ratios = all;
             }
@@ -883,8 +1133,9 @@ impl Window {
         self.layer.as_ref().map(|l| l.path.with_extension("nc"))
     }
 
-    /// Writes the stencil: HP-GL for a name that ends in `.plt` (whatever its case), laser G-code for any other. The program is the one `convert` writes with the same values:
-    /// the origin, the bed (which the leads of G-code may not leave either), the passes, the leads and the wait of the laser.
+    /// Writes the stencil: a drawing of the openings for a name that ends in `.dxf`, HP-GL for one that ends in `.plt` (whatever their case), laser G-code for any other. The
+    /// file is the one `convert` writes with the same values: the origin, the bed (which the leads of G-code may not leave either), the passes, the leads and the wait of the
+    /// laser; a drawing has no origin and no bed and never replaces a file.
     pub fn export(&mut self, out: &Path) -> bool {
         let Some(layer_path) = self.layer.as_ref().map(|l| l.path.clone()) else {
             self.status = Status::NoLayer;
@@ -905,11 +1156,20 @@ impl Window {
             self.status = Status::SameFile;
             return false;
         }
+        let an_input = fs::canonicalize(out).is_ok_and(|b| {
+            self.read_files
+                .iter()
+                .any(|f| fs::canonicalize(f).is_ok_and(|a| a == b))
+        });
+        if an_input {
+            self.status = Status::InputFile;
+            return false;
+        }
         if let Some(block) = self.blocker() {
             self.status = block;
             return false;
         }
-        let (_, feed, smax) = match self.params() {
+        let (p, feed, smax) = match self.params() {
             Ok(v) => v,
             Err(st) => {
                 self.status = st;
@@ -923,6 +1183,9 @@ impl Window {
                 return false;
             }
         };
+        if is_drawing(&out.to_string_lossy()) {
+            return self.draw(out, &p, &cut);
+        }
         let (name, hash) = self
             .layer
             .as_ref()
@@ -954,6 +1217,25 @@ impl Window {
             }
         }
         let (all, all_forms) = repeated(&once, &once_forms, cut.passes);
+        let rapid = self.config.rapid_mm_min;
+        let estimate = if rapid > 0.0 && !is_plot {
+            match estimate_time_with_forms(
+                &all,
+                &all_forms,
+                feed,
+                cut.laser_wait_s,
+                &cut.leads,
+                rapid,
+            ) {
+                Ok(t) => Some(duration_text(t.total_s())),
+                Err(why) => {
+                    self.status = Status::Failed(why);
+                    return false;
+                }
+            }
+        } else {
+            None
+        };
         let text = if is_plot {
             Ok(hpgl(&all))
         } else {
@@ -975,16 +1257,54 @@ impl Window {
         };
         match write_atomic(out, &text) {
             Ok(()) => {
-                self.status = Status::Exported {
-                    file: out
-                        .file_name()
-                        .map(|n| n.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| out.display().to_string()),
-                };
+                self.estimate = estimate;
+                self.status = Status::Exported { file: name_of(out) };
                 true
             }
             Err(e) => {
                 self.status = Status::Failed(e);
+                false
+            }
+        }
+    }
+
+    /// The openings as the stencil has them, written as a drawing the way `convert` does.
+    fn draw(&mut self, out: &Path, p: &Profile, cut: &CutOptions) -> bool {
+        if cut.origin.is_some() || cut.bed.is_some() {
+            self.status = Status::DrawingPlacement;
+            return false;
+        }
+        let drawing = self
+            .openings
+            .iter()
+            .map(|o| shrunk(o, p))
+            .collect::<Result<Vec<_>, _>>()
+            .and_then(|shown| {
+                let (text, left_out) = dxf_out::to_dxf(&shown, self.force)?;
+                Ok((text, shown.len() - left_out, left_out))
+            });
+        let (text, openings, left_out) = match drawing {
+            Ok(v) => v,
+            Err(why) => {
+                self.status = Status::Failed(why);
+                return false;
+            }
+        };
+        if out.exists() {
+            self.status = Status::DrawingExists { file: name_of(out) };
+            return false;
+        }
+        match dxf_out::write_new(out, &text) {
+            Ok(()) => {
+                self.status = Status::Drawn {
+                    file: name_of(out),
+                    openings,
+                    left_out,
+                };
+                true
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
                 false
             }
         }
@@ -1000,6 +1320,11 @@ fn name_of(path: &Path) -> String {
 
 /// Reads a paste layer the way the command line does: with the size limit (refused in the language of the person), the notices of the reader counted, and the pads turned into openings.
 pub fn read_paste_layer(path: &Path, lang: Lang) -> Result<Layer, String> {
+    read_paste_layer_with(path, lang, &ShapeRules::default())
+}
+
+/// [`read_paste_layer`] with the rules for the shapes that are not flashed pads.
+pub fn read_paste_layer_with(path: &Path, lang: Lang, rules: &ShapeRules) -> Result<Layer, String> {
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -1007,18 +1332,30 @@ pub fn read_paste_layer(path: &Path, lang: Lang) -> Result<Layer, String> {
     let max_bytes = eh3d_parser_gerber::InputLimits::default().max_bytes;
     let bytes = read_layer_file(&path.to_string_lossy(), max_bytes, lang.code())
         .map_err(|e| format!("{name}: {e}"))?;
-    paste_from_bytes(path, &name, bytes)
+    paste_from_bytes_with(path, &name, bytes, rules)
 }
 
 /// The paste layer drawn from the bytes of a file.
 pub fn paste_from_bytes(path: &Path, name: &str, bytes: Vec<u8>) -> Result<Layer, String> {
+    paste_from_bytes_with(path, name, bytes, &ShapeRules::default())
+}
+
+/// [`paste_from_bytes`] with the rules for the shapes that are not flashed pads.
+pub fn paste_from_bytes_with(
+    path: &Path,
+    name: &str,
+    bytes: Vec<u8>,
+    rules: &ShapeRules,
+) -> Result<Layer, String> {
     let name = name.to_string();
     let max_bytes = eh3d_parser_gerber::InputLimits::default().max_bytes;
     let reading = read_layer(&bytes, max_bytes, &[]).map_err(|e| format!("{name}: {e}"))?;
-    let (openings, mut notes) = from_gerber_with(
+    let shaped = from_gerber_rules(
         &reading.file,
         eh3d_gerberviewer::scene::DEFAULT_ARC_TOLERANCE_MM,
+        rules,
     );
+    let (openings, mut notes) = (shaped.openings, shaped.notes);
     // what the reader lost is lost from the stencil too
     for _ in 0..reading.errors {
         notes.push(String::from("reader error"));
@@ -1032,6 +1369,7 @@ pub fn paste_from_bytes(path: &Path, name: &str, bytes: Vec<u8>) -> Result<Layer
         bytes,
         openings,
         notes,
+        approximated: shaped.approximated,
         job: None,
     })
 }

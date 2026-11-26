@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 331 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 340 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.3` |
 | Maturité | Fonctionnel |
-| Tests | 331 |
+| Tests | 340 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 331 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 340 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -98,6 +98,7 @@ Comment les parties de ce dépôt s'articulent : qui l'utilise, ce qu'il contien
 * **Ponts étroits, ouvertures répétées et la pâte dans `check` :** `--min-web MM` (ou `min_web_mm` dans `stencil.cfg`, de 0 à 5 mm, 0,1 par défaut, 0 pour ne rien signaler) signale, dans `check` et dans `convert`, deux ouvertures dont le pont (la feuille qui reste entre elles) est plus étroit, ou qui se touchent ou se chevauchent, et n'arrête jamais `convert` ; deux ouvertures de même forme, taille et place ne font qu'un trou, la seconde est donc écartée avec une note au lieu d'être découpée deux fois ; `check` affiche combien d'ouvertures il y a de chaque forme et la pâte qu'elles contiennent (en microlitres) et `check --json` affiche cela et le reste du résultat sous la forme d'un seul objet JSON pour d'autres programmes. Testé uniquement sur un ordinateur.
 * **La feuille du magasin d'outils :** `--sheet-file FEUILLES.csv --sheet NOM` (ou `sheet_file` et `sheet_name` dans `stencil.cfg`) prend une feuille de la table des feuilles qu'exporte le magasin d'outils (`export-sheets-csv`) : son épaisseur, sa réduction de chaque ouverture par côté, sa largeur de coupe (une largeur de 0 prend la largeur du faisceau du laser de `--crib`) et ses limites de rapport remplacent celles du matériau. Les colonnes sont trouvées par leur nom, le fichier est lu avec une limite de taille (1 Mio) et de lignes, chaque défaut nomme sa ligne, et la ligne de commande l'emporte sur la feuille, la feuille sur le fichier de réglages. Aucun chiffre n'est une valeur par défaut de ce programme : une limite de 0 n'en donne aucune. La fenêtre montre la feuille choisie.
 * **Un dessin en sortie :** `convert COUCHE SORTIE.dxf` écrit les ouvertures telles que le pochoir les a, cercles et rectangles en millimètres, de sorte que ce même programme les relit ; une ouverture oblongue est refusée sauf si `--force` la laisse de côté, et un fichier existant n'est jamais remplacé sauf avec `--overwrite` (`--create`, la valeur par défaut, le refuse).
+* **La fenêtre lit `stencil.cfg`, avertit des ponts étroits et dessine :** elle lit le fichier de réglages comme `--config` (le bouton *Fichier de réglages...*, un fichier `.cfg` déposé sur elle ou `gui --config FICHIER`), avec les mêmes plages et refus, la feuille qu'il nomme et la durée estimée ; elle montre les paires d'ouvertures dont le pont est plus étroit que `min_web_mm` ; et un nom finissant par `.dxf` reçoit le dessin que `convert` écrit, jamais par-dessus un fichier existant.
 
 ## 🔒 Sécurité et protection
 
@@ -147,6 +148,7 @@ EH3D-STENCILCAM/
 │   ├── strict.rs                                tests de la ligne de commande : options et mots qu'elle ne connaît pas
 │   ├── atomic_write.rs                          tests de l'écriture par un fichier temporaire renommé
 │   ├── window_cli.rs                            tests qu'une compilation sans la fonctionnalité gui reste une ligne de commande
+│   ├── window_config.rs                         tests qui comparent la fenêtre et la commande : réglages, ponts, dessin
 │   ├── reqs.rs                                  tests du registre des exigences
 │   ├── shape_open.rs                            tests des ouvertures depuis les pastilles macro, régions et pistes sur un axe
 │   ├── ratio_limits.rs                          tests des limites de rapport, de leurs raisons et du code de sortie 2
@@ -201,7 +203,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 331 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 340 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 
