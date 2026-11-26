@@ -5,7 +5,8 @@ use crate::browse::{self, Browser};
 use crate::lang::{fill, Lang, Msg};
 use crate::shot::{ShotRequest, ShotTheme, PATIENCE_FRAMES};
 use crate::window::{
-    material_msg, Window, LAYER_EXTENSIONS, MATERIALS, SHAPE_LEAD_KEYS, TABLE_EXTENSIONS,
+    material_msg, Window, CONFIG_EXTENSIONS, LAYER_EXTENSIONS, MATERIALS, SHAPE_LEAD_KEYS,
+    TABLE_EXTENSIONS,
 };
 use eframe::egui::{
     self, Color32, FontData, FontDefinitions, FontFamily, Pos2, Rect, Stroke, Vec2,
@@ -27,7 +28,7 @@ const PAD: Color32 = Color32::from_rgb(0x9a, 0xa0, 0xa6);
 const CUT: Color32 = Color32::from_rgb(0x4c, 0xc9, 0xf0);
 
 /// The extensions the window offers for the file of the paths.
-const OUTPUT_EXTENSIONS: [&str; 2] = ["nc", "plt"];
+const OUTPUT_EXTENSIONS: [&str; 3] = ["nc", "plt", "dxf"];
 
 enum Outcome {
     Cancel,
@@ -50,12 +51,15 @@ struct App {
 }
 
 impl App {
-    fn new(lang: Lang, initial: Option<PathBuf>) -> App {
+    fn new(lang: Lang, initial: Vec<PathBuf>) -> App {
         let mut win = Window::new(lang);
-        let mut fit_pending = false;
-        if let Some(p) = initial {
-            fit_pending = win.open(&p);
+        for p in &initial {
+            // a settings file that is refused stops here: its reason stays on the screen
+            if !win.open(p) {
+                break;
+            }
         }
+        let fit_pending = win.layer.is_some();
         App {
             win,
             shot: None,
@@ -83,6 +87,13 @@ impl App {
     fn table_dialog(&mut self) {
         self.dialog = Some(Dialog {
             browser: Browser::new(self.folder(), &TABLE_EXTENSIONS),
+            export: None,
+        });
+    }
+
+    fn config_dialog(&mut self) {
+        self.dialog = Some(Dialog {
+            browser: Browser::new(self.folder(), &CONFIG_EXTENSIONS),
             export: None,
         });
     }
@@ -137,6 +148,9 @@ impl App {
                 }
                 if ui.button(Msg::SheetTable.tr(lang)).clicked() {
                     self.table_dialog();
+                }
+                if ui.button(Msg::SettingsFile.tr(lang)).clicked() {
+                    self.config_dialog();
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     egui::ComboBox::from_id_salt("language")
@@ -254,6 +268,10 @@ impl App {
                     if ui.checkbox(&mut force, Msg::Force.tr(lang)).changed() {
                         self.win.set_force(force);
                     }
+                    if let Some(line) = self.win.config_text() {
+                        ui.add_space(8.0);
+                        ui.label(line);
+                    }
                     if let Some(line) = self.win.sheet_text() {
                         ui.add_space(8.0);
                         ui.label(line);
@@ -268,6 +286,18 @@ impl App {
                         );
                         for line in lines {
                             ui.label(line);
+                        }
+                    }
+                    let webs = self.win.web_texts(5);
+                    if !webs.is_empty() {
+                        ui.add_space(8.0);
+                        for line in webs {
+                            ui.colored_label(DANGER, line);
+                        }
+                    }
+                    if let Some(layer) = &self.win.layer {
+                        for note in &layer.approximated {
+                            ui.label(egui::RichText::new(note.as_str()).color(DIM));
                         }
                     }
                 });
@@ -328,6 +358,15 @@ impl App {
                     OK
                 };
                 ui.label(egui::RichText::new(text).color(colour));
+                if let Some(warning) = self.win.web_texts(0).first() {
+                    ui.label(egui::RichText::new(warning.as_str()).color(DANGER));
+                }
+                if let Some(time) = &self.win.estimate {
+                    ui.label(
+                        egui::RichText::new(fill(Msg::Estimate.tr(lang), &[time.as_str()]))
+                            .color(DIM),
+                    );
+                }
                 if self.win.duplicates > 0 {
                     let count = self.win.duplicates.to_string();
                     ui.label(
@@ -653,8 +692,8 @@ fn apply_theme(ctx: &egui::Context, theme: ShotTheme) {
     ctx.set_visuals(v);
 }
 
-/// Opens the window. A layer given here is opened at once.
-pub fn run(initial: Option<PathBuf>, lang: Lang) -> eframe::Result {
+/// Opens the window. The files given here (a settings file, a layer) are opened at once, in their order.
+pub fn run(initial: Vec<PathBuf>, lang: Lang) -> eframe::Result {
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([1180.0, 760.0])
         .with_min_inner_size([760.0, 480.0])
@@ -792,7 +831,7 @@ pub fn run_shot(files: Vec<PathBuf>, lang: Lang, request: ShotRequest) -> Result
         Box::new(move |cc| {
             install_fonts(&cc.egui_ctx);
             apply_theme(&cc.egui_ctx, theme);
-            let mut app = App::new(lang, files.into_iter().next());
+            let mut app = App::new(lang, files);
             app.shot = Some(ShotState {
                 request,
                 frame: 0,

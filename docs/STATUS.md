@@ -6,7 +6,7 @@ EH3D-STENCILCAM is a working program on a computer: a library (`eh3d_stencilcam`
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 53 requirements: 46 implemented, 5 prototype, 2 planned and 0 validated. By progress: 46 done, 5 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 56 requirements: 49 implemented, 5 prototype, 2 planned and 0 validated. By progress: 49 done, 5 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 

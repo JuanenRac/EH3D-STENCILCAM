@@ -98,6 +98,7 @@ How the parts of this repository fit together: who uses it, what it holds and wh
 * **Narrow webs, repeated openings and the paste in `check`:** `--min-web MM` (or `min_web_mm` in `stencil.cfg`, from 0 to 5 mm, 0.1 by default, 0 for no warning) warns, in `check` and in `convert`, of two openings whose web (the sheet that stays between them) is narrower, or that touch or overlap, and never stops `convert`; two openings of the same form, size and place are one hole, so the second is left out with a note instead of being cut twice; `check` prints how many openings there are of each form and the paste they hold (in microlitres) and `check --json` prints that and the rest of the result as one JSON object for other programs. Tested on a computer only.
 * **The sheet from the tool crib:** `--sheet-file SHEETS.csv --sheet NAME` (or `sheet_file` and `sheet_name` in `stencil.cfg`) takes a sheet from the table of sheets that the tool crib exports (`export-sheets-csv`): its thickness, its reduction of every opening on each side, its kerf (a kerf of 0 takes the beam width of the laser of `--crib`) and its ratio limits replace those of the material. The columns are found by their names, the file is read with a size limit (1 MiB) and a row limit, every fault names its row, and the command line wins over the sheet and the sheet over the settings file. No figure is a default of this program: a limit of 0 gives none. The window shows the sheet that was chosen.
 * **A drawing as output:** `convert LAYER OUT.dxf` writes the openings as the stencil has them, circles and rectangles in millimetres, so that the same program reads them back; an obround opening is refused unless `--force` leaves it out, and a file that exists is never replaced unless `--overwrite` is given (`--create`, the default, refuses it).
+* **The window reads `stencil.cfg`, warns of narrow webs and draws:** it reads the settings file as `--config` does (the button *Settings file...*, a `.cfg` file dropped on it or `gui --config FILE`), with the same ranges and refusals, the sheet it names and the estimated time; it shows the pairs of openings whose web is narrower than `min_web_mm`; and a name that ends in `.dxf` gets the drawing that `convert` writes, never over a file that exists.
 
 ## 🔒 Security & Safety
 
@@ -147,6 +148,7 @@ EH3D-STENCILCAM/
 │   ├── strict.rs                                tests of the command line: options and words it does not know
 │   ├── atomic_write.rs                          tests of the write through a temporary file that is renamed
 │   ├── window_cli.rs                            tests that a build without the gui feature stays a command line
+│   ├── window_config.rs                         tests that compare the window with the command: settings file, webs, drawing
 │   ├── reqs.rs                                  tests of the register of requirements
 │   ├── shape_open.rs                            tests of the openings from macro pads, regions and tracks along an axis
 │   ├── ratio_limits.rs                          tests of the ratio limits, their reasons and the exit code 2

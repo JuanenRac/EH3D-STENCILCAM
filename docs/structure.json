@@ -425,6 +425,19 @@
           }
         },
         {
+          "name": "window_config.rs",
+          "desc": {
+            "en": "tests that compare the window with the command: settings file, webs, drawing",
+            "es": "pruebas que comparan la ventana con el comando: ajustes, puentes, dibujo",
+            "de": "Tests, die Fenster und Befehl vergleichen: Einstellungen, Stege, Zeichnung",
+            "fr": "tests qui comparent la fenêtre et la commande : réglages, ponts, dessin",
+            "it": "test che confrontano finestra e comando: impostazioni, ponti, disegno",
+            "ja": "ウィンドウとコマンドを比べるテスト: 設定、ウェブ、図面",
+            "zh": "比较窗口与命令的测试：设置、连桥、图纸",
+            "pt": "testes que comparam a janela com o comando: definições, pontes, desenho"
+          }
+        },
+        {
           "name": "reqs.rs",
           "desc": {
             "en": "tests of the register of requirements",

@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because no stencil has been cut with these files and nothing of this program has run on a real laser.
 
-The register has 53 requirements: 46 implemented, 5 prototype, 2 planned and 0 validated. By progress: 46 done, 5 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 56 requirements: 49 implemented, 5 prototype, 2 planned and 0 validated. By progress: 49 done, 5 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -97,3 +97,6 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | STNC-051 | The window opens the paste layers of a project, saves their stencils and offers the sheets of a table in a list. | prototype | partial | host-test | `project::the_window_opens_the_paste_layers_of_a_project_and_saves_their_stencils` | The logic is tested without a screen; no person has looked at the window. |
 | STNC-052 | The window writes the program the command writes with the same leads, wait of the laser, passes, origin and bed, and both count the leads in the limit of the bed. | implemented | done | host-test | `window_program::the_window_writes_the_program_of_the_command_with_every_value_of_the_cut` | - |
 | STNC-053 | The window asks before a write that would remove a signature of the project and writes nothing unless it is agreed. | implemented | done | host-test | `project::the_window_says_when_keeping_a_stencil_removed_the_signature_of_the_project` | - |
+| STNC-054 | The window reads the settings file as the command does, with the sheet it names, and writes the same program with it; a refused file changes nothing. | implemented | done | host-test | `window_config::the_window_writes_what_the_command_writes_with_the_same_settings_file` | The window itself is not driven by a test. |
+| STNC-055 | The window warns of the same narrow webs as the command. | implemented | done | host-test | `window_config::the_window_warns_of_the_narrow_webs_the_command_warns_of` | The window itself is not driven by a test. |
+| STNC-056 | A name that ends in `.dxf` gets from the window the drawing of the command, never over a file that exists. | implemented | done | host-test | `window_config::a_name_that_ends_in_dxf_gets_the_drawing_of_the_command` | The window itself is not driven by a test. |
