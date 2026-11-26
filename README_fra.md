@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 314 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 321 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.2` |
 | Maturité | Fonctionnel |
-| Tests | 314 |
+| Tests | 321 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 314 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 321 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -122,6 +122,7 @@ EH3D-STENCILCAM/
 │   ├── crib.rs                                  la largeur de coupe et les feuilles, depuis les tables CSV du gestionnaire
 │   ├── dxf_in.rs                                lit un dessin (DXF) : les cercles et les rectangles deviennent des ouvertures, le reste est une note
 │   ├── dxf_out.rs                               écrit les ouvertures en dessin (DXF) de cercles et de rectangles
+│   ├── eh3dfile.rs                              le projet .eh3d : les couches de pâte du travail entrent, les pochoirs vont dans leur branche
 │   ├── gui.rs                                   la fenêtre (egui, avec la fonctionnalité gui) : dessine l'état et transmet ce que fait la personne
 │   ├── lang.rs                                  les mots de la fenêtre dans les huit langues
 │   ├── layer.rs                                 lit une couche depuis des octets et montre ce que dit le lecteur par son code
@@ -151,7 +152,8 @@ EH3D-STENCILCAM/
 │   ├── ratio_limits.rs                          tests des limites de rapport, de leurs raisons et du code de sortie 2
 │   ├── crib_kerf.rs                             tests de la largeur de coupe depuis le CSV, ses limites et les tables abîmées
 │   ├── sheets.rs                                tests des feuilles du gestionnaire : lecteur, options, réglages et fenêtre
-│   └── dxf_out.rs                               tests du dessin des ouvertures : relecture, jamais sur un fichier existant
+│   ├── dxf_out.rs                               tests du dessin des ouvertures : relecture, jamais sur un fichier existant
+│   └── project.rs                               tests du projet : branches, périmé, ligne de commande, fenêtre et feuilles
 ├── examples/
 │   ├── paste.gtp                                un exemple pour essayer le programme
 │   └── paste.dxf                                les mêmes pastilles en dessin (DXF)
@@ -175,6 +177,8 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   contribuer, code de conduite et licence
 ```
 
+**Le projet de la suite.** Un fichier `.eh3d` contient une branche par programme. `project info FICHIER.eh3d` montre les couches du travail (la branche `manufacturing/`, un paquet `.eh3dproj`) et les pochoirs gardés dans le projet ; `project convert FICHIER.eh3d [--layer NOM] [--plt]` transforme chaque couche de pâte du travail (ou celle nommée) en pochoir, avec les mêmes options et les mêmes refus que `convert`, et le garde uniquement dans la branche `stencilcam/`, avec une copie de la couche et le contenu de la branche d'où elle vient. Si le travail change ensuite, `project info` signale que les pochoirs sont périmés et se termine avec 2. Dans la fenêtre, un `.eh3d` déposé ouvre les couches de pâte de son travail (la face du dessus et celle du dessous se choisissent dans une liste) et le pochoir est enregistré dans le projet, et une table de feuilles (`.csv`, déposée ou ouverte par son bouton) propose ses feuilles dans une liste.
+
 ## ⚙️ Configuration
 
 Un petit fichier de réglages, `stencil.cfg` (`clé = valeur`, un par ligne, `#` commence un commentaire), contient ce qui mérite d'être ajusté : `lead_in_mm` et `lead_out_mm`, la longueur du tronçon droit d'entrée avant chaque contour et de sortie après (0,3 mm par défaut, de 0 à 5 ; 0 n'en écrit aucun), et `laser_wait_s`, l'attente après l'allumage du laser (0 par défaut, jusqu'à 60). `eh3d-stencilcam config` affiche le fichier avec chaque valeur par défaut (`examples/stencil.cfg` est ce fichier) et `--config FICHIER` en lit un ; `--lead-in MM`, `--lead-out MM` et `--laser-wait SECONDES` donnent les mêmes réglages sur la ligne de commande et l'emportent sur le fichier. Une clé inconnue, répétée ou hors de sa plage est une erreur qui indique sa ligne. Le reste est donné en arguments de la ligne de commande (voir Interfaces) et chaque valeur par défaut est écrite dans l'aide de la commande (`eh3d-stencilcam help`). Les limites fixes sont des constantes nommées dans le code, couvertes par des tests. `lead_in_round_mm`, `lead_out_round_mm`, `lead_in_rect_mm`, `lead_out_rect_mm` (avec les options `--lead-in-round`, `--lead-out-round`, `--lead-in-rect` et `--lead-out-rect`) donnent l'entrée et la sortie des ouvertures rondes et des ouvertures rectangulaires ; dans le fichier elles figurent en commentaires et, si elles ne sont pas données, on utilise les générales `lead_in_mm` et `lead_out_mm`. `min_web_mm` (avec `--min-web`) est le pont le plus étroit entre deux ouvertures qui n'est pas signalé (0,1 mm par défaut, de 0 à 5 ; 0 ne signale rien). `min_aspect` et `min_area` (avec `--min-aspect` et `--min-area`) sont les limites de rapport en dessous desquelles une ouverture ne libère pas la pâte (1,5 et 0,66 par défaut), et `region_fit_percent` (avec `--region-fit`, 0 par défaut, jusqu'à 20) ouvre comme ce rectangle une région qui remplit presque tout son rectangle, comme une pastille aux coins coupés. `--crib FICHIER.csv --crib-laser NOM` prend la largeur de coupe d'un outil laser du CSV qu'exporte le gestionnaire d'outils. Une vérification qui n'est pas réussie se termine par le code 2.
@@ -183,7 +187,7 @@ Un petit fichier de réglages, `stencil.cfg` (`clé = valeur`, un par ligne, `#`
 
 ## 🚀 Démarrage rapide
 
-Il faut une chaîne d'outils Rust stable (1.75 ou plus récente).
+Il faut une chaîne d'outils Rust stable (1.89 ou plus récente).
 
 ```bash
 cargo build --release
@@ -197,7 +201,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 314 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 321 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 

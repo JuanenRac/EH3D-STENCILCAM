@@ -5,12 +5,14 @@
 mod cli_args;
 
 use cli_args::{finish, flag, num, switch};
+use eh3d_gerberviewer::eh3dfile as suite;
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_serverclient::Settings as LinkSettings;
 use eh3d_stencilcam::config;
 use eh3d_stencilcam::crib::SheetSpec;
 use eh3d_stencilcam::dxf_in::{from_dxf, is_drawing};
 use eh3d_stencilcam::dxf_out;
+use eh3d_stencilcam::eh3dfile;
 use eh3d_stencilcam::layer::{hidden_codes, read_layer, read_layer_file};
 use eh3d_stencilcam::openings;
 use eh3d_stencilcam::openings::{
@@ -32,6 +34,8 @@ const HELP: &str = "eh3d-stencilcam: solder paste stencils from the paste layer 
   eh3d-stencilcam convert LAYER.gtp|DRAWING.dxf OUT.nc|OUT.plt [--material mylar|kapton|steel] [--thickness MM] [--shrink PERCENT] [--radius MM]
                   [--kerf MM | --crib FILE.csv --crib-laser NAME] [--sheet-file SHEETS.csv --sheet NAME] [--feed 600] [--smax 1000] [--passes 1] [--laser-wait SECONDS] [--lead-in MM] [--lead-out MM]
                   [--lead-in-round MM] [--lead-out-round MM] [--lead-in-rect MM] [--lead-out-rect MM] [--rapid MM_MIN] [--origin X,Y] [--bed WIDTH,HEIGHT] [--config FILE] [--mirror] [--force] [--create | --overwrite]
+  eh3d-stencilcam project info FILE.eh3d            the paste layers of the job of a project, the stencils kept in it and whether they are out of date (then it ends with 2)
+  eh3d-stencilcam project convert FILE.eh3d [--layer NAME] [--plt] [options of convert]   a stencil for each paste layer of the job (or the one named), kept in the branch stencilcam/ of the project
   eh3d-stencilcam config                            every setting with its default, as a file (stencil.cfg)
   eh3d-stencilcam server [status] [--config FILE]   the link to the EH3D server (server_address, server_token, server_machine, server_timeout_s, server_retries, server_mdns and server_max_answer_mib of stencil.cfg) and what the server answers
   eh3d-stencilcam check LAYER.gtp|DRAWING.dxf [--material ...] [--thickness MM] [--shrink PERCENT] [--min-web MM] [--sheet-file SHEETS.csv --sheet NAME] [--min-aspect N] [--min-area N] [--region-fit PERCENT] [--json]
@@ -232,6 +236,9 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
         finish(&args, 0)?;
         print!("{}", config::default_file());
         return Ok(());
+    }
+    if cmd == "project" {
+        return project(args);
     }
     if cmd == "server" {
         return server_command(args);
@@ -650,6 +657,84 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
             Ok(())
         }
         other => Err(format!("{other}: unknown command (see help)")),
+    }
+}
+
+/// `project info FILE` and `project convert FILE [--layer NAME] [--plt] [options of convert]`: the paste layers of the job of a `.eh3d` project and the stencils kept in the branch
+/// `stencilcam/`. Each layer is turned into a stencil by `convert` itself, with the same options and the same refusals.
+fn project(mut args: Vec<String>) -> Result<(), String> {
+    const USAGE: &str = "project needs info or convert and a project (project info FILE.eh3d, project convert FILE.eh3d [--layer NAME] [--plt] [options of convert])";
+    if args.len() < 2 {
+        return Err(USAGE.into());
+    }
+    let what = args.remove(0);
+    let file = std::path::PathBuf::from(args.remove(0));
+    match what.as_str() {
+        "info" => {
+            if let Some(extra) = args.first() {
+                return Err(format!("{extra}: unexpected argument (see help)"));
+            }
+            let (lines, state) = suite::describe(&eh3dfile::KIT, &file)?;
+            for line in lines {
+                println!("{line}");
+            }
+            if state.out_of_date {
+                let why = suite::out_of_date_message(&eh3dfile::KIT);
+                return Err(format!("{NOT_PASSED}{why}"));
+            }
+            Ok(())
+        }
+        "convert" => {
+            let named = flag(&mut args, "--layer")?;
+            let plt = switch(&mut args, "--plt");
+            if args
+                .iter()
+                .any(|a| matches!(a.as_str(), "--create" | "--overwrite"))
+            {
+                return Err("--create and --overwrite are options of a DXF output".into());
+            }
+            let layers = eh3dfile::paste_layers(&file)?;
+            let chosen = match &named {
+                Some(name) => vec![eh3dfile::choose(&layers, name)?.clone()],
+                None => layers,
+            };
+            // every stencil is made before one is kept, so a refusal leaves the project as it was
+            let mut made = Vec::new();
+            for layer in chosen {
+                let name = eh3dfile::result_name(&layer, if plt { "plt" } else { "nc" });
+                let dir = eh3dfile::scratch_dir()?;
+                let input = dir.join(layer.file_name());
+                let output = dir.join(&name);
+                let bytes = fs::write(&input, &layer.bytes)
+                    .map_err(|e| format!("{}: {e}", input.display()))
+                    .and_then(|()| {
+                        let mut line = vec![
+                            "convert".to_string(),
+                            input.to_string_lossy().into_owned(),
+                            output.to_string_lossy().into_owned(),
+                        ];
+                        line.extend(args.iter().cloned());
+                        run(line)
+                    })
+                    .and_then(|()| {
+                        fs::read(&output).map_err(|e| format!("{}: {e}", output.display()))
+                    });
+                let _ = fs::remove_dir_all(&dir);
+                made.push((layer, name, bytes?));
+            }
+            for (layer, name, bytes) in made {
+                for notice in eh3dfile::save_stencil(&file, &layer, &name, bytes)? {
+                    eprintln!("note: {notice}");
+                }
+                println!(
+                    "{name} kept in the branch {} of {}",
+                    eh3dfile::KIT.branch,
+                    file.display()
+                );
+            }
+            Ok(())
+        }
+        _ => Err(USAGE.into()),
     }
 }
 

@@ -9,6 +9,7 @@ pub mod config;
 pub mod crib;
 pub mod dxf_in;
 pub mod dxf_out;
+pub mod eh3dfile;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod lang;

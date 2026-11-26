@@ -2,7 +2,8 @@
 //! last said to the person and the zoom of the picture. The screen (`gui`, built with the `gui` feature) only draws this and passes on what the person does, so everything here is
 //! tested as plain code.
 
-use crate::crib::{sheet_from_file, SheetSpec};
+use crate::crib::{sheet_from_file, sheets_from_file, SheetSpec};
+use crate::eh3dfile;
 use crate::lang::{fill, Lang, Msg};
 use crate::layer::{read_layer, read_layer_file};
 use crate::openings::{
@@ -11,15 +12,18 @@ use crate::openings::{
 use crate::output::{gcode, hpgl, paths, write_atomic, Path as CutPath};
 use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
+use eh3d_gerberviewer::eh3dfile::{self as suite, JobFile};
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// The extensions of the files the window offers to open as a Gerber layer.
-pub const LAYER_EXTENSIONS: [&str; 14] = [
+pub const LAYER_EXTENSIONS: [&str; 15] = [
     "gtp", "gbp", "gbr", "ger", "pho", "art", "gtl", "gbl", "gts", "gbs", "gto", "gbo", "gko",
-    "gm1",
+    "gm1", "eh3d",
 ];
+/// The extensions of a table of sheets.
+pub const TABLE_EXTENSIONS: [&str; 1] = ["csv"];
 
 /// The materials of the stencil, in the order the window offers them.
 pub const MATERIALS: [Material; 3] = [Material::Mylar, Material::Kapton, Material::Steel];
@@ -63,14 +67,40 @@ pub fn default_fields(material: Material) -> Vec<Field> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Status {
     Ready,
-    Computed { openings: usize, weak: usize },
-    Exported { file: String },
+    Computed {
+        openings: usize,
+        weak: usize,
+    },
+    Exported {
+        file: String,
+    },
     NoLayer,
     Failed(String),
     Incomplete(usize),
     Weak(usize),
-    BadValue { label: Msg, why: String },
+    BadValue {
+        label: Msg,
+        why: String,
+    },
     SameFile,
+    /// A paste layer of the job of a project was opened.
+    ProjectOpened {
+        name: String,
+        layers: usize,
+    },
+    /// The stencil was kept in the branch of the program.
+    ProjectSaved {
+        file: String,
+    },
+    /// The stencils of the project were made from an older job.
+    ProjectStale {
+        name: String,
+    },
+    NoProject,
+    SheetsRead {
+        count: usize,
+        file: String,
+    },
 }
 
 impl Status {
@@ -91,6 +121,17 @@ impl Status {
                 fill(Msg::BadValue.tr(lang), &[label.tr(lang), why.as_str()])
             }
             Status::SameFile => Msg::SameFile.tr(lang).to_string(),
+            Status::ProjectOpened { name, layers } => fill(
+                Msg::ProjectOpened.tr(lang),
+                &[name.as_str(), layers.to_string().as_str()],
+            ),
+            Status::ProjectSaved { file } => fill(Msg::ProjectSaved.tr(lang), &[file.as_str()]),
+            Status::ProjectStale { name } => fill(Msg::ProjectStale.tr(lang), &[name.as_str()]),
+            Status::NoProject => Msg::NoProject.tr(lang).to_string(),
+            Status::SheetsRead { count, file } => fill(
+                Msg::SheetsRead.tr(lang),
+                &[count.to_string().as_str(), file.as_str()],
+            ),
         }
     }
 
@@ -98,7 +139,12 @@ impl Status {
     pub fn is_problem(&self) -> bool {
         !matches!(
             self,
-            Status::Ready | Status::Computed { .. } | Status::Exported { .. }
+            Status::Ready
+                | Status::Computed { .. }
+                | Status::Exported { .. }
+                | Status::ProjectOpened { .. }
+                | Status::ProjectSaved { .. }
+                | Status::SheetsRead { .. }
         )
     }
 }
@@ -113,6 +159,8 @@ pub struct Layer {
     pub openings: Vec<Opening>,
     /// What could not become an opening.
     pub notes: Vec<String>,
+    /// The layer of the job of a project this one is.
+    pub job: Option<JobFile>,
 }
 
 /// The window.
@@ -137,6 +185,12 @@ pub struct Window {
     pub ratios: Vec<Ratios>,
     pub status: Status,
     pub viewport: Viewport,
+    /// The project whose job is open.
+    pub project: Option<PathBuf>,
+    /// The paste layers of that job.
+    pub job_layers: Vec<JobFile>,
+    /// The sheets of the table of sheets that was read, to choose one.
+    pub sheets: Vec<SheetSpec>,
 }
 
 impl Window {
@@ -156,6 +210,9 @@ impl Window {
             ratios: Vec::new(),
             status: Status::Ready,
             viewport: Viewport::default(),
+            project: None,
+            job_layers: Vec::new(),
+            sheets: Vec::new(),
         }
     }
 
@@ -327,10 +384,139 @@ impl Window {
         }
     }
 
-    /// Opens a paste layer and works the stencil out. The old layer stays open when the new one cannot be read.
+    /// Reads a table of sheets so that one can be chosen; the sheet that was chosen stays until another one is.
+    pub fn load_sheet_table(&mut self, path: &Path) -> bool {
+        match sheets_from_file(&path.to_string_lossy()) {
+            Ok(sheets) => {
+                self.status = Status::SheetsRead {
+                    count: sheets.len(),
+                    file: name_of(path),
+                };
+                self.sheets = sheets;
+                true
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// Chooses the sheet of the table at `index`, or the material alone with `None`.
+    pub fn choose_sheet(&mut self, index: Option<usize>) -> bool {
+        match index {
+            None => self.set_sheet(None),
+            Some(i) => match self.sheets.get(i).cloned() {
+                Some(s) => self.set_sheet(Some(s)),
+                None => false,
+            },
+        }
+    }
+
+    /// Opens the first paste layer of the job of a project, and says when the stencils kept in it are out of date. The old layer stays open when the job cannot be used.
+    pub fn open_project(&mut self, path: &Path) -> bool {
+        let read = eh3dfile::paste_layers(path)
+            .and_then(|layers| Ok((layers, suite::state(&eh3dfile::KIT, path)?)));
+        match read {
+            Ok((layers, state)) => {
+                let before = (self.project.take(), std::mem::take(&mut self.job_layers));
+                self.project = Some(path.to_path_buf());
+                self.job_layers = layers;
+                if !self.choose_job_layer(0) {
+                    (self.project, self.job_layers) = before;
+                    return false;
+                }
+                let name = name_of(path);
+                if state.out_of_date {
+                    self.status = Status::ProjectStale { name };
+                } else if matches!(self.status, Status::Computed { .. }) {
+                    self.status = Status::ProjectOpened {
+                        name,
+                        layers: self.job_layers.len(),
+                    };
+                }
+                true
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// Works with the paste layer of the job at `index` (the top and the bottom side are two layers).
+    pub fn choose_job_layer(&mut self, index: usize) -> bool {
+        let (Some(project), Some(file)) = (&self.project, self.job_layers.get(index)) else {
+            return false;
+        };
+        // the stencil is suggested next to the project, with the name of the layer
+        let beside = project.with_file_name(file.file_name());
+        match paste_from_bytes(&beside, file.file_name(), file.bytes.clone()) {
+            Ok(mut layer) => {
+                layer.job = Some(file.clone());
+                self.layer = Some(layer);
+                self.update();
+                true
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// Makes the G-code of the layer of the job and keeps it in the branch `stencilcam/` of the project. What stops an export stops this too.
+    pub fn save_project(&mut self) -> bool {
+        let (Some(project), Some(job)) = (
+            self.project.clone(),
+            self.layer.as_ref().and_then(|l| l.job.clone()),
+        ) else {
+            self.status = Status::NoProject;
+            return false;
+        };
+        let name = eh3dfile::result_name(&job, "nc");
+        let dir = match eh3dfile::scratch_dir() {
+            Ok(dir) => dir,
+            Err(why) => {
+                self.status = Status::Failed(why);
+                return false;
+            }
+        };
+        let out = dir.join(&name);
+        let made = self.export(&out);
+        let bytes = if made { fs::read(&out).ok() } else { None };
+        let _ = fs::remove_dir_all(&dir);
+        let Some(bytes) = bytes else {
+            return false;
+        };
+        match eh3dfile::save_stencil(&project, &job, &name, bytes) {
+            Ok(_) => {
+                self.status = Status::ProjectSaved { file: name };
+                true
+            }
+            Err(why) => {
+                self.status = Status::Failed(why);
+                false
+            }
+        }
+    }
+
+    /// Opens a paste layer and works the stencil out. The old layer stays open when the new one cannot be read. A `.eh3d` project opens the paste layer of its job and a `.csv` file
+    /// is read as a table of sheets.
     pub fn open(&mut self, path: &Path) -> bool {
+        if suite::is_project(path) {
+            return self.open_project(path);
+        }
+        if path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("csv"))
+        {
+            return self.load_sheet_table(path);
+        }
         match read_paste_layer(path, self.lang) {
             Ok(layer) => {
+                self.project = None;
+                self.job_layers.clear();
                 self.layer = Some(layer);
                 self.update();
                 true
@@ -532,6 +718,13 @@ impl Window {
     }
 }
 
+/// The name of a file without its folders.
+fn name_of(path: &Path) -> String {
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
+}
+
 /// Reads a paste layer the way the command line does: with the size limit (refused in the language of the person), the notices of the reader counted, and the pads turned into openings.
 pub fn read_paste_layer(path: &Path, lang: Lang) -> Result<Layer, String> {
     let name = path
@@ -541,6 +734,13 @@ pub fn read_paste_layer(path: &Path, lang: Lang) -> Result<Layer, String> {
     let max_bytes = eh3d_parser_gerber::InputLimits::default().max_bytes;
     let bytes = read_layer_file(&path.to_string_lossy(), max_bytes, lang.code())
         .map_err(|e| format!("{name}: {e}"))?;
+    paste_from_bytes(path, &name, bytes)
+}
+
+/// The paste layer drawn from the bytes of a file.
+pub fn paste_from_bytes(path: &Path, name: &str, bytes: Vec<u8>) -> Result<Layer, String> {
+    let name = name.to_string();
+    let max_bytes = eh3d_parser_gerber::InputLimits::default().max_bytes;
     let reading = read_layer(&bytes, max_bytes, &[]).map_err(|e| format!("{name}: {e}"))?;
     let (openings, mut notes) = from_gerber_with(
         &reading.file,
@@ -559,6 +759,7 @@ pub fn read_paste_layer(path: &Path, lang: Lang) -> Result<Layer, String> {
         bytes,
         openings,
         notes,
+        job: None,
     })
 }
 
