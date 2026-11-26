@@ -18,7 +18,8 @@ use crate::profile::{Material, Profile};
 use crate::viewport::Viewport;
 use eh3d_parser_gcode::emit::{header, sha256_hex, Header};
 use eh3d_project::manufacturing::{self as suite, JobFile};
-use eh3d_project::suiteview::{self, Said};
+use eh3d_project::suitetext::Said;
+use eh3d_project::suiteview;
 use std::fs;
 use std::path::{Path, PathBuf};
 
