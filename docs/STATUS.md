@@ -16,7 +16,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.3; EH3D-GERBERVIEWER at main until it has a tag with the code this program uses).
+* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.3; EH3D-GERBERVIEWER at the tag v0.1.0).
 * A laser, a sheet and a paste layer from a real board, for the only validation that counts.
 
 ## Known technical debt and omitted tests
