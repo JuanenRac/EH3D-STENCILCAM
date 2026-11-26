@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.4] - The window makes the same program as the command, and asks before a signature is removed
+
 - **The window reads `stencil.cfg` as the command does:** with the button *Settings file...*, a `.cfg` file dropped on it or `gui --config FILE`; the same keys, ranges and refusals, the sheet the file names, the narrowest web, the ratio limits, `region_fit_percent` and the estimated time of `rapid_mm_min`. A file that is refused changes nothing, and neither it nor a table that was read can be written over.
 - **The window shows the warning of the narrow webs:** the pairs of openings whose web is narrower than `min_web_mm` (0.1 mm by default), or that touch or overlap, by their numbers, in the eight languages.
 - **A name that ends in `.dxf` writes a drawing from the window:** before, it wrote G-code under that name. It is the drawing `convert` writes, with the same refusals: no origin and no bed, obround openings only left out when forced, and never over a file that exists.
