@@ -271,6 +271,9 @@ impl App {
                     OK
                 };
                 ui.label(egui::RichText::new(text).color(colour));
+                for notice in &self.win.notices {
+                    ui.label(egui::RichText::new(notice.as_str()).color(DANGER));
+                }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(egui::RichText::new(Msg::ZoomHint.tr(lang)).color(DIM));
                 });

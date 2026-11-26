@@ -245,11 +245,18 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     }
     let mut settings = config::Settings::default();
     let mut cfg_sheet = (None, None);
+    // the files the options name, noted before the options are taken from the line: none of them may be written over
+    let mut read_files: Vec<String> = args
+        .windows(2)
+        .filter(|w| matches!(w[0].as_str(), "--config" | "--crib" | "--sheet-file"))
+        .map(|w| w[1].clone())
+        .collect();
     let config_path = flag(&mut args, "--config")?;
     if let Some(path) = &config_path {
         let text = fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?;
         settings = config::parse(&text).map_err(|e| format!("{path}: {e}"))?;
         cfg_sheet = config::sheet_choice(&text);
+        read_files.extend(cfg_sheet.0.clone());
     }
     let lead_in = match flag(&mut args, "--lead-in")? {
         Some(v) => config::parse_lead("--lead-in", &v)?,
@@ -387,16 +394,29 @@ fn run(mut args: Vec<String>) -> Result<(), String> {
     // the output may not be the layer: the Gerber file would be overwritten with the G-code
     if cmd == "convert" {
         if let Some(out) = args.get(1) {
-            let same = match (
+            let same_as = |other: &str| match (
                 std::path::Path::new(out).canonicalize(),
-                std::path::Path::new(&layer).canonicalize(),
+                std::path::Path::new(other).canonicalize(),
             ) {
                 (Ok(a), Ok(b)) => a == b,
-                _ => *out == layer,
+                _ => out == other,
             };
-            if same {
+            if same_as(&layer) {
                 return Err(format!(
                     "{out}: the output file is also the layer; write the stencil to a new file"
+                ));
+            }
+            if std::path::Path::new(out)
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("eh3d"))
+            {
+                return Err(format!(
+                    "{out}: nothing is written over a project (.eh3d); `project convert` keeps a stencil inside it"
+                ));
+            }
+            if read_files.iter().any(|f| same_as(f)) {
+                return Err(format!(
+                    "{out}: the output file is also an input of this run; write the stencil to a new file"
                 ));
             }
         }
@@ -696,12 +716,12 @@ fn project(mut args: Vec<String>) -> Result<(), String> {
             let layers = eh3dfile::paste_layers(&file)?;
             let chosen = match &named {
                 Some(name) => vec![eh3dfile::choose(&layers, name)?.clone()],
-                None => layers,
+                None => layers.clone(),
             };
             // every stencil is made before one is kept, so a refusal leaves the project as it was
             let mut made = Vec::new();
             for layer in chosen {
-                let name = eh3dfile::result_name(&layer, if plt { "plt" } else { "nc" });
+                let name = eh3dfile::result_name(&layers, &layer, if plt { "plt" } else { "nc" });
                 let dir = eh3dfile::scratch_dir()?;
                 let input = dir.join(layer.file_name());
                 let output = dir.join(&name);
