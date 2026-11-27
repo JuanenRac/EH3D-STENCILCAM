@@ -290,7 +290,7 @@ EH3D-STENCILCAM/
 **Ensuite**
 
 * L'essayer avec une vraie couche de pâte et un laser.
-* Voir la fenêtre sur un écran et la compléter : une commande pour choisir la feuille du magasin d'outils et une vue des rapports de pâte de chaque ouverture.
+* Voir la fenêtre sur un écran et la compléter : une vue des rapports de pâte de chaque ouverture.
 * L'essayer avec des fichiers réels et avec les autres programmes de la suite.
 
 ## 🌍 Langues

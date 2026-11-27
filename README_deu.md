@@ -290,7 +290,7 @@ EH3D-STENCILCAM/
 **Als Nächstes**
 
 * Mit einer echten Pastenlage und einem Laser ausprobieren.
-* Das Fenster auf einem Bildschirm ansehen und vervollständigen: ein Bedienelement zur Wahl der Folie aus dem Werkzeuglager und eine Ansicht der Pastenverhältnisse jeder Öffnung.
+* Das Fenster auf einem Bildschirm ansehen und vervollständigen: eine Ansicht der Pastenverhältnisse jeder Öffnung.
 * Mit echten Dateien und den anderen Programmen der Suite ausprobieren.
 
 ## 🌍 Sprachen

@@ -290,7 +290,7 @@ EH3D-STENCILCAM/
 **Siguiente**
 
 * Probarlo con una capa de pasta real y un láser.
-* Ver la ventana en una pantalla y completarla: un control para elegir la lámina del almacén de herramientas y una vista de las relaciones de pasta de cada apertura.
+* Ver la ventana en una pantalla y completarla: una vista de las relaciones de pasta de cada apertura.
 * Probarlo con ficheros reales y con los demás programas de la suite.
 
 ## 🌍 Idiomas

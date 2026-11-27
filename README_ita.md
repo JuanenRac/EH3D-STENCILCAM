@@ -290,7 +290,7 @@ EH3D-STENCILCAM/
 **Prossimi passi**
 
 * Provarlo con un vero livello di pasta e un laser.
-* Vedere la finestra su uno schermo e completarla: un controllo per scegliere il foglio del magazzino utensili e una vista dei rapporti di pasta di ogni apertura.
+* Vedere la finestra su uno schermo e completarla: una vista dei rapporti di pasta di ogni apertura.
 * Provarlo con file reali e con gli altri programmi della suite.
 
 ## 🌍 Lingue

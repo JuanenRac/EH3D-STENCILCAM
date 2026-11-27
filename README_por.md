@@ -290,7 +290,7 @@ EH3D-STENCILCAM/
 **A seguir**
 
 * Experimentá-lo com uma camada de pasta real e um laser.
-* Ver a janela num ecrã e completá-la: um controlo para escolher a folha do armazém de ferramentas e uma vista das relações de pasta de cada abertura.
+* Ver a janela num ecrã e completá-la: uma vista das relações de pasta de cada abertura.
 * Experimentá-lo com ficheiros reais e com os outros programas da suíte.
 
 ## 🌍 Idiomas
