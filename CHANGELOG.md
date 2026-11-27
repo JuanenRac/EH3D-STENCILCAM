@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.1.5] - The stricter Gerber reader, safer saves and the layer lines shown with their code
+
 - **Built against the tag v0.1.4 of EH3D-CORE-LIBS** (it was v0.1.2): its Gerber reader tells what it passed over, so a layer with two different units (`units-conflict`), a second `FS` that differs (`format-redefined`), characters before the first letter of a block or a word written twice in a block (`word-repeated`) is refused by `convert` and by the window, unless it is forced; commands after `M02` are a warning. 1 new test.
 - **The window shows what the reader said, with its code:** the lines `convert` prints (the first 20) are in the side panel; before, only the number of parts lost was shown. 1 new test.
 - **A file name cannot send a command to the controller from a comment:** a test writes a stencil from a layer whose name holds `!`, `~` and a character outside ASCII, which GRBL obeys wherever they stand, and finds none in the program. 1 new test. Host-tested only.
