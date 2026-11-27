@@ -315,6 +315,9 @@ impl App {
                         }
                     }
                     if let Some(layer) = &self.win.layer {
+                        for note in layer.reader_notes.iter().take(20) {
+                            ui.colored_label(DANGER, note.as_str());
+                        }
                         for note in &layer.approximated {
                             ui.label(egui::RichText::new(note.as_str()).color(DIM));
                         }

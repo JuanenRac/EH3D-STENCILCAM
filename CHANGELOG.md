@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Built against the tag v0.1.4 of EH3D-CORE-LIBS** (it was v0.1.2): its Gerber reader tells what it passed over, so a layer with two different units (`units-conflict`), a second `FS` that differs (`format-redefined`), characters before the first letter of a block or a word written twice in a block (`word-repeated`) is refused by `convert` and by the window, unless it is forced; commands after `M02` are a warning. 1 new test.
+- **The window shows what the reader said, with its code:** the lines `convert` prints (the first 20) are in the side panel; before, only the number of parts lost was shown. 1 new test.
+- **A file name cannot send a command to the controller from a comment:** a test writes a stencil from a layer whose name holds `!`, `~` and a character outside ASCII, which GRBL obeys wherever they stand, and finds none in the program. 1 new test. Host-tested only.
 - **A stencil made at the command line or in the window is not kept over what another program saved:** the write is made with the mark of the moment the project was read, taken before its layers, so a save by another program while the stencils were being made, or between the last look and the write, is refused (`EH3D-PKG-025`) and nothing is written. 1 new test.
 - **Built against the tag v0.3.8 of EH3D-COMMON** (it was v0.3.7).
 - **A project saved by another program is not written over:** the window keeps the mark of the project from the moment it opens or saves it, looks at it again after a question and just before the write, and refuses to keep the stencil when another program wrote the file meanwhile. It says so in the eight languages and offers to read the project again, to save a copy under another name or to close. 2 new tests.

@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 343 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 346 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.4` |
 | Maturità | Funzionale |
-| Test | 343 |
+| Test | 346 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 343 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 346 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -58,7 +58,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 * **I rapporti** (`src/openings.rs`): il rapporto d'aspetto (il lato piccolo sullo spessore del foglio, almeno 1,5) e il rapporto d'area (l'area dell'apertura sull'area delle sue pareti, almeno 0,66) dicono se la pasta uscirà dall'apertura; un'apertura che non li rispetta è segnalata con la sua posizione e `convert` rifiuta di scrivere finché non la si guarda (o `--force`).
 * **I percorsi** (`src/output.rs`, `src/profile.rs`): rettangoli arrotondati, cerchi e ovali come percorsi chiusi nell'ordine di un giro al più vicino; G-code per un laser a potenza costante, spento negli spostamenti, o HP-GL a 40 unità al millimetro; profili per Mylar, Kapton e acciaio con spessore, riduzione, raggio degli angoli e kerf come punti di partenza.
 * **Una maschera incompleta non viene scritta:** `convert` rifiuta di scrivere il file quando lo strato ha pad, piste o regioni che non possono diventare aperture (un poligono, una regione che non è un rettangolo, una pista in diagonale), salvo con `--force`.
-* **Lo strato viene letto dai suoi byte:** `--max-bytes N` rifiuta un file oltre il limite (256 MiB di default); il testo che non è UTF-8 viene letto come Latin-1 con un avviso. Gli avvisi e gli errori del lettore sono stampati con il loro codice stabile e `--hide CODE[,CODE]` omette gli avvisi di quei codici; un errore del lettore conta come una parte persa dello strato, quindi `convert` rifiuta salvo con `--force`. Le aperture vengono dalla conversione delle aperture di EH3D-GERBERVIEWER, e un pad poligonale viene tagliato come un cerchio (con una nota, quindi anche questo `convert` lo rifiuta salvo con `--force`). `--arc-tolerance MM` stabilisce la precisione degli archi, e il rifiuto di un file troppo grande è scritto nella lingua del sistema.
+* **Lo strato viene letto dai suoi byte:** `--max-bytes N` rifiuta un file oltre il limite (256 MiB di default); il testo che non è UTF-8 viene letto come Latin-1 con un avviso. Gli avvisi e gli errori del lettore sono stampati con il loro codice stabile e `--hide CODE[,CODE]` omette gli avvisi di quei codici; un errore del lettore conta come una parte persa dello strato, quindi `convert` rifiuta salvo con `--force`. Le aperture vengono dalla conversione delle aperture di EH3D-GERBERVIEWER, e un pad poligonale viene tagliato come un cerchio (con una nota, quindi anche questo `convert` lo rifiuta salvo con `--force`). `--arc-tolerance MM` stabilisce la precisione degli archi, e il rifiuto di un file troppo grande è scritto nella lingua del sistema. Uno strato con due unità diverse, un secondo formato differente o una parola scritta due volte in un blocco (`units-conflict`, `format-redefined`, `word-repeated`) viene rifiutato allo stesso modo, e anche la finestra mostra queste righe.
 
 ## 🧩 Ruolo in EH3D
 
@@ -203,7 +203,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 343 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 346 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 

@@ -2,7 +2,7 @@
 
 This register is the single source of the state of each capability: `STATUS.md` and the README files cite it and never state a state that it does not. A state is one of `planned`, `prototype`, `implemented` and `validated`. `validated` means that a person has run the capability on a real machine and the evidence of the manifest says `bench` or `field`; nothing here is validated, because no stencil has been cut with these files and nothing of this program has run on a real laser.
 
-The register has 56 requirements: 49 implemented, 5 prototype, 2 planned and 0 validated. By progress: 49 done, 5 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
+The register has 57 requirements: 50 implemented, 5 prototype, 2 planned and 0 validated. By progress: 50 done, 5 partial, 0 pending and 2 blocked. High coverage is not proof of correctness, so each row says how it is checked: the test that names it, and what it shows.
 
 ## How to read the register
 
@@ -100,3 +100,9 @@ The check is `tests/reqs.rs`: it reads this table, finds each test and fails whe
 | STNC-054 | The window reads the settings file as the command does, with the sheet it names, and writes the same program with it; a refused file changes nothing. | implemented | done | host-test | `window_config::the_window_writes_what_the_command_writes_with_the_same_settings_file` | The window itself is not driven by a test. |
 | STNC-055 | The window warns of the same narrow webs as the command. | implemented | done | host-test | `window_config::the_window_warns_of_the_narrow_webs_the_command_warns_of` | The window itself is not driven by a test. |
 | STNC-056 | A name that ends in `.dxf` gets from the window the drawing of the command, never over a file that exists. | implemented | done | host-test | `window_config::a_name_that_ends_in_dxf_gets_the_drawing_of_the_command` | The window itself is not driven by a test. |
+
+## Reader notices
+
+| ID | Requirement | State | Progress | Evidence | Test | Limits |
+|---|---|---|---|---|---|---|
+| STNC-057 | A layer the reader cannot vouch for (two units, a word written twice) is not written, and the command and the window show the code. | implemented | done | host-test | `reading::a_layer_the_reader_cannot_vouch_for_is_not_written_and_says_the_code` | The window shows the first 20 lines and is not looked at on a screen. |

@@ -172,3 +172,29 @@ fn convert_never_overwrites_the_layer_with_the_stencil() {
     assert_eq!(fs::read_to_string(&layer).unwrap(), GOOD);
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_layer_the_reader_cannot_vouch_for_is_not_written_and_says_the_code() {
+    let dir = std::env::temp_dir().join(format!("eh3d_stencil_vouch_{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let layer = dir.join("paste.gtp");
+    let out = dir.join("out.nc");
+    let (l, o) = (layer.to_str().unwrap(), out.to_str().unwrap());
+    for (text, code) in [
+        (
+            GOOD.replacen("%MOMM*%", "%MOMM*%\n%MOIN*%", 1),
+            "[units-conflict]",
+        ),
+        (
+            GOOD.replacen("X20000Y20000D03*", "X20000X30000Y20000D03*", 1),
+            "[word-repeated]",
+        ),
+    ] {
+        assert_ne!(text, GOOD);
+        fs::write(&layer, &text).unwrap();
+        let (ok, why) = run(&["convert", l, o, "--thickness", "0.1"]);
+        assert!(!ok && why.contains(code), "{code}: {why}");
+        assert!(!out.exists(), "{code}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
