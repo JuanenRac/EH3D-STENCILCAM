@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 342 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 343 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Reifegrad | Funktionsfähig |
-| Tests | 342 |
+| Tests | 343 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 342 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
+| Tests | 🟡 | 343 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -179,7 +179,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   Mitwirken, Verhaltenskodex und Lizenz
 ```
 
-**Das Projekt der Suite.** Eine `.eh3d`-Datei hat einen Zweig je Programm. `project info DATEI.eh3d` zeigt die Ebenen des Auftrags (Zweig `manufacturing/`, ein `.eh3dproj`-Paket) und die im Projekt gespeicherten Schablonen; `project convert DATEI.eh3d [--layer NAME] [--plt]` macht aus jeder Pastenebene des Auftrags (oder der genannten) eine Schablone, mit denselben Optionen und Ablehnungen wie `convert`, und speichert sie nur im Zweig `stencilcam/`, mit einer Kopie der Ebene und dem Inhalt des Zweigs, aus dem sie stammt. Ändert sich der Auftrag danach, meldet `project info`, dass die Schablonen veraltet sind, und endet mit 2. Im Fenster öffnet eine hineingezogene `.eh3d`-Datei die Pastenebenen ihres Auftrags (Ober- und Unterseite werden aus einer Liste gewählt), die Schablone wird ins Projekt gespeichert, und eine Folientabelle (`.csv`, hineingezogen oder über ihre Schaltfläche geöffnet) bietet ihre Folien in einer Liste an. Würde das Speichern eine Signatur des Projekts oder seines Zweigs entfernen, fragt das Fenster vorher und schreibt ohne Zustimmung nichts. Das Fenster überschreibt kein Projekt, das ein anderes Programm gespeichert hat, seit es dort geöffnet oder gespeichert wurde, auch nicht, wenn es während einer offenen Frage gespeichert wurde: Es sagt es und bietet an, das Projekt neu zu lesen (mit derselben Ebene, wenn der Auftrag sie noch hat), eine Kopie unter anderem Namen mit der Schablone darin zu speichern oder zu schließen.
+**Das Projekt der Suite.** Eine `.eh3d`-Datei hat einen Zweig je Programm. `project info DATEI.eh3d` zeigt die Ebenen des Auftrags (Zweig `manufacturing/`, ein `.eh3dproj`-Paket) und die im Projekt gespeicherten Schablonen; `project convert DATEI.eh3d [--layer NAME] [--plt]` macht aus jeder Pastenebene des Auftrags (oder der genannten) eine Schablone, mit denselben Optionen und Ablehnungen wie `convert`, und speichert sie nur im Zweig `stencilcam/`, mit einer Kopie der Ebene und dem Inhalt des Zweigs, aus dem sie stammt. Ändert sich der Auftrag danach, meldet `project info`, dass die Schablonen veraltet sind, und endet mit 2. Im Fenster öffnet eine hineingezogene `.eh3d`-Datei die Pastenebenen ihres Auftrags (Ober- und Unterseite werden aus einer Liste gewählt), die Schablone wird ins Projekt gespeichert, und eine Folientabelle (`.csv`, hineingezogen oder über ihre Schaltfläche geöffnet) bietet ihre Folien in einer Liste an. Würde das Speichern eine Signatur des Projekts oder seines Zweigs entfernen, fragt das Fenster vorher und schreibt ohne Zustimmung nichts. Das Fenster überschreibt kein Projekt, das ein anderes Programm gespeichert hat, seit es dort geöffnet oder gespeichert wurde, auch nicht, wenn es während einer offenen Frage gespeichert wurde: Es sagt es und bietet an, das Projekt neu zu lesen (mit derselben Ebene, wenn der Auftrag sie noch hat), eine Kopie unter anderem Namen mit der Schablone darin zu speichern oder zu schließen. Auch der Befehl `project convert` prüft das: Speichert ein anderes Programm das Projekt, während die Schablonen entstehen, wird nichts darüber geschrieben.
 
 ## ⚙️ Konfiguration
 
@@ -203,7 +203,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 342 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 343 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 

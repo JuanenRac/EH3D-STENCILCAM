@@ -17,7 +17,7 @@
 
 ---
 
-**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 342 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
+**Verifica di onestà - cosa funziona oggi:** una libreria Rust e un programma a riga di comando (`eh3d-stencilcam`) con 343 test eseguiti su un computer: trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL. Ha una finestra (compilata con `--features gui`) che apre un livello pasta e disegna i pad e i percorsi di taglio, ma che non è ancora stata vista su uno schermo; non è stato provato su una macchina e non è stato verificato su una raccolta di file reali.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Versione | `0.1.4` |
 | Maturità | Funzionale |
-| Test | 342 |
+| Test | 343 |
 | Stack tecnologico | Rust |
 | Su hardware reale | Non provato: nulla di questo ha girato su una macchina |
 
@@ -46,7 +46,7 @@ Ogni riga è una parte di questo repository e il semaforo dice a che punto è og
 |---|---|---|
 | Nucleo | 🟡 | trasforma i pad di un livello di pasta in aperture di stencil (ridotte, arrotondate, compensate per il kerf del laser e verificate per il rilascio della pasta) e le scrive come G-code o HP-GL; provato su un computer con input normali e danneggiati, non con una raccolta di file reali. |
 | Riga di comando | 🟡 | `eh3d-stencilcam` esegue le stesse funzioni della libreria e stampa il risultato; ogni errore torna come messaggio e codice di uscita diverso da zero. |
-| Test | 🟡 | 342 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
+| Test | 🟡 | 343 test passano (`cargo test`), con casi normali, casi limite e input danneggiati, e un laser simulato con un collegamento che perde e danneggia righe a caso (con seme), rinvii, arresto sicuro e ripresa. |
 | Sicurezza | 🟡 | Rust sicuro e semplice (`forbid(unsafe_code)`): nulla va in panico con i file ricevuti e un valore errato è un errore con il suo motivo; nessuna revisione indipendente. |
 | Finestra | 🟠 | Scritta (egui, `--features gui`): aprire o trascinare un livello pasta, scegliere il materiale, modificare i parametri, vedere i pad e i percorsi di taglio (in rosso le aperture che non rilasceranno la pasta), zoom e spostamento, esportare; la sua logica è testata, ma non è ancora stata compilata né vista su uno schermo. |
 | Hardware reale | 🔴 | Non provato: nulla di questo è stato eseguito su una macchina. |
@@ -179,7 +179,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   come contribuire, codice di condotta e licenza
 ```
 
-**Il progetto della suite.** Un file `.eh3d` ha un ramo per ogni programma. `project info FILE.eh3d` mostra i livelli del lavoro (il ramo `manufacturing/`, un pacchetto `.eh3dproj`) e gli stencil tenuti nel progetto; `project convert FILE.eh3d [--layer NOME] [--plt]` trasforma ogni livello pasta del lavoro (o quello nominato) in uno stencil, con le stesse opzioni e gli stessi rifiuti di `convert`, e lo tiene solo nel ramo `stencilcam/`, con una copia del livello e il contenuto del ramo da cui viene. Se poi il lavoro cambia, `project info` avvisa che gli stencil sono superati e termina con 2. Nella finestra, un `.eh3d` trascinato apre i livelli pasta del suo lavoro (il lato superiore e quello inferiore si scelgono da un elenco) e lo stencil si salva nel progetto, e una tabella dei fogli (`.csv`, trascinata o aperta con il suo pulsante) offre i suoi fogli in un elenco. Quando il salvataggio toglierebbe una firma del progetto o del suo ramo, la finestra chiede prima e senza consenso non scrive nulla. La finestra non scrive sopra un progetto che un altro programma ha salvato da quando è stato aperto o salvato in essa, neanche se è stato salvato mentre una domanda attendeva: lo dice e offre di rileggere il progetto (con lo stesso livello se il lavoro lo ha ancora), di salvarne una copia con un altro nome con lo stencil dentro, o di chiudere.
+**Il progetto della suite.** Un file `.eh3d` ha un ramo per ogni programma. `project info FILE.eh3d` mostra i livelli del lavoro (il ramo `manufacturing/`, un pacchetto `.eh3dproj`) e gli stencil tenuti nel progetto; `project convert FILE.eh3d [--layer NOME] [--plt]` trasforma ogni livello pasta del lavoro (o quello nominato) in uno stencil, con le stesse opzioni e gli stessi rifiuti di `convert`, e lo tiene solo nel ramo `stencilcam/`, con una copia del livello e il contenuto del ramo da cui viene. Se poi il lavoro cambia, `project info` avvisa che gli stencil sono superati e termina con 2. Nella finestra, un `.eh3d` trascinato apre i livelli pasta del suo lavoro (il lato superiore e quello inferiore si scelgono da un elenco) e lo stencil si salva nel progetto, e una tabella dei fogli (`.csv`, trascinata o aperta con il suo pulsante) offre i suoi fogli in un elenco. Quando il salvataggio toglierebbe una firma del progetto o del suo ramo, la finestra chiede prima e senza consenso non scrive nulla. La finestra non scrive sopra un progetto che un altro programma ha salvato da quando è stato aperto o salvato in essa, neanche se è stato salvato mentre una domanda attendeva: lo dice e offre di rileggere il progetto (con lo stesso livello se il lavoro lo ha ancora), di salvarne una copia con un altro nome con lo stencil dentro, o di chiudere. Anche il comando `project convert` lo controlla: se un altro programma salva il progetto mentre si preparano gli stencil, non si scrive nulla sopra.
 
 ## ⚙️ Configurazione
 
@@ -203,7 +203,7 @@ Per fare un'immagine della finestra senza aprirla a mano, eseguila con `--shot F
 
 ## 🧪 Test
 
-La suite ha 342 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
+La suite ha 343 test (`cargo test`, eseguiti su Windows e Linux nella CI). Verificano i casi normali, i casi limite e gli input danneggiati: file vuoti, spazzatura e file tagliati non causano mai un panico. La CI esegue anche `cargo fmt --check`, `cargo clippy` con gli avvisi come errori e `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilazione e rilascio
 

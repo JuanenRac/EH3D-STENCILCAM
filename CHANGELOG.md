@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A stencil made at the command line or in the window is not kept over what another program saved:** the write is made with the mark of the moment the project was read, taken before its layers, so a save by another program while the stencils were being made, or between the last look and the write, is refused (`EH3D-PKG-025`) and nothing is written. 1 new test.
+- **Built against the tag v0.3.8 of EH3D-COMMON** (it was v0.3.7).
 - **A project saved by another program is not written over:** the window keeps the mark of the project from the moment it opens or saves it, looks at it again after a question and just before the write, and refuses to keep the stencil when another program wrote the file meanwhile. It says so in the eight languages and offers to read the project again, to save a copy under another name or to close. 2 new tests.
 - **Built against the tag v0.3.7 of EH3D-COMMON** (it was v0.3.3): every write of a project is checked once more just before the file is replaced.
 

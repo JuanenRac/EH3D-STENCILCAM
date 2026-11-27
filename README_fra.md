@@ -17,7 +17,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 342 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
+**Vérification d'honnêteté - ce qui fonctionne aujourd'hui :** une bibliothèque Rust et un programme en ligne de commande (`eh3d-stencilcam`) avec 343 tests exécutés sur un ordinateur : transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL. Il a une fenêtre (compilée avec `--features gui`) qui ouvre une couche de pâte et dessine les pastilles et les trajets de coupe, mais qui n'a pas encore été vue sur un écran ; il n'a pas été essayé sur une machine et n'a pas été vérifié sur une collection de fichiers réels.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Maturité | Fonctionnel |
-| Tests | 342 |
+| Tests | 343 |
 | Pile technique | Rust |
 | Sur du matériel réel | Non essayé : rien ici n'a fonctionné sur une machine |
 
@@ -46,7 +46,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 |---|---|---|
 | Cœur | 🟡 | transforme les pastilles d'une couche de pâte en ouvertures de pochoir (réduites, arrondies, compensées du kerf du laser et vérifiées pour la libération de la pâte) et les écrit en G-code ou HP-GL ; testé sur un ordinateur avec des entrées normales et abîmées, pas avec une collection de fichiers réels. |
 | Ligne de commande | 🟡 | `eh3d-stencilcam` exécute les mêmes fonctions que la bibliothèque et affiche le résultat ; chaque erreur revient sous forme de message et de code de sortie non nul. |
-| Tests | 🟡 | 342 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
+| Tests | 🟡 | 343 tests passent (`cargo test`), avec des cas normaux, des cas limites et des entrées abîmées, et un laser simulé avec une liaison qui perd et abîme des lignes au hasard (avec graine), renvois, arrêt sûr et reprise. |
 | Sécurité | 🟡 | Rust sûr et simple (`forbid(unsafe_code)`) : rien ne panique sur les fichiers reçus et une mauvaise valeur est une erreur avec sa raison ; pas de revue indépendante. |
 | Fenêtre | 🟠 | Écrite (egui, `--features gui`) : ouvrir ou déposer une couche de pâte, choisir le matériau, modifier les paramètres, voir les pastilles et les trajets de coupe (en rouge les ouvertures qui ne libéreront pas la pâte), zoom et déplacement, exporter ; sa logique est testée, mais elle n'a pas encore été compilée ni vue sur un écran. |
 | Matériel réel | 🔴 | Non essayé : rien ici n'a été exécuté sur une machine. |
@@ -179,7 +179,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   contribuer, code de conduite et licence
 ```
 
-**Le projet de la suite.** Un fichier `.eh3d` contient une branche par programme. `project info FICHIER.eh3d` montre les couches du travail (la branche `manufacturing/`, un paquet `.eh3dproj`) et les pochoirs gardés dans le projet ; `project convert FICHIER.eh3d [--layer NOM] [--plt]` transforme chaque couche de pâte du travail (ou celle nommée) en pochoir, avec les mêmes options et les mêmes refus que `convert`, et le garde uniquement dans la branche `stencilcam/`, avec une copie de la couche et le contenu de la branche d'où elle vient. Si le travail change ensuite, `project info` signale que les pochoirs sont périmés et se termine avec 2. Dans la fenêtre, un `.eh3d` déposé ouvre les couches de pâte de son travail (la face du dessus et celle du dessous se choisissent dans une liste) et le pochoir est enregistré dans le projet, et une table de feuilles (`.csv`, déposée ou ouverte par son bouton) propose ses feuilles dans une liste. Quand l'enregistrement retirerait une signature du projet ou de sa branche, la fenêtre demande d'abord et n'écrit rien sans accord. La fenêtre n'écrit pas par-dessus un projet qu'un autre programme a enregistré depuis qu'il y a été ouvert ou enregistré, même s'il l'a été pendant qu'une question attendait : elle le dit et propose de relire le projet (avec la même couche si le travail l'a encore), d'en enregistrer une copie sous un autre nom avec le pochoir, ou de fermer.
+**Le projet de la suite.** Un fichier `.eh3d` contient une branche par programme. `project info FICHIER.eh3d` montre les couches du travail (la branche `manufacturing/`, un paquet `.eh3dproj`) et les pochoirs gardés dans le projet ; `project convert FICHIER.eh3d [--layer NOM] [--plt]` transforme chaque couche de pâte du travail (ou celle nommée) en pochoir, avec les mêmes options et les mêmes refus que `convert`, et le garde uniquement dans la branche `stencilcam/`, avec une copie de la couche et le contenu de la branche d'où elle vient. Si le travail change ensuite, `project info` signale que les pochoirs sont périmés et se termine avec 2. Dans la fenêtre, un `.eh3d` déposé ouvre les couches de pâte de son travail (la face du dessus et celle du dessous se choisissent dans une liste) et le pochoir est enregistré dans le projet, et une table de feuilles (`.csv`, déposée ou ouverte par son bouton) propose ses feuilles dans une liste. Quand l'enregistrement retirerait une signature du projet ou de sa branche, la fenêtre demande d'abord et n'écrit rien sans accord. La fenêtre n'écrit pas par-dessus un projet qu'un autre programme a enregistré depuis qu'il y a été ouvert ou enregistré, même s'il l'a été pendant qu'une question attendait : elle le dit et propose de relire le projet (avec la même couche si le travail l'a encore), d'en enregistrer une copie sous un autre nom avec le pochoir, ou de fermer. La commande `project convert` le vérifie aussi : si un autre programme enregistre le projet pendant la préparation des pochoirs, rien n'est écrit par-dessus.
 
 ## ⚙️ Configuration
 
@@ -203,7 +203,7 @@ Pour prendre une capture de la fenêtre sans l'ouvrir à la main, lancez-la avec
 
 ## 🧪 Tests
 
-La suite compte 342 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
+La suite compte 343 tests (`cargo test`, exécutés sous Windows et Linux dans le CI). Ils vérifient les cas normaux, les cas limites et les entrées abîmées : fichiers vides, bruit et fichiers coupés ne font jamais paniquer. Le CI exécute aussi `cargo fmt --check`, `cargo clippy` avec les avertissements comme erreurs et `python -I tools/ci_validate.py`.
 
 ## 🏗️ Compilation et publication
 

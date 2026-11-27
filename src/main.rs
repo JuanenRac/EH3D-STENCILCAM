@@ -716,6 +716,8 @@ fn project(mut args: Vec<String>) -> Result<(), String> {
             {
                 return Err("--create and --overwrite are options of a DXF output".into());
             }
+            // the mark is taken before the layers are read: what another program saves after it is not written over
+            let seen = eh3dfile::mark_of(&file)?;
             let layers = eh3dfile::paste_layers(&file)?;
             let chosen = match &named {
                 Some(name) => vec![eh3dfile::choose(&layers, name)?.clone()],
@@ -746,7 +748,7 @@ fn project(mut args: Vec<String>) -> Result<(), String> {
                 made.push((layer, name, bytes?));
             }
             for (layer, name, bytes) in made {
-                for notice in eh3dfile::save_stencil(&file, &layer, &name, bytes)? {
+                for notice in eh3dfile::save_stencil_since(&file, &seen, &layer, &name, bytes)? {
                     eprintln!("note: {notice}");
                 }
                 println!(
