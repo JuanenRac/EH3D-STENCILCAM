@@ -132,6 +132,7 @@ pub enum Msg {
     RatiosLine,
     SheetLine,
     SaveProject,
+    ProjectExists,
     JobLayer,
     SheetTable,
     Sheet,
@@ -171,7 +172,7 @@ pub enum Msg {
 }
 
 impl Msg {
-    pub const ALL: [Msg; 80] = [
+    pub const ALL: [Msg; 81] = [
         Msg::Open,
         Msg::Export,
         Msg::Language,
@@ -216,6 +217,7 @@ impl Msg {
         Msg::RatiosLine,
         Msg::SheetLine,
         Msg::SaveProject,
+        Msg::ProjectExists,
         Msg::JobLayer,
         Msg::SheetTable,
         Msg::Sheet,
@@ -686,6 +688,16 @@ impl Msg {
                 "シート {0}：厚さ {1} mm、片側の縮小 {2} mm、切り幅 {3} mm",
                 "薄片 {0}：厚度 {1} mm，每边缩小 {2} mm，切缝宽度 {3} mm",
                 "Folha {0}: espessura {1} mm, redução {2} mm por lado, largura de corte {3} mm",
+            ],
+            Msg::ProjectExists => [
+                "{0} is there already: choose a name that is not taken",
+                "{0} ya existe: elija un nombre que no esté usado",
+                "{0} ist schon vorhanden: wählen Sie einen freien Namen",
+                "{0} existe déjà : choisissez un nom libre",
+                "{0} esiste già: scegli un nome libero",
+                "{0} はすでに存在します。使われていない名前を選んでください",
+                "{0} 已存在：请选择未被使用的名称",
+                "{0} já existe: escolha um nome que não esteja usado",
             ],
             Msg::SaveProject => [
                 "Save to the project",

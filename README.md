@@ -17,7 +17,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 340 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
+**Honesty check - what actually runs today:** a Rust library and a command line program (`eh3d-stencilcam`) with 342 tests that run on a computer: turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL. It has a window (built with `--features gui`) that opens a paste layer and draws the pads and the cutting paths, but the window has not been looked at on a screen yet; it has not been tried on a machine and it has not been checked against a collection of real files.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Maturity | Functional |
-| Tests | 340 |
+| Tests | 342 |
 | Stack | Rust |
 | On real hardware | Not tried: nothing here has run on a machine |
 
@@ -46,7 +46,7 @@ Each line is one part of this repository and the light says how far it is today.
 |---|---|---|
 | Core | 🟡 | turns the pads of a paste layer into stencil openings (shrunk, rounded, compensated for the laser kerf and checked for paste release) and writes them as G-code or HP-GL; tested on a computer with normal and damaged input, not with a collection of real files. |
 | Command line | 🟡 | `eh3d-stencilcam` runs the same functions as the library and prints the result; every error comes back as a message and a non-zero exit code. |
-| Tests | 🟡 | 340 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
+| Tests | 🟡 | 342 tests pass (`cargo test`), with normal cases, edge cases and damaged input, and a simulated laser with a link that loses and damages lines by chance (with a seed), resends, safe stop and resume. |
 | Security | 🟡 | Plain safe Rust (`forbid(unsafe_code)`): nothing panics on the files it is given and a bad value is an error with its reason; no independent review. |
 | Window | 🟠 | Written (egui, `--features gui`): open or drop a paste layer, choose the material, edit the parameters, see the pads and the cutting paths (the openings that will not release the paste in red), zoom and pan, export; its logic is tested, but it has not been built or looked at on a screen yet. |
 | Real hardware | 🔴 | Not tried: nothing here has been run on a machine. |
@@ -179,7 +179,7 @@ EH3D-STENCILCAM/
 └── CONTRIBUTING.md CODE_OF_CONDUCT.md LICENSE   how to contribute, the code of conduct and the licence
 ```
 
-**The project of the suite.** A `.eh3d` file holds one branch for each program. `project info FILE.eh3d` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project; `project convert FILE.eh3d [--layer NAME] [--plt]` turns each paste layer of the job (or the one named) into a stencil with the same options and the same refusals as `convert`, and keeps it in the branch `stencilcam/` only, with a copy of the layer and the content of the branch it came from. When the job changes afterwards, `project info` says that the stencils are out of date and ends with 2. In the window, a dropped `.eh3d` file opens the paste layers of its job (the top and the bottom side are chosen from a list) and the stencil is saved back to the project, and a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list. When saving would remove a signature of the project or of its branch, the window asks first and writes nothing unless it is agreed.
+**The project of the suite.** A `.eh3d` file holds one branch for each program. `project info FILE.eh3d` shows the layers of the job (the branch `manufacturing/`, a `.eh3dproj` package) and the stencils kept in the project; `project convert FILE.eh3d [--layer NAME] [--plt]` turns each paste layer of the job (or the one named) into a stencil with the same options and the same refusals as `convert`, and keeps it in the branch `stencilcam/` only, with a copy of the layer and the content of the branch it came from. When the job changes afterwards, `project info` says that the stencils are out of date and ends with 2. In the window, a dropped `.eh3d` file opens the paste layers of its job (the top and the bottom side are chosen from a list) and the stencil is saved back to the project, and a table of sheets (`.csv`, dropped or opened with its button) offers its sheets in a list. When saving would remove a signature of the project or of its branch, the window asks first and writes nothing unless it is agreed. The window does not write over a project that another program saved since it was opened or saved there, also when it was saved while a question waited: it says so and offers to read the project again (with the same layer when the job still has it), to save a copy of it under another name with the stencil in it, or to close.
 
 ## ⚙️ Configuration
 
@@ -203,7 +203,7 @@ To take a picture of the window without opening it by hand, run it with `--shot 
 
 ## 🧪 Testing
 
-The suite has 340 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
+The suite has 342 tests (`cargo test`, run on Windows and Linux in the CI). They check the normal cases, the edge cases and damaged input: empty files, garbage and cut files never panic. The CI also runs `cargo fmt --check`, `cargo clippy` with warnings as errors and `python -I tools/ci_validate.py`.
 
 ## 🏗️ Build & Release
 
