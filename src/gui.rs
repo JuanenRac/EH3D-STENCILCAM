@@ -40,6 +40,8 @@ struct Dialog {
     browser: Browser,
     /// The name being typed when the window asks for a file to write.
     export: Option<String>,
+    /// The file to write is a copy of the project under another name.
+    project_copy: bool,
 }
 
 struct App {
@@ -81,6 +83,20 @@ impl App {
         self.dialog = Some(Dialog {
             browser: Browser::new(self.folder(), &LAYER_EXTENSIONS),
             export: None,
+            project_copy: false,
+        });
+    }
+
+    fn save_as_dialog(&mut self) {
+        let name = self
+            .win
+            .suggested_project_copy()
+            .and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()))
+            .unwrap_or_else(|| "job.eh3d".to_string());
+        self.dialog = Some(Dialog {
+            browser: Browser::new(self.folder(), &["eh3d"]),
+            export: Some(name),
+            project_copy: true,
         });
     }
 
@@ -88,6 +104,7 @@ impl App {
         self.dialog = Some(Dialog {
             browser: Browser::new(self.folder(), &TABLE_EXTENSIONS),
             export: None,
+            project_copy: false,
         });
     }
 
@@ -95,6 +112,7 @@ impl App {
         self.dialog = Some(Dialog {
             browser: Browser::new(self.folder(), &CONFIG_EXTENSIONS),
             export: None,
+            project_copy: false,
         });
     }
 
@@ -107,6 +125,7 @@ impl App {
         self.dialog = Some(Dialog {
             browser: Browser::new(self.folder(), &OUTPUT_EXTENSIONS),
             export: Some(name),
+            project_copy: false,
         });
     }
 
@@ -347,6 +366,40 @@ impl App {
         }
     }
 
+    /// What is offered when a write is refused because another program saved the project: read it again, or save under another name.
+    fn changed_window(&mut self, ctx: &egui::Context) {
+        let Some(file) = &self.win.changed else {
+            return;
+        };
+        let lang = self.win.lang;
+        let name = file
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let line = eh3d_project::suitetext::Said(S::ChangedOnDisk, vec![name]).text(lang.code());
+        let (mut again, mut save_as, mut close) = (false, false, false);
+        let answer = egui::Modal::new(egui::Id::unique("project_changed")).show(ctx, |ui| {
+            ui.set_max_width(420.0);
+            ui.colored_label(DANGER, line.as_str());
+            ui.add_space(8.0);
+            ui.horizontal_wrapped(|ui| {
+                again = ui.button(S::ReadAgain.tr(lang.code())).clicked();
+                save_as = ui.button(S::MenuSaveAs.tr(lang.code())).clicked();
+                close = ui.button(S::Close.tr(lang.code())).clicked();
+            });
+        });
+        if again {
+            if self.win.reopen_project() {
+                self.fit_pending = true;
+            }
+        } else if save_as {
+            self.win.dismiss_changed();
+            self.save_as_dialog();
+        } else if close || answer.should_close() {
+            self.win.dismiss_changed();
+        }
+    }
+
     fn status_bar(&mut self, ui: &mut egui::Ui) {
         let lang = self.win.lang;
         egui::Panel::bottom("status").show(ui, |ui| {
@@ -488,7 +541,11 @@ impl App {
             None => self.dialog = Some(dialog),
             Some(Outcome::Cancel) => {}
             Some(Outcome::Pick(path)) => {
-                if dialog.export.is_some() {
+                if dialog.project_copy {
+                    if !self.win.save_project_as(&path) {
+                        self.dialog = Some(dialog);
+                    }
+                } else if dialog.export.is_some() {
                     if !self.win.export(&path) {
                         // the window stays open so that another name can be tried
                         self.dialog = Some(dialog);
@@ -512,7 +569,12 @@ fn show_dialog(ctx: &egui::Context, d: &mut Dialog, lang: Lang) -> Option<Outcom
     } else {
         Msg::OpenTitle
     };
-    egui::Window::new(title.tr(lang))
+    let (title, write) = if d.project_copy {
+        (S::MenuSaveAs.tr(lang.code()), S::Write.tr(lang.code()))
+    } else {
+        (title.tr(lang), Msg::Export.tr(lang))
+    };
+    egui::Window::new(title)
         .open(&mut open)
         .collapsible(false)
         .default_size([620.0, 460.0])
@@ -570,7 +632,7 @@ fn show_dialog(ctx: &egui::Context, d: &mut Dialog, lang: Lang) -> Option<Outcom
                 if let Some(name) = d.export.as_mut() {
                     ui.label(Msg::FileName.tr(lang));
                     ui.add(egui::TextEdit::singleline(name).desired_width(260.0));
-                    if ui.button(Msg::Export.tr(lang)).clicked() && !name.trim().is_empty() {
+                    if ui.button(write).clicked() && !name.trim().is_empty() {
                         outcome = Some(Outcome::Pick(d.browser.dir.join(name.trim())));
                     }
                 }
@@ -610,6 +672,7 @@ impl eframe::App for App {
         self.canvas(ui);
         self.dialog_window(&ctx);
         self.confirm_window(&ctx);
+        self.changed_window(&ctx);
         self.shot_tick(&ctx);
     }
 }

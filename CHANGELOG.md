@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **A project saved by another program is not written over:** the window keeps the mark of the project from the moment it opens or saves it, looks at it again after a question and just before the write, and refuses to keep the stencil when another program wrote the file meanwhile. It says so in the eight languages and offers to read the project again, to save a copy under another name or to close. 2 new tests.
+- **Built against the tag v0.3.7 of EH3D-COMMON** (it was v0.3.3): every write of a project is checked once more just before the file is replaced.
+
 ## [0.1.4] - The window makes the same program as the command, and asks before a signature is removed
 
 - **The window reads `stencil.cfg` as the command does:** with the button *Settings file...*, a `.cfg` file dropped on it or `gui --config FILE`; the same keys, ranges and refusals, the sheet the file names, the narrowest web, the ratio limits, `region_fit_percent` and the estimated time of `rapid_mm_min`. A file that is refused changes nothing, and neither it nor a table that was read can be written over.

@@ -2,7 +2,7 @@
 
 ## Current state
 
-EH3D-STENCILCAM is a working program on a computer: a library (`eh3d_stencilcam`), a command line (`eh3d-stencilcam`) and a window (built with `--features gui`). It turns the example paste layers and drawings into openings and cut files and runs them against a twin of a laser link with a lossy line. The suite of tests runs on Windows and Linux in the CI. The window has not been looked at on a screen (it lists the smallest ratios and those of the weakest openings as text); no stencil has been cut.
+EH3D-STENCILCAM is a working program on a computer: a library (`eh3d_stencilcam`), a command line (`eh3d-stencilcam`) and a window (built with `--features gui`). It turns the example paste layers and drawings into openings and cut files and runs them against a twin of a laser link with a lossy line. The suite of tests runs on Windows and Linux in the CI. The window has not been looked at on a screen (it lists the smallest ratios and those of the weakest openings as text); no stencil has been cut. The window does not write over a project that another program saved since it was read there, and offers to read it again or to save a copy under another name.
 
 ## Capabilities
 
@@ -16,7 +16,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.3; EH3D-GERBERVIEWER at the tag v0.1.0).
+* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.7; EH3D-GERBERVIEWER at the tag v0.1.0).
 * A laser, a sheet and a paste layer from a real board, for the only validation that counts.
 
 ## Known technical debt and omitted tests
