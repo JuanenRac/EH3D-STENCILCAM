@@ -17,7 +17,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 343 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
+**Ehrlichkeitscheck - was heute wirklich läuft:** eine Rust-Bibliothek und ein Kommandozeilenprogramm (`eh3d-stencilcam`) mit 346 Tests, die auf einem Computer laufen: wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL. Es hat ein Fenster (Build mit `--features gui`), das eine Pastenebene öffnet und die Pads und die Schneidbahnen zeichnet, das aber noch auf keinem Bildschirm angesehen wurde; es wurde an keiner Maschine ausprobiert und nicht an einer Sammlung echter Dateien geprüft.
 
 ---
 
@@ -30,7 +30,7 @@
 |---|---|
 | Version | `0.1.4` |
 | Reifegrad | Funktionsfähig |
-| Tests | 343 |
+| Tests | 346 |
 | Technologie-Stack | Rust |
 | Auf echter Hardware | Nicht erprobt: nichts davon lief an einer Maschine |
 
@@ -46,7 +46,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 |---|---|---|
 | Kern | 🟡 | wandelt die Pads einer Pastenlage in Schablonenöffnungen um (verkleinert, gerundet, um die Laserschnittbreite kompensiert und auf Pastenablösung geprüft) und schreibt sie als G-Code oder HP-GL; am Computer mit normalen und beschädigten Eingaben getestet, nicht mit einer Sammlung echter Dateien. |
 | Kommandozeile | 🟡 | `eh3d-stencilcam` führt dieselben Funktionen wie die Bibliothek aus und gibt das Ergebnis aus; jeder Fehler kommt als Meldung mit einem Exit-Code ungleich null zurück. |
-| Tests | 🟡 | 343 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
+| Tests | 🟡 | 346 Tests bestehen (`cargo test`), mit Normalfällen, Grenzfällen und beschädigten Eingaben sowie einem simulierten Laser mit einer Verbindung, die Zeilen zufällig (mit Startwert) verliert und beschädigt, Wiederholung, sicherem Halt und Fortsetzung. |
 | Sicherheit | 🟡 | Reines sicheres Rust (`forbid(unsafe_code)`): nichts gerät bei den übergebenen Dateien in Panik und ein schlechter Wert ist ein Fehler mit Begründung; keine unabhängige Prüfung. |
 | Fenster | 🟠 | Geschrieben (egui, `--features gui`): Pastenebene öffnen oder hineinziehen, Material wählen, Parameter ändern, die Pads und die Schneidbahnen sehen (die Öffnungen, bei denen die Paste hängen bleibt, in Rot), Zoom und Verschieben, exportieren; die Logik ist getestet, aber noch nicht gebaut oder auf einem Bildschirm angesehen. |
 | Echte Hardware | 🔴 | Nicht erprobt: nichts davon wurde an einer Maschine ausgeführt. |
@@ -58,7 +58,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 * **Die Verhältnisse** (`src/openings.rs`): Das Seitenverhältnis (die kleine Seite durch die Blechdicke, mindestens 1,5) und das Flächenverhältnis (Öffnungsfläche durch Wandfläche, mindestens 0,66) sagen, ob die Paste die Öffnung verlässt; eine durchfallende Öffnung wird mit ihrer Position gemeldet, und `convert` schreibt nichts, bis man sie angesehen hat (oder `--force`).
 * **Die Pfade** (`src/output.rs`, `src/profile.rs`): abgerundete Rechtecke, Kreise und Ovale als geschlossene Pfade in der Reihenfolge eines Nächster-zuerst-Wegs; G-Code für einen Laser mit konstanter Leistung, beim Verfahren aus, oder HP-GL mit 40 Einheiten je Millimeter; Profile für Mylar, Kapton und Stahl mit Dicke, Verkleinerung, Eckenradius und Schnittbreite als Startwerten.
 * **Eine unvollständige Schablone wird nicht geschrieben:** `convert` verweigert das Schreiben, wenn die Ebene Pads, Leiterbahnen oder Regionen enthält, die keine Öffnungen werden können (ein Polygon, eine Region, die kein Rechteck ist, eine Bahn im Winkel), außer mit `--force`.
-* **Die Ebene wird aus ihren Bytes gelesen:** `--max-bytes N` verweigert eine Datei über dem Limit (standardmäßig 256 MiB); Text, der nicht UTF-8 ist, wird mit einer Warnung als Latin-1 gelesen. Warnungen und Fehler des Lesers werden mit ihrem stabilen Code ausgegeben, und `--hide CODE[,CODE]` lässt die Meldungen dieser Codes weg; ein Fehler des Lesers zählt als verlorener Teil der Ebene, daher verweigert `convert` ihn außer mit `--force`. Die Öffnungen stammen aus der Umwandlung der Blenden von EH3D-GERBERVIEWER, und ein Polygon-Pad wird als Kreis geschnitten (mit einem Hinweis, daher verweigert `convert` auch das außer mit `--force`). `--arc-tolerance MM` legt fest, wie genau Bögen nachgezeichnet werden, und die Ablehnung einer zu großen Datei erscheint in der Sprache des Systems.
+* **Die Ebene wird aus ihren Bytes gelesen:** `--max-bytes N` verweigert eine Datei über dem Limit (standardmäßig 256 MiB); Text, der nicht UTF-8 ist, wird mit einer Warnung als Latin-1 gelesen. Warnungen und Fehler des Lesers werden mit ihrem stabilen Code ausgegeben, und `--hide CODE[,CODE]` lässt die Meldungen dieser Codes weg; ein Fehler des Lesers zählt als verlorener Teil der Ebene, daher verweigert `convert` ihn außer mit `--force`. Die Öffnungen stammen aus der Umwandlung der Blenden von EH3D-GERBERVIEWER, und ein Polygon-Pad wird als Kreis geschnitten (mit einem Hinweis, daher verweigert `convert` auch das außer mit `--force`). `--arc-tolerance MM` legt fest, wie genau Bögen nachgezeichnet werden, und die Ablehnung einer zu großen Datei erscheint in der Sprache des Systems. Eine Lage mit zwei verschiedenen Einheiten, einem zweiten abweichenden Format oder einem doppelt geschriebenen Wort in einem Block (`units-conflict`, `format-redefined`, `word-repeated`) wird auf dieselbe Weise verweigert, und auch das Fenster zeigt diese Zeilen.
 
 ## 🧩 Rolle in EH3D
 
@@ -203,7 +203,7 @@ Um ein Bild des Fensters aufzunehmen, ohne es von Hand zu öffnen, starten Sie e
 
 ## 🧪 Tests
 
-Die Suite hat 343 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
+Die Suite hat 346 Tests (`cargo test`, in der CI unter Windows und Linux). Sie prüfen Normalfälle, Grenzfälle und beschädigte Eingaben: leere Dateien, Datenmüll und abgeschnittene Dateien lösen nie eine Panik aus. Die CI führt außerdem `cargo fmt --check`, `cargo clippy` mit Warnungen als Fehlern und `python -I tools/ci_validate.py` aus.
 
 ## 🏗️ Build und Veröffentlichung
 

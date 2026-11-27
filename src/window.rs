@@ -321,6 +321,8 @@ pub struct Layer {
     pub notes: Vec<String>,
     /// What was opened as something a little different (`region_fit_percent`).
     pub approximated: Vec<String>,
+    /// What the reader of the layer said, each line with its code (the lines `convert` prints).
+    pub reader_notes: Vec<String>,
     /// The layer of the job of a project this one is.
     pub job: Option<JobFile>,
 }
@@ -1489,6 +1491,7 @@ pub fn paste_from_bytes_with(
         openings,
         notes,
         approximated: shaped.approximated,
+        reader_notes: reading.shown,
         job: None,
     })
 }
@@ -1660,6 +1663,27 @@ mod tests {
         assert!(!out.exists());
         w.set_force(true);
         assert!(w.export(&out));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn what_the_reader_said_is_kept_with_its_code_and_an_error_blocks_the_export() {
+        let dir = scratch("reader_notes");
+        let text = TWO_PADS.replacen("%MOMM*%", "%MOMM*%\n%MOIN*%", 1);
+        assert_ne!(text, TWO_PADS);
+        let layer = layer_in(&dir, "paste.gtp", &text);
+        let out = dir.join("out.nc");
+        let mut w = Window::new(Lang::En);
+        w.set_field(0, "0.1".into());
+        assert!(w.open(&layer));
+        let notes = &w.layer.as_ref().unwrap().reader_notes;
+        assert!(
+            notes.iter().any(|n| n.contains("[units-conflict]")),
+            "{notes:?}"
+        );
+        assert!(matches!(w.status, Status::Incomplete(n) if n > 0));
+        assert!(!w.export(&out));
+        assert!(!out.exists());
         let _ = fs::remove_dir_all(&dir);
     }
 

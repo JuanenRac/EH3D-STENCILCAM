@@ -106,3 +106,39 @@ fn the_command_line_writes_the_header_first_and_the_program_has_no_alert() {
     let found = alerts(&g);
     assert!(found.is_empty(), "{found:?}\n{g}");
 }
+
+#[test]
+fn a_name_with_characters_a_controller_obeys_does_not_reach_the_comments() {
+    let dir = std::env::temp_dir().join(format!("eh3d_stencil_names_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    // `!` holds, `~` resumes and the bytes of a character outside ASCII are obeyed by GRBL wherever they stand
+    let layer = dir.join("pads!~\u{f1}.gtp");
+    let text = "%FSLAX24Y24*%\n%MOMM*%\n%ADD10R,1.0X0.5*%\nD10*\nX20000Y20000D03*\nM02*\n";
+    std::fs::write(&layer, text).unwrap();
+    let out = dir.join("out.nc");
+    let run = std::process::Command::new(env!("CARGO_BIN_EXE_eh3d-stencilcam"))
+        .arg("convert")
+        .arg(&layer)
+        .arg(&out)
+        .args(["--thickness", "0.1"])
+        .output()
+        .expect("the program starts");
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let g = std::fs::read_to_string(&out).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(g.contains("; source: pads___.gtp sha256:"), "{g}");
+    assert!(g.is_ascii() && !g.contains(['!', '~', '?']), "{g}");
+    let program = parse(&g, Dialect::Grbl);
+    assert!(
+        program
+            .diagnostics
+            .iter()
+            .all(|d| d.code != "realtime-character"),
+        "{:?}",
+        program.diagnostics
+    );
+}

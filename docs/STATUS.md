@@ -6,7 +6,7 @@ EH3D-STENCILCAM is a working program on a computer: a library (`eh3d_stencilcam`
 
 ## Capabilities
 
-The official state of each capability is in `REQUIREMENTS.md`. The register has 56 requirements: 49 implemented, 5 prototype, 2 planned and 0 validated. By progress: 49 done, 5 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
+The official state of each capability is in `REQUIREMENTS.md`. The register has 57 requirements: 50 implemented, 5 prototype, 2 planned and 0 validated. By progress: 50 done, 5 partial, 0 pending and 2 blocked. This page never states a state that `REQUIREMENTS.md` does not.
 
 ## Open questions
 
@@ -16,7 +16,7 @@ The official state of each capability is in `REQUIREMENTS.md`. The register has 
 
 ## What it needs from other repositories
 
-* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.8; EH3D-GERBERVIEWER at the tag v0.1.0).
+* `EH3D-CORE-LIBS`, `EH3D-GERBERVIEWER` and `EH3D-COMMON`, as sibling folders at the versions named in the workflows (EH3D-COMMON at the tag v0.3.8; EH3D-CORE-LIBS at the tag v0.1.4; EH3D-GERBERVIEWER at the tag v0.1.0).
 * A laser, a sheet and a paste layer from a real board, for the only validation that counts.
 
 ## Known technical debt and omitted tests
